@@ -39,8 +39,9 @@ const drawerStops = (el: HTMLElement) => {
 const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
   const featured = levels.filter(l => !l.locked);
   const [activeId, setActiveId] = useState<number>(featured[0]?.id ?? levels[0]?.id);
-  // 十二篇章入口抽屜三段：closed（只露標題列）／peek（預設，露出前四篇）／open（占滿首頁，十二篇全見）
-  const [drawerState, setDrawerState] = useState<DrawerState>('peek');
+  // 十二篇章入口抽屜三段：closed（只露標題列）／peek（半開，露出前四篇）／open（預設，占滿首頁，十二篇全見）；
+  // 點選篇章後收合到 peek 並顯示該篇預覽
+  const [drawerState, setDrawerState] = useState<DrawerState>('open');
   const drawerOpen = drawerState === 'open';
   const barRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
@@ -185,7 +186,7 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
                   onKeyDown={e => { if (open && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(level); } }}
                   className={`home-slip home-focus ${open ? 'is-open' : 'is-locked'} ${isActive && open ? 'is-active' : ''}`}
                 >
-                  <span className="home-slip-no" aria-hidden="true">{chapterLabel(index).replace('回', '')}</span>
+                  <span className="home-slip-no" aria-hidden="true">{chapterLabel(index).replace('回', '篇')}</span>
                   <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
                     {/* 篇名一律完整顯示（不跑馬燈、不截斷）：字級隨抽屜高度縮放 */}
                     <span className="home-slip-title">{level.title}</span>

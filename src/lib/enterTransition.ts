@@ -10,8 +10,12 @@
  */
 import type { LevelConfig } from '../../types';
 
-/** 頂欄／抽屜／導覽滑出畫面的時長 */
-export const ENTER_EXIT_MS = 460;
+/** 主頁 UI 滑出的總時長（v1.3.3 的 460ms × 2）：頂欄 → 篇名列 → 入陣 → 抽屜 → 底部導覽依序錯開 */
+export const ENTER_EXIT_MS = 920;
+/** 錯開的間隔（5 組，最後一組在 4 × 間隔後開始） */
+export const ENTER_EXIT_STAGGER_MS = 100;
+/** 每一組自己的滑出時長：最後一組結束＝ENTER_EXIT_MS */
+export const ENTER_EXIT_ITEM_MS = ENTER_EXIT_MS - 4 * ENTER_EXIT_STAGGER_MS;
 /** 減少動態：主頁整層淡出時長 */
 export const ENTER_REDUCED_FADE_MS = 300;
 
@@ -36,6 +40,14 @@ export function setEnterFreeze(on: boolean) {
   if (typeof document === 'undefined') return;
   if (on) document.documentElement.setAttribute(ENTER_FREEZE_ATTR, '1');
   else document.documentElement.removeAttribute(ENTER_FREEZE_ATTR);
+}
+
+/** 入陣小視窗開著時暫停主頁預覽的 CSS 動畫（呼吸、飛劍、佩刀浮動、火星…）：<html data-home-pause>；陀螺儀另以 setEnterFreeze 凍結 */
+export const HOME_PAUSE_ATTR = 'data-home-pause';
+export function setHomePause(on: boolean) {
+  if (typeof document === 'undefined') return;
+  if (on) document.documentElement.setAttribute(HOME_PAUSE_ATTR, '1');
+  else document.documentElement.removeAttribute(HOME_PAUSE_ATTR);
 }
 
 /** 主頁 → 戰鬥：同一套關鍵影格的對應（戰鬥呼吸在無縫入陣時直接改用 homeSceneBreathe） */

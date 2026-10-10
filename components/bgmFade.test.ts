@@ -157,7 +157,7 @@ describe('desiredTrack（頁面與音樂轉場）', () => {
     const { GameStatus } = await import('../types');
     expect(desiredTrack(GameStatus.MENU, false)).toBe('menu');
     expect(desiredTrack(GameStatus.CHARACTER_DETAIL, false)).toBe('menu');
-    expect(desiredTrack(GameStatus.LOADING, false)).toBeNull();
+    expect(desiredTrack(GameStatus.LOADING, false)).toBe('menu');
     expect(desiredTrack(GameStatus.PLAYING, false)).toBe('battle');
     expect(desiredTrack(GameStatus.PLAYING, true)).toBeNull();
     expect(desiredTrack(GameStatus.VICTORY, false)).toBeNull();

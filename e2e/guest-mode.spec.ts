@@ -46,7 +46,8 @@ test.describe('Guest mode (遊客進入)', () => {
     await enterAsGuest(page);
     await page.reload();
     await expect(page.getByTestId('login-guest-identity')).toContainText('目前身分：遊客', { timeout: 20_000 });
-    await page.getByRole('button', { name: '跳過動畫' }).click();
+    // 登入頁已無進場動畫（「跳過動畫」已移除）：按「進入地城」直接進入
+    await page.getByRole('button', { name: '進入地城' }).click();
     await expect(page.getByTestId('guest-badge')).toBeVisible({ timeout: 10_000 });
   });
 });

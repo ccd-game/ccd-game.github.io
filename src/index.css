@@ -118,8 +118,9 @@
         .tab-slide-active { animation: tabSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
         @keyframes fadeIn {
-            from { opacity: 0; backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px); }
-            to { opacity: 1; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+            /* -webkit- 須寫在前：寫在後面時建置（lightningcss）只保留 -webkit- 版，Chrome 模糊失效 */
+            from { opacity: 0; -webkit-backdrop-filter: blur(0px); backdrop-filter: blur(0px); }
+            to { opacity: 1; -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
         }
         
         @keyframes simpleFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -262,6 +263,12 @@
         }
         .shake-active { animation: global-shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
 
+        /* 暫停頁與入陣小視窗共用的全頁模糊半透明遮罩 */
+        .pause-overlay, .enter-modal-overlay {
+            background: rgba(10, 10, 10, 0.95); /* 0.75 → 0.95：底下的題目／文字幾乎看不清 */
+            -webkit-backdrop-filter: blur(24px); /* 先寫 -webkit-：寫在後面時建置只保留它，Chrome 模糊失效 */
+            backdrop-filter: blur(24px);
+        }
         .pause-overlay {
             position: absolute;
             inset: 0;
@@ -270,9 +277,6 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(10, 10, 10, 0.95); /* 0.75 → 0.95：底下的題目／文字幾乎看不清 */
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
         }
         .pause-overlay.hidden-pause { opacity: 0; visibility: hidden; pointer-events: none; }
         .pause-overlay.show-pause { animation: fadeIn 0.5s forwards; }
@@ -280,8 +284,8 @@
         .modern-glass-btn { 
             background: rgba(255, 255, 255, 0.08); 
             border: 1px solid rgba(255, 255, 255, 0.1); 
+            -webkit-backdrop-filter: blur(8px); /* 先寫 -webkit-：寫在後面時建置只保留它，Chrome 模糊失效 */
             backdrop-filter: blur(8px); 
-            -webkit-backdrop-filter: blur(8px); 
             color: #ddd; 
             padding: 1rem 4rem; 
             border-radius: 9999px; 
@@ -667,7 +671,8 @@
         .home-drawer.is-closed .home-drawer-list { opacity: 0; pointer-events: none; }
         .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }
         .home-drawer-list .home-slip { flex: 1; min-width: 0; min-height: 0; padding: 0 8px 0 0; }
-        .home-drawer-list .home-slip-no { width: 50px; letter-spacing: 0; font-size: clamp(12px, 2.6cqh, 14px); }
+        /* 「第一篇」…「第十二篇」最長四字：50 → 62px、字級上限 14 → 13px，不換行、不貼左側色條 */
+        .home-drawer-list .home-slip-no { width: 62px; padding-left: 3px; white-space: nowrap; letter-spacing: 0; font-size: clamp(11.5px, 2.4cqh, 13px); }
         .home-drawer-list .home-slip-title, .home-drawer-list .home-slip-sub { display: block; white-space: nowrap; overflow: visible; text-overflow: clip; padding-left: 8px; }
         .home-drawer-list .home-slip-title { font-size: clamp(12.5px, 3.1cqh, 16px); line-height: 1.25; }
         .home-drawer-list .home-slip-sub { line-height: 1.25; }
@@ -794,10 +799,14 @@ html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !importa
    主頁底色改透明，被滑開的區域直接露出下面的戰鬥畫面（不閃白／米色）。 */
 .enter-busy { pointer-events: none !important; }
 .enter-exit, .enter-exit > *, .enter-exit .home-dungeon, .enter-exit main, .enter-exit .home-hero { background: transparent !important; background-color: transparent !important; }
-.enter-exit .home-bar-top { animation: eeUp var(--ee-dur, 460ms) cubic-bezier(.55, 0, .8, .25) forwards; }
-.enter-exit :is(.home-drawer, .home-drawer-chev, .home-bar-bottom) { animation: eeDown var(--ee-dur, 460ms) cubic-bezier(.55, 0, .8, .25) forwards; }
-.enter-exit .home-hero > .relative.z-10 { animation: eeFadeDown var(--ee-dur, 460ms) cubic-bezier(.55, 0, .8, .25) forwards; }
-.enter-exit :is(.home-scene-feather, .home-embers) { animation: eeFade var(--ee-dur, 460ms) ease-in forwards; }
+/* 錯開滑出（總長 --ee-dur＝920ms）：頂欄上滑 → 篇名列 → 入陣 → 抽屜 → 底部導覽下滑，每組延遲 --ee-step、各自長 --ee-item */
+.enter-exit { --ee-ease: cubic-bezier(.55, 0, .8, .25); }
+.enter-exit .home-bar-top { animation: eeUp var(--ee-item, 520ms) var(--ee-ease) 0ms both; }
+.enter-exit .home-hero > .relative.z-10 > :not(.home-cta) { animation: eeFadeDown var(--ee-item, 520ms) var(--ee-ease) var(--ee-step, 100ms) both; }
+.enter-exit .home-hero > .relative.z-10 > .home-cta { animation: eeFadeDown var(--ee-item, 520ms) var(--ee-ease) calc(2 * var(--ee-step, 100ms)) both; }
+.enter-exit :is(.home-drawer, .home-drawer-chev) { animation: eeDown var(--ee-item, 520ms) var(--ee-ease) calc(3 * var(--ee-step, 100ms)) both; }
+.enter-exit .home-bar-bottom { animation: eeDown var(--ee-item, 520ms) var(--ee-ease) calc(4 * var(--ee-step, 100ms)) both; }
+.enter-exit :is(.home-scene-feather, .home-embers) { animation: eeFade var(--ee-dur, 920ms) ease-in forwards; }
 /* 主頁場景（背景／人物／飛劍）在滑出開始時（仍在選擇小視窗的模糊遮罩底下）換成下面同位置、同動畫進度的戰鬥場景 */
 :is(.enter-exit, .enter-exit-reduced) .home-hero :is(.home-gyro-layer, .home-hero-bg) { visibility: hidden; }
 @keyframes eeUp { to { translate: 0 calc(-100% - 8px); } }
@@ -806,3 +815,6 @@ html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !importa
 @keyframes eeFade { to { opacity: 0; } }
 /* 減少動態：不滑動，主頁整層淡出（下面即相同場景的戰鬥畫面） */
 .enter-exit-reduced { animation: eeFade var(--ee-dur, 300ms) linear forwards; }
+
+/* 入陣小視窗開著：主頁預覽動畫（呼吸、飛劍、佩刀浮動、火星…）原地暫停，取消後由同一位置繼續；陀螺儀另以 data-enter-freeze 凍結 */
+html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { animation-play-state: paused !important; }

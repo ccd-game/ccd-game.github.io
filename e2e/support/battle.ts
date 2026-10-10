@@ -72,8 +72,16 @@ export async function enterAsGuest(page: Page) {
   await expect(page.getByRole('navigation', { name: '主選單' })).toBeVisible({ timeout: 25_000 });
 }
 
+/** 首頁十二篇章抽屜預設全展開：點選該篇 → 抽屜收合到半開，預覽切到該篇 */
+export async function pickChapter(page: Page, title: string) {
+  const slip = page.locator('#home-chapter-list [role="button"]', { hasText: title }).first();
+  await slip.click();
+  await expect(page.locator('.home-drawer')).toHaveClass(/is-peek/);
+}
+
 /** 由首頁篇章卡進入戰鬥，並按「深入不毛」 */
 export async function openBattle(page: Page, bank: LevelBank) {
+  await pickChapter(page, bank.title);
   const enter = page.getByRole('button', { name: new RegExp(`入陣.*${bank.title}`) });
   for (let i = 0; i < 12 && !(await enter.isVisible()); i++) await page.getByRole('button', { name: '下一位古人' }).click();
   await enter.click();

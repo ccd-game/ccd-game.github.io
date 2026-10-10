@@ -1,11 +1,11 @@
 /**
  * 1) 演出中暫停 idle 飛劍：Boss 台詞、Boss 受擊動畫進行時，戰鬥（第 2 關柳宗元）的 .btl-saber／.btl-saber-idle
  *    computed animation-play-state 為 paused，元素不卸載；演出結束後回到 running。主頁平時為 running。
- * 2) 音樂淡入淡出：入陣（主頁音樂淡出、戰鬥音樂淡入）及戰敗（戰鬥音樂淡出）時音量是逐步變化，不是一下跳變。
+ * 2) 音樂淡入淡出：入陣小視窗開著時主頁音樂照常播放；深入不毛（主頁音樂淡出、戰鬥音樂同時淡入）及戰敗（戰鬥音樂淡出）時音量是逐步變化，不是一下跳變。
  */
 import { test, expect, type Page } from '@playwright/test';
 import { BGM_FADE_IN_MS, BGM_FADE_OUT_MS } from '../components/bgmFade';
-import { blockFirebase, clickChars, enterAsGuest, levelBank, openBattle, waitTurnActive } from './support/battle';
+import { blockFirebase, clickChars, enterAsGuest, levelBank, openBattle, pickChapter, waitTurnActive } from './support/battle';
 
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } });
 
@@ -42,6 +42,7 @@ test.describe('演出中暫停 idle 飛劍', () => {
     await enterAsGuest(page);
     const bank = levelBank(2);
     const home = page.locator('.home-saber-idle').first();
+    await pickChapter(page, bank.title);
     for (let i = 0; i < 12 && !(await home.isVisible().catch(() => false)); i++) await page.getByRole('button', { name: '下一位古人' }).click();
     await expect(home).toBeVisible();
     await expect.poll(() => home.evaluate((e) => getComputedStyle(e).animationPlayState)).toBe('running');
@@ -104,7 +105,7 @@ function expectRamp(values: number[], from: number, to: number) {
 }
 
 test.describe('音樂淡入淡出', () => {
-  test('入陣：主頁音樂淡出、戰鬥音樂淡入；戰敗：戰鬥音樂淡出（不是一下切斷）', async ({ context, page }) => {
+  test('入陣：小視窗不停主頁音樂；深入不毛：主頁音樂淡出、戰鬥音樂同時淡入；戰敗：戰鬥音樂淡出（不是一下切斷）', async ({ context, page }) => {
     test.setTimeout(120_000);
     await blockFirebase(context);
     const bank = levelBank(2);
@@ -116,13 +117,25 @@ test.describe('音樂淡入淡出', () => {
     expect(V).toBeGreaterThan(0);
     await startVolumeSampler(page);
 
-    // 入陣 → 準備畫面：主頁音樂淡出（約 800 ms）後暫停
+    // 入陣 → 「深入不毛／驀然回首」小視窗：主頁音樂照常播放（不淡出、不暫停）
+    await pickChapter(page, bank.title);
     const enter = page.getByRole('button', { name: new RegExp(`入陣.*${bank.title}`) });
     for (let i = 0; i < 12 && !(await enter.isVisible()); i++) await page.getByRole('button', { name: '下一位古人' }).click();
     await clearVol(page);
     await enter.click();
+    const go = page.getByRole('dialog', { name: '選擇入陣方式' }).getByRole('button', { name: '深入不毛' });
+    await expect(go).toBeEnabled({ timeout: 20_000 });
     await page.waitForTimeout(BGM_FADE_OUT_MS + 400);
     let s = await volSamples(page);
+    expect(s.length).toBeGreaterThan(5);
+    expect(s.every((x) => !x.menuPaused && Math.abs(x.menu - V) < 1e-9), '小視窗開著時主頁音樂維持原音量').toBe(true);
+    expect(s.every((x) => x.battlePaused)).toBe(true);
+
+    // 深入不毛 → 主頁音樂淡出、戰鬥音樂同時由 0 淡入（交叉淡變）
+    await clearVol(page);
+    await go.click();
+    await page.waitForTimeout(Math.max(BGM_FADE_IN_MS, BGM_FADE_OUT_MS) + 600);
+    s = await volSamples(page);
     const outStart = s.findIndex((x) => x.menu < V - 1e-6);
     const outEnd = s.findIndex((x, i) => i > outStart && x.menuPaused);
     expect(outStart).toBeGreaterThanOrEqual(0);
@@ -131,22 +144,16 @@ test.describe('音樂淡入淡出', () => {
     const outMs = s[outEnd].t - s[outStart].t;
     expect(outMs).toBeGreaterThan(BGM_FADE_OUT_MS * 0.6);
     expect(outMs).toBeLessThan(BGM_FADE_OUT_MS * 1.6);
-    expect(s[s.length - 1].menuPaused).toBe(true);
-
-    // 深入不毛 → 戰鬥音樂由 0 淡入至使用者音量
-    await clearVol(page);
-    // 按「入陣」後跳出選擇小視窗（深入不毛／驀然回首），選深入不毛才開始無縫入陣
-    const go = page.getByRole('dialog', { name: '選擇入陣方式' }).getByRole('button', { name: '深入不毛' });
-    await expect(go).toBeEnabled({ timeout: 20_000 });
-    await go.click();
-    await page.waitForTimeout(BGM_FADE_IN_MS + 600);
-    s = await volSamples(page);
     const inStart = s.findIndex((x) => !x.battlePaused);
     const inEnd = s.findIndex((x, i) => i > inStart && Math.abs(x.battle - V) < 1e-9);
     expect(inStart).toBeGreaterThanOrEqual(0);
     expect(inEnd).toBeGreaterThan(inStart);
     expectRamp(s.slice(inStart, inEnd + 1).map((x) => x.battle), 0, V);
+    // 同時進行：戰鬥音樂開始淡入時主頁音樂尚未淡完（兩段時間重疊）
+    expect(s[inStart].t).toBeLessThan(s[outEnd].t);
+    expect(Math.abs(s[inStart].t - s[outStart].t)).toBeLessThan(250);
     expect(Math.max(...s.map((x) => x.battle))).toBeLessThanOrEqual(V + 1e-9); // 永不超過使用者音量
+    expect(s[s.length - 1].menuPaused).toBe(true);
 
     // 戰敗：正常戰鬥中連續答錯 10 次（每次 −100），第 10 次後進入戰敗畫面，戰鬥音樂須淡出
     let q = await waitTurnActive(page, bank);

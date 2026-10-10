@@ -5,7 +5,9 @@ interface BootLoadingMaskProps {
   assets: string[];
 }
 
-/** Boot mask: preload only the assets passed in (login trio). No artificial min-display delay. */
+const bootImages: HTMLImageElement[] = [];
+
+/** Boot mask: preload + decode only the assets passed in (login background, title, character). No artificial min-display delay. */
 const BootLoadingMask: React.FC<BootLoadingMaskProps> = ({ onComplete, assets }) => {
   const [progress, setProgress] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
@@ -39,11 +41,16 @@ const BootLoadingMask: React.FC<BootLoadingMaskProps> = ({ onComplete, assets })
       if (loadedCount === total) finish();
     };
 
+    // 下載＋解碼（decode）都完成才算載入：登入頁一出現背景與人物即完整畫好，不會邊載邊顯示
     assets.forEach(url => {
       const img = new Image();
+      img.decoding = 'async';
       img.src = url;
-      img.onload = onLoad;
-      img.onerror = onLoad;
+      bootImages.push(img); // 保留參照，解碼結果留在記憶體快取
+      let counted = false;
+      const once = () => { if (!counted) { counted = true; onLoad(); } };
+      if (typeof img.decode === 'function') img.decode().then(once, once);
+      else { img.onload = once; img.onerror = once; }
     });
 
     return () => {

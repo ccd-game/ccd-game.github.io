@@ -1,6 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CHARACTER_DETAILS } from '../data/characters';
 import { portraitStyle, portraitKey, LAYERED_PORTRAITS } from '../data/portraits';
+import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, heroPeekHeight, sceneVars } from './home/heroScene';
+
+/** 背景底部羽化的長度（px）：羽化在「名字」那一行結束 */
+const CODEX_FADE_PX = 140;
 
 export interface CharacterDetailProps {
   char: {
@@ -18,7 +22,13 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   
   const animDuration = '2.5s';
   const animTiming = 'cubic-bezier(0.19, 1, 0.22, 1)';
-  const layered = LAYERED_PORTRAITS[portraitKey(char.img)];
+  const pk = portraitKey(char.img);
+  // 有首頁落地場景（HERO_SCENES）的古人：背景與人物的錨點、縮放、位置沿用首頁預覽（同一套幾何、同一個框高），兩頁構圖相同
+  const scene = HERO_SCENES[pk];
+  const layered = LAYERED_PORTRAITS[pk];
+  const nameRef = useRef<HTMLHeadingElement>(null);
+  const sceneHostRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<{ H: number; s: number; left: number; top: number; fadeEnd: number } | null>(null);
 
   // 分頁隱藏時暫停立繪動畫（飛劍循環、呼吸）
   const rootRef = useRef<HTMLDivElement>(null);
@@ -30,6 +40,30 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
     document.addEventListener('visibilitychange', sync);
     return () => document.removeEventListener('visibilitychange', sync);
   }, []);
+
+  // 場景框＝首頁預覽英雄區（抽屜半開）的大小：寬同頁寬、高由內容區高推得；
+  // 羽化終點＝名字那一行的下緣（相對場景框）
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!scene || !root || typeof ResizeObserver === 'undefined') { setFit(null); return; }
+    const sync = () => {
+      // D＝首頁內容區高＝本頁頂到底部導覽列頂（首頁 .home-dungeon 同樣由頂欄下緣延伸到導覽列上緣）
+      const nav = document.querySelector<HTMLElement>('.home-bar-bottom');
+      const W = root.clientWidth;
+      const D = nav ? nav.getBoundingClientRect().top - root.getBoundingClientRect().top : root.clientHeight;
+      if (!W || !D) return;
+      const H = heroPeekHeight(D);
+      const { s, left, top } = computeHeroFit(scene, W, H, D);
+      const host = sceneHostRef.current, name = nameRef.current;
+      const fadeEnd = host && name ? name.getBoundingClientRect().bottom - host.getBoundingClientRect().top : H;
+      setFit(f => (f && f.H === H && f.s === s && f.left === left && f.top === top && Math.abs(f.fadeEnd - fadeEnd) < 0.5) ? f : { H, s, left, top, fadeEnd });
+    };
+    const ro = new ResizeObserver(sync);
+    ro.observe(root);
+    if (nameRef.current) ro.observe(nameRef.current);
+    sync();
+    return () => ro.disconnect();
+  }, [scene]);
 
   return (
     <div ref={rootRef} className="codex-inner flex-1 flex flex-col animate-[fadeIn_0.5s_ease-out_forwards] overflow-y-auto overflow-x-hidden custom-scrollbar relative" style={{ backgroundColor: 'var(--app-bg)' }}>
@@ -51,7 +85,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
       </button>
 
       <div className="relative h-[310px] w-full flex items-end justify-center overflow-visible shrink-0 z-10 no-select-drag">
-         {!layered && (
+         {!scene && !layered && (
          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
             {/* 背景：不透明度 0.9（原 0.8），淡色洗白減少約兩成；底部淡出不變 */}
             <div 
@@ -77,7 +111,55 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
            </span>
          </div>
 
-         {layered && (
+         {scene && (
+           /* 首頁落地場景（HERO_SCENES）：背景＋人物同一套幾何（同首頁預覽的 --fit-s／l／t），框高＝首頁英雄區（抽屜半開）；
+              框延伸到名字下方，底部羽化在名字那一行結束（mask，往下才淡到頁底色） */
+           <div ref={sceneHostRef} className="codex-scene-host absolute left-0 right-0 top-0 overflow-hidden pointer-events-none"
+             style={{
+               zIndex: 5, height: fit ? fit.H : 0, visibility: fit ? 'visible' : 'hidden',
+               '--fit-s': `${fit?.s ?? 1}px`, '--fit-l': `${fit?.left ?? 0}px`, '--fit-t': `${fit?.top ?? 0}px`,
+               WebkitMaskImage: `linear-gradient(to bottom, #000 ${(fit?.fadeEnd ?? 0) - CODEX_FADE_PX}px, transparent ${fit?.fadeEnd ?? 0}px)`,
+               maskImage: `linear-gradient(to bottom, #000 ${(fit?.fadeEnd ?? 0) - CODEX_FADE_PX}px, transparent ${fit?.fadeEnd ?? 0}px)`,
+             } as React.CSSProperties}>
+             <div className="home-scene is-fit" style={heroBgFrameStyle(scene)}>
+               {SCENE_TILES.map(([i, j]) => (
+                 <img key={`${i}${j}`} src={scene.bg} alt="" className="home-scene-layer" draggable="false"
+                   style={i || j ? { left: `${i * 100}%`, top: `${j * 100}%`, transform: `scale(${i ? -1 : 1}, ${j ? -1 : 1})` } : undefined} />
+               ))}
+             </div>
+             <div className="home-scene is-fit" style={sceneVars(scene)}>
+               <div className="home-scene-fig" style={heroFigStyle(scene)}>
+                 <div className="codex-layer codex-fig-in" style={{ animation: `characterSlideIn ${animDuration} ${animTiming} forwards` }}>
+                   <div className="codex-layer codex-breathe" style={{ transformOrigin: layered?.seat ?? scene.breathe, animationDelay: animDuration }}>
+                     {layered ? (
+                       <>
+                         <div className="codex-layer codex-saber is-back" style={{ transformOrigin: layered.pivot, animationDelay: animDuration }}>
+                           <div className="codex-layer codex-saber-float">
+                             <div className="codex-layer codex-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
+                               <img className="codex-layer" src={layered.effect} alt="" draggable="false" />
+                             </div>
+                           </div>
+                         </div>
+                         <img className="codex-layer" src={layered.character} alt="" draggable="false" />
+                         <div className="codex-layer codex-saber is-front" style={{ transformOrigin: layered.pivot, animationDelay: animDuration }}>
+                           <div className="codex-layer codex-saber-float">
+                             <div className="codex-layer codex-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
+                               <img className="codex-layer" src={layered.effect} alt="" draggable="false" />
+                             </div>
+                           </div>
+                         </div>
+                       </>
+                     ) : (
+                       <img className="codex-layer" src={char.img} alt="" draggable="false" />
+                     )}
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </div>
+         )}
+
+         {!scene && layered && (
            /* 分層立繪（背景＋人物＋飛劍同一容器，與原合成圖逐像素對齊）。
               容器依原圖比例（16:9）以立繪區高度為準，至少與立繪區同寬；
               水平位置盡量使臉在 65% 處，但不讓劍尖出框，也不露出容器邊緣。 */
@@ -110,7 +192,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
          )}
 
          {/* 立繪：以臉部錨點統一定位；淡出遮罩依立繪區高度計算，確保名字下方無人物 */}
-         {!layered && <div
+         {!scene && !layered && <div
            className="absolute inset-0 overflow-hidden pointer-events-none"
            style={{
              zIndex: 10,
@@ -137,12 +219,12 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
            </div>
          </div>}
          
-         <div className="absolute inset-0 z-15 bg-gradient-to-b from-transparent via-transparent to-[var(--app-bg)] pointer-events-none"></div>
+         {!scene && <div className="absolute inset-0 z-15 bg-gradient-to-b from-transparent via-transparent to-[var(--app-bg)] pointer-events-none"></div>}
       </div>
 
       <div className="relative z-20 px-5 flex flex-col gap-0.5 pb-12" style={{ marginTop: '-12px' }}>
         <div className="text-center">
-          <h2 className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', fontFamily: "'LXGW WenKai Mono TC', serif", textShadow: '0 0 2px var(--app-bg), 0 0 8px var(--app-bg), 0 0 16px var(--app-bg)' }}>{char.name}</h2>
+          <h2 ref={nameRef} className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', fontFamily: "'LXGW WenKai Mono TC', serif", textShadow: '0 0 2px var(--app-bg), 0 0 8px var(--app-bg), 0 0 16px var(--app-bg)' }}>{char.name}</h2>
           <p className="text-[var(--gold-accent)] font-bold tracking-[3px] text-[11px] mb-1">{char.title}</p>
           <div className="w-8 h-[1px] bg-[var(--gold-accent)] mx-auto mb-1 opacity-20"></div>
           <p className="text-[10.5px] leading-snug text-left opacity-90 mb-0" style={{ color: 'var(--text-sub)' }}>
@@ -207,6 +289,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
           -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
           mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
         }
+        /* 首頁落地場景沿用 .home-scene 幾何（縮放／位置由 JS 算好的 --fit-*，與首頁 .home-hero .home-scene.is-fit 相同） */
+        .codex-scene-host .home-scene.is-fit { --s: var(--fit-s, 1px); left: var(--fit-l, 0px); top: var(--fit-t, 0px); }
         .codex-layer { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; }
         .codex-bg { opacity: 0.9; filter: grayscale(0.2); }
         .codex-fig-in { will-change: transform, opacity; }

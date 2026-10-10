@@ -8,6 +8,7 @@ import { newBattleOrder, isQuestionsExhausted } from './src/lib/battleQuestions'
 import { deriveCinematicActive, isBattleIntroStage, useCinematicAttribute } from './src/lib/cinematic';
 import DamageMultiplierPopup, { DamagePopupData } from './components/DamageMultiplierPopup';
 import { LEVELS_DATA } from './data/levels';
+import { collectAllArt, preloadAllArtInBackground } from './src/lib/artPreload';
 import { parseBossSpeeches } from './src/utils/speechParser';
 import { parseQuestionBank } from './src/utils/questionParser';
 import { evaluateInput, editableCellCount } from './src/utils/answerMatch';
@@ -34,13 +35,13 @@ import BootLoadingMask from './components/BootLoadingMask';
 import AudioManager, { AudioManagerHandle } from './components/AudioManager';
 import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence, recordLevelClear } from './src/lib/firebase';
 import { useBattleRecorder } from './src/lib/useBattleRecorder';
-import { ENTER_EXIT_MS, ENTER_REDUCED_FADE_MS, HomeSceneBox, measureHomeScene, preloadBattleImages, prefersReducedMotion, setEnterFreeze, syncHeroAnimations } from './src/lib/enterTransition';
+import { ENTER_EXIT_ITEM_MS, ENTER_EXIT_MS, ENTER_EXIT_STAGGER_MS, ENTER_REDUCED_FADE_MS, HomeSceneBox, measureHomeScene, preloadBattleImages, prefersReducedMotion, setEnterFreeze, setHomePause, syncHeroAnimations } from './src/lib/enterTransition';
 import EnterModeModal from './components/EnterModeModal';
 import type { VictoryClear } from './src/lib/battleRecorder';
 import { ALLOWED_EMAIL_DOMAINS } from './src/config/auth';
 import { loadSettings, updateSettings, subscribeSettings, pushSettingsIfSynced } from './src/lib/settingsStore';
 
-import { motion, AnimatePresence, useAnimation } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 // 入陣轉場：戰鬥 UI 可先預載；預載完成後直接同步渲染（不經 Suspense，避免交接前多等一個 fallback 週期）
 function preloadableLazy<P extends object>(factory: () => Promise<{ default: React.ComponentType<P> }>) {
@@ -117,8 +118,6 @@ const GoogleIcon = () => (
 const ALLOWED_DOMAIN_LABEL = ALLOWED_EMAIL_DOMAINS.map(d => `@${d}`).join('、');
 
 const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: AuthState }> = ({ onLogin, isExiting, authState }) => {
-  const bgControls = useAnimation();
-  const charControls = useAnimation();
   const [isActivating, setIsActivating] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => loadSettings().rememberMe);
@@ -132,56 +131,11 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
     try { await applyAuthPersistence(checked); } catch (e) { console.warn('applyAuthPersistence failed', e); }
   };
 
-  const handleEnter = async (isTest = false) => {
+  // 登入頁不再播進場動畫（原本的透視形變＋推軌鏡頭已移除）：直接進入遊戲
+  const handleEnter = () => {
+    if (isActivating) return;
     setIsActivating(true);
-    
-    // 重置起始狀態 (僅測試模式需要)
-    if (isTest) {
-      bgControls.set({ scale: 1, y: 0, rotateX: 0 });
-      charControls.set({ scale: 1, y: 0, rotateX: 0, opacity: 1 });
-    }
-
-    // 同步執行背景與角色的動畫
-    const duration = 2.5;
-    
-    // 第一階段：初始透視形變與緩慢放大
-    await Promise.all([
-      bgControls.start({
-        rotateX: 15,
-        scale: 1.2,
-        transition: { duration, ease: "easeInOut" }
-      }),
-      charControls.start({
-        rotateX: 5,
-        y: "-7.5vh",
-        scale: 1.1,
-        transition: { duration, ease: "easeInOut" }
-      })
-    ]);
-
-    // 第二階段：Dolly In (推軌鏡頭)
-    const dollyDuration = 1.5;
-    
-    // 角色與背景同步開始放大，並將旋轉度數調整至 -5 度
-    await Promise.all([
-      charControls.start({
-        scale: 1.43, // 1.1 (第一階段) * 1.3 (第二階段)
-        y: "-16vh", // 修正 y 軸偏差確保過渡平滑，且位置下移以符合視覺需求
-        rotateX: -5,
-        transition: { duration: dollyDuration, ease: "easeIn" }
-      }),
-      bgControls.start({
-        scale: 1.44, // 1.2 (第一階段) * 1.2 (第二階段)
-        y: 25,
-        transition: { duration: dollyDuration, ease: "easeIn" }
-      })
-    ]);
-
-    if (isTest) {
-      setIsActivating(false);
-    } else {
-      onLogin();
-    }
+    onLogin();
   };
 
   // 只使用 Google 登入；網域及電郵驗證檢查於 src/lib/firebase.ts 統一處理
@@ -195,18 +149,20 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
     }
   };
 
-  /** Teacher guest path: no Firebase Auth; domain gate does not apply. */
+  /** Teacher guest path: no Firebase Auth; domain gate does not apply. 按下即直接進入遊戲（按鈕不會先變成「進入地城」） */
   const handleGuestEnter = () => {
     if (isActivating || isSigningIn) return;
-    enterGuestMode();
+    setIsActivating(true);
     enterAfterSignIn.current = true;
+    enterGuestMode();
   };
 
-  // 新登入／遊客進入後，自動播放進場動畫
+  // 新登入／遊客進入後（身分已生效）直接進入遊戲，不播動畫
   useEffect(() => {
-    if (canEnterGame(authState) && enterAfterSignIn.current && !isActivating) {
+    if (canEnterGame(authState) && enterAfterSignIn.current) {
       enterAfterSignIn.current = false;
-      handleEnter(false);
+      setIsActivating(true);
+      onLogin();
     } else if (authState.status === 'rejected' || authState.status === 'signedOut') {
       if (!isSigningIn) enterAfterSignIn.current = false;
     }
@@ -214,13 +170,8 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
   }, [authState.status]);
 
   return (
-    <div className={`absolute inset-0 z-[99999] flex flex-col items-center justify-start bg-[#0f0f0f] transition-opacity duration-1000 ${isExiting ? 'opacity-0 pointer-events-none' : 'opacity-100'} overflow-hidden`} style={{ perspective: "500px" }}>
-      <motion.div 
-        animate={bgControls}
-        initial={{ scale: 1, y: "0%", rotateX: 0 }}
-        style={{ originY: 1 }} // 第一步保持錨定底部產生梯形
-        className="absolute inset-0 w-full h-full"
-      >
+    <div className={`absolute inset-0 z-[99999] flex flex-col items-center justify-start bg-[#0f0f0f] transition-opacity duration-1000 ${isExiting ? 'opacity-0 pointer-events-none' : 'opacity-100'} overflow-hidden`}>
+      <div className="absolute inset-0 w-full h-full">
         <img 
           src={`${import.meta.env.BASE_URL}resources/background/bg_loginscreen.webp`} 
           alt="背景" 
@@ -237,43 +188,30 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
         <FlickeringFire top="57.5%" left="24.2%" size="30px" />  {/* 背景左側小火 */}
         <FlickeringFire top="46.5%" left="27.8%" size="30px" />  {/* 背景深處小火 */}
         <FlickeringFire top="43.5%" left="32.5%" size="30px" />  {/* 右側柱子小火 */}
-      </motion.div>
+      </div>
 
-      <motion.div 
-        animate={charControls}
-        initial={{ scale: 1, y: "0%", opacity: 1 }}
-        className="absolute inset-0 z-10 flex justify-center items-end pointer-events-none"
-      >
+      <div className="absolute inset-0 z-10 flex justify-center items-end pointer-events-none">
         <img 
           src={`${import.meta.env.BASE_URL}resources/background/character1.webp`} 
           alt="角色" 
           className="h-[52%] w-auto object-contain object-bottom mb-[8vh]"
         />
-      </motion.div>
+      </div>
 
       {/* 底部羽化邊緣 */}
       <div className="absolute bottom-0 left-0 right-0 h-[12%] bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/80 to-transparent z-[15] pointer-events-none" />
       {/* 控制區墨色襯底：登入按鈕與說明文字不直接壓在立繪上 */}
       <div className={`login-scrim transition-opacity duration-700 ${isActivating ? 'opacity-0' : 'opacity-100'}`} aria-hidden="true" />
 
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 1.5, ease: "easeOut" }}
-        className="relative z-20 mt-[18vh] flex flex-col items-center w-full px-4"
-      >
+      <div className="relative z-20 mt-[18vh] flex flex-col items-center w-full px-4">
         <img 
           src={`${import.meta.env.BASE_URL}resources/background/bg_logingamename.webp`} 
           alt="遊戲名稱" 
           className="w-[95%] max-w-[675px] h-auto drop-shadow-[0_0_15px_rgba(212,175,55,0.3)]"
         />
-      </motion.div>
+      </div>
 
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.8, duration: 1.0 }}
-        className="absolute bottom-[10%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center w-full px-8"
+      <div className="absolute bottom-[10%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center w-full px-8"
       >
         {authState.message && (
           <div
@@ -285,12 +223,12 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
           </div>
         )}
 
-        {isAuthorized ? (
+        {isAuthorized && !isActivating && !enterAfterSignIn.current ? (
           <>
             <div className="relative w-full max-w-[320px] pointer-events-auto">
               <div className="absolute inset-0 bg-[#d4af37]/10 blur-2xl rounded-full"></div>
               <button 
-                onClick={() => handleEnter(false)}
+                onClick={handleEnter}
                 disabled={isActivating}
                 className="w-full py-4 bg-black/70 text-[#d4af37] border-2 border-[#d4af37]/40 rounded-full font-bold text-2xl tracking-[16px] indent-[16px] transition-all duration-300 active:scale-95 active:bg-black/90 shadow-[0_0_30px_rgba(0,0,0,0.6)] hover:border-[#d4af37] relative z-30"
                 style={{ fontFamily: "'LXGW WenKai Mono TC', monospace" }}
@@ -299,14 +237,6 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
               </button>
             </div>
 
-            {/* 跳過動畫按鈕 */}
-            <button
-              onClick={() => onLogin()}
-              disabled={isActivating}
-              className="mt-4 pointer-events-auto text-[#d4af37]/60 text-sm underline hover:text-[#d4af37] transition-colors"
-            >
-              跳過動畫
-            </button>
 
             {!isActivating && (isGuest ? (
               <p className="login-identity pointer-events-auto" data-testid="login-guest-identity">
@@ -356,7 +286,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
             <p id="guest-enter-caption" className="login-guest-caption">遊客模式不會保存進度，亦不會登上排行榜</p>
           </>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 };
@@ -532,7 +462,13 @@ const App: React.FC = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // Boot preload: login screen trio only (defer level art / ink_splash until in-game).
+  // 登入頁三張圖載完（開機遮罩結束）後，所有關卡背景與人物圖在背景以低優先度同時預載＋解碼（不擋登入按鈕）
+  useEffect(() => {
+    if (isBooting) return;
+    void preloadAllArtInBackground(collectAllArt(LEVELS_DATA));
+  }, [isBooting]);
+
+  // Boot preload: login screen trio first (level art follows in the background after boot, low priority).
   const preloadAssets = useMemo(() => [
     `${import.meta.env.BASE_URL}resources/background/bg_loginscreen.webp`,
     `${import.meta.env.BASE_URL}resources/background/bg_logingamename.webp`,
@@ -639,6 +575,7 @@ const App: React.FC = () => {
       battleQuestionsRef.current = [];
       setBattleQuestions([]);
       setIsQuitConfirmOpen(false);
+      setHomePause(false);
 
       setGameState(p => ({
         ...p,
@@ -1054,9 +991,12 @@ const App: React.FC = () => {
     return () => clearTimeout(id);
   });
 
-  // 入陣：先跳出「深入不毛／驀然回首」小視窗（狀態 LOADING，與原本載入頁相同：讀題庫、主頁音樂淡出），同時背景預載戰鬥資源
+  // 入陣：先跳出「深入不毛／驀然回首」小視窗（狀態 LOADING：讀題庫；主頁音樂照常播放），同時背景預載戰鬥資源。
+  // 視窗開著時主頁預覽動畫原地暫停、陀螺儀凍結（取消後由同一位置繼續；深入不毛則由此進度接到戰鬥）
   const handleEnterLevel = useCallback((l: LevelConfig) => {
     if (enterPhase !== 'idle') return;
+    setHomePause(true);
+    setEnterFreeze(true);
     setEnterAssetsReady(false);
     setHomeBox(null);
     setCurrentLevel(l);
@@ -1065,7 +1005,17 @@ const App: React.FC = () => {
     Promise.all([preloadBattleImages(l), preloadBattleChunks()]).then(() => setEnterAssetsReady(true));
   }, [enterPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 深入不毛：凍結主頁視差，開始無縫入陣
+  // 驀然回首：只關閉小視窗、留在主頁（不淡出整頁）；主頁音樂未曾停，預覽動畫與陀螺儀由暫停處繼續
+  const handleEnterCancel = useCallback(() => {
+    if (enterPhase !== 'idle') return;
+    setHomePause(false);
+    setEnterFreeze(false);
+    setCurrentLevel(null);
+    setLevelQuestions([]);
+    setGameState(p => ({ ...p, status: GameStatus.MENU }));
+  }, [enterPhase]);
+
+  // 深入不毛：主頁維持暫停／凍結（動畫進度在交接時原樣接到戰鬥），開始無縫入陣；狀態轉為 PLAYING 時主頁音樂淡出、戰鬥音樂同時淡入
   const handleDeepIn = useCallback(() => {
     if (enterPhase !== 'idle' || isQuestionsFetching) return;
     setEnterFreeze(true);
@@ -1098,6 +1048,8 @@ const App: React.FC = () => {
         if (cancelled) return;
         // 主頁動畫進度（呼吸、飛劍路徑／浮動）原樣接到戰鬥頁，之後同一 timeline 同速前進
         syncHeroAnimations(appRootRef.current?.querySelector('.home-hero') ?? null, battleClipRef.current);
+        // 主頁場景此刻已換成同位置的戰鬥場景（主頁場景隱藏），解除暫停好讓主頁 UI 的錯開滑出動畫播放
+        setHomePause(false);
         setEnterPhase('exit');
       });
     };
@@ -1227,7 +1179,7 @@ const App: React.FC = () => {
 
       {isAuthorized && (
       <div className={`absolute inset-0 transition-opacity ${enterPhase !== 'idle' ? 'duration-0' : 'duration-700'} ${showMenuScreen ? 'z-[500] opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'}${enterPhase !== 'idle' ? ' enter-busy' : ''}${enterPhase === 'exit' ? (enterReduced ? ' enter-exit-reduced' : ' enter-exit') : ''}`}
-        style={enterPhase === 'exit' ? { '--ee-dur': `${enterReduced ? ENTER_REDUCED_FADE_MS : ENTER_EXIT_MS}ms` } as React.CSSProperties : undefined}>
+        style={enterPhase === 'exit' ? { '--ee-dur': `${enterReduced ? ENTER_REDUCED_FADE_MS : ENTER_EXIT_MS}ms`, '--ee-item': `${ENTER_EXIT_ITEM_MS}ms`, '--ee-step': `${ENTER_EXIT_STAGGER_MS}ms` } as React.CSSProperties : undefined}>
         <Suspense fallback={<SoftFallback />}>
         <MenuScreen
           levels={LEVELS_DATA}
@@ -1267,7 +1219,7 @@ const App: React.FC = () => {
 
       {isLoggedIn && (gameState.status === GameStatus.LOADING || (enterPhase !== 'idle' && enterPhase !== 'done')) && (
         // 深入不毛後小視窗留到主頁 UI 開始滑出才淡出：場景由主頁換成（同位置的）戰鬥畫面就在視窗的模糊遮罩底下完成
-        <EnterModeModal level={currentLevel} isLoading={isQuestionsFetching} onConfirm={handleDeepIn} onCancel={resetToStart}
+        <EnterModeModal level={currentLevel} isLoading={isQuestionsFetching} onConfirm={handleDeepIn} onCancel={handleEnterCancel}
           closing={enterPhase === 'exit'} busy={enterPhase !== 'idle'} />
       )}
 
@@ -1283,12 +1235,9 @@ const App: React.FC = () => {
                   <span className="absolute bottom-[-26px] right-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>」</span>
                 </div>
                 <div className={`relative flex flex-col items-center transition-transform duration-300 ${isQuitConfirmExiting ? 'scale-95' : 'scale-100'}`}>
-                  {/* 卡片底：上緣包住圖示＋標題（46 + 80 + 28 + 28 + 32），下緣在第二顆按鈕下 46px */}
-                  <div className="absolute left-1/2 -translate-x-1/2 w-[310px] bg-[#1a1a1a] rounded-[30px] border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] pointer-events-none" style={{ top: -(46 + 80 + 28 + 28 + 32), bottom: -46 }} />
+                  {/* 卡片底：上緣包住標題（46 + 28 + 32；已移除「學」圓章），下緣在第二顆按鈕下 46px */}
+                  <div className="absolute left-1/2 -translate-x-1/2 w-[310px] bg-[#1a1a1a] rounded-[30px] border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] pointer-events-none" style={{ top: -(46 + 28 + 32), bottom: -46 }} />
                   <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center" style={{ bottom: 'calc(100% + 32px)' }}>
-                    <div className="w-20 h-20 rounded-full border-[3px] border-[#d4af37] flex items-center justify-center mb-7 animate-icon-glow">
-                       <span className="text-[#d4af37] text-4xl font-black translate-x-[-1px]">{UI_STATIC_TEXT.PAUSE.resume[0]}</span>
-                    </div>
                     <h3 className="text-white text-xl font-bold tracking-[4px] h-7 leading-7 whitespace-nowrap">{UI_STATIC_TEXT.QUIT_CONFIRM.title}</h3>
                   </div>
                   <button onClick={() => { setIsQuitConfirmExiting(true); setTimeout(() => { setIsQuitConfirmOpen(false); setIsQuitConfirmExiting(false); }, 300); }} className="modern-glass-btn active:scale-95 !bg-[#d4af37] !text-black !border-[#d4af37] shadow-[0_4px_15_rgba(212,175,55,0.3)] mb-6 relative">{UI_STATIC_TEXT.QUIT_CONFIRM.keep}</button>

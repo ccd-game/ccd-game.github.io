@@ -112,6 +112,7 @@ export type BgmTrack = 'menu' | 'battle';
  */
 export function desiredTrack(status: GameStatus, isPaused: boolean): BgmTrack | null {
   if (status === GameStatus.PLAYING) return isPaused ? null : 'battle';
-  if (status === GameStatus.MENU || status === GameStatus.CHARACTER_DETAIL) return 'menu';
+  // LOADING＝入陣後的「深入不毛／驀然回首」小視窗：主頁音樂照常播放（深入不毛後才與戰鬥音樂交叉淡變）
+  if (status === GameStatus.MENU || status === GameStatus.CHARACTER_DETAIL || status === GameStatus.LOADING) return 'menu';
   return null;
 }

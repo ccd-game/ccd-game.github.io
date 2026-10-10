@@ -10,6 +10,7 @@ import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseQuestionBank } from '../src/utils/questionParser';
+import { pickChapter } from './support/battle';
 
 const ROOT = process.cwd();
 const LEVEL_ID = 2; // 《始得西山宴遊記》（已開放，40 題）
@@ -138,7 +139,8 @@ async function enterBattle(page: Page) {
   await expect(page.getByText('載入中')).toHaveCount(0, { timeout: 20_000 });
   await page.getByTestId('guest-enter').click();
   await expect(page.getByRole('navigation', { name: '主選單' })).toBeVisible({ timeout: 25_000 });
-  // 首頁篇章卡：切換至目標篇章後按「入陣」
+  // 首頁十二篇章抽屜預設全展開：先點選目標篇章（抽屜收合、預覽切到該篇），再按「入陣」
+  await pickChapter(page, LEVEL_TITLE);
   const enter = page.getByRole('button', { name: new RegExp(`入陣.*${LEVEL_TITLE}`) });
   for (let i = 0; i < 12 && !(await enter.isVisible()); i++) await page.getByRole('button', { name: '下一位古人' }).click();
   await enter.click();
