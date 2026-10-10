@@ -180,7 +180,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
         className="absolute inset-0 w-full h-full"
       >
         <img 
-          src={`${import.meta.env.BASE_URL}resources/background/bg_loginscreen.png`} 
+          src={`${import.meta.env.BASE_URL}resources/background/bg_loginscreen.webp`} 
           alt="背景" 
           className="w-full h-full object-cover"
         />
@@ -203,7 +203,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
         className="absolute inset-0 z-10 flex justify-center items-end pointer-events-none"
       >
         <img 
-          src={`${import.meta.env.BASE_URL}resources/background/character1.png`} 
+          src={`${import.meta.env.BASE_URL}resources/background/character1.webp`} 
           alt="角色" 
           className="h-[52%] w-auto object-contain object-bottom mb-[8vh]"
         />
@@ -219,7 +219,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
         className="relative z-20 mt-[18vh] flex flex-col items-center w-full px-4"
       >
         <img 
-          src={`${import.meta.env.BASE_URL}resources/background/bg_logingamename.png`} 
+          src={`${import.meta.env.BASE_URL}resources/background/bg_logingamename.webp`} 
           alt="遊戲名稱" 
           className="w-[95%] max-w-[675px] h-auto drop-shadow-[0_0_15px_rgba(212,175,55,0.3)]"
         />
@@ -456,18 +456,12 @@ const App: React.FC = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  const preloadAssets = useMemo(() => {
-    const urls = new Set<string>();
-    LEVELS_DATA.forEach(level => {
-      if (level.bossImg) urls.add(level.bossImg);
-      if (level.bgImg) urls.add(level.bgImg);
-    });
-    urls.add(`${import.meta.env.BASE_URL}resources/effect/ink_splash.png`);
-    urls.add(`${import.meta.env.BASE_URL}resources/background/bg_loginscreen.png`);
-    urls.add(`${import.meta.env.BASE_URL}resources/background/bg_logingamename.png`);
-    urls.add(`${import.meta.env.BASE_URL}resources/background/character1.png`);
-    return Array.from(urls);
-  }, []);
+  // Boot preload: login screen trio only (defer level art / ink_splash until in-game).
+  const preloadAssets = useMemo(() => [
+    `${import.meta.env.BASE_URL}resources/background/bg_loginscreen.webp`,
+    `${import.meta.env.BASE_URL}resources/background/bg_logingamename.webp`,
+    `${import.meta.env.BASE_URL}resources/background/character1.webp`,
+  ], []);
 
   const timerRef = useRef<number | null>(null);
   const gameInstanceIdRef = useRef<number>(0);

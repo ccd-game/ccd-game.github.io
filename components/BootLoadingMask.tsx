@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 
 interface BootLoadingMaskProps {
@@ -6,6 +5,7 @@ interface BootLoadingMaskProps {
   assets: string[];
 }
 
+/** Boot mask: preload only the assets passed in (login trio). No artificial min-display delay. */
 const BootLoadingMask: React.FC<BootLoadingMaskProps> = ({ onComplete, assets }) => {
   const [progress, setProgress] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
@@ -13,20 +13,27 @@ const BootLoadingMask: React.FC<BootLoadingMaskProps> = ({ onComplete, assets })
   useEffect(() => {
     let loadedCount = 0;
     const total = assets.length;
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
 
     const finish = () => {
-      setTimeout(() => {
-        setIsFadingOut(true);
-        setTimeout(onComplete, 800);
-      }, 500);
+      if (cancelled) return;
+      setIsFadingOut(true);
+      // Match CSS transition-opacity duration-700; not a min-display wait.
+      fadeTimer = setTimeout(onComplete, 700);
     };
 
     if (total === 0) {
-      setTimeout(finish, 1000);
-      return;
+      setProgress(100);
+      finish();
+      return () => {
+        cancelled = true;
+        if (fadeTimer) clearTimeout(fadeTimer);
+      };
     }
 
     const onLoad = () => {
+      if (cancelled) return;
       loadedCount++;
       setProgress(Math.floor((loadedCount / total) * 100));
       if (loadedCount === total) finish();
@@ -38,6 +45,11 @@ const BootLoadingMask: React.FC<BootLoadingMaskProps> = ({ onComplete, assets })
       img.onload = onLoad;
       img.onerror = onLoad;
     });
+
+    return () => {
+      cancelled = true;
+      if (fadeTimer) clearTimeout(fadeTimer);
+    };
   }, [assets, onComplete]);
 
   return (
