@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { GameStatus, GameState, Question, QuestionType, LevelConfig } from './types';
+import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, FLYING_SWORD_TIMING } from './types';
 import { TEXT_CORPUS, MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT } from './constants';
 import { LEVELS_DATA } from './data/levels';
 import { parseBossSpeeches } from './src/utils/speechParser';
@@ -539,23 +539,41 @@ const App: React.FC = () => {
       setIsInputErrorDimmed(true); setSuppressExitAnim(false); 
       await new Promise(r => setTimeout(r, 500 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
+      const attackStyle = getBossAttackStyle(currentLevel);
+      const newPlayerHp = Math.max(0, gameState.playerHp - 1000);
       setEnemyAnimState('attack');
-      await new Promise(r => setTimeout(r, 640 * timeScale));
-      if (gameInstanceIdRef.current !== id) return;
-      setIsBossSlashActive(true); setIsScreenShaking(true); setIsScreenFlash(true); setIsPlayerHurt(true);
-      setTimeout(() => setIsScreenFlash(false), 150 * timeScale);
-      if (currentLevel.id !== 6) {
+      if (attackStyle === 'flyingSword') {
+        // 飛劍：一段命中；扣血與命中特效同步（時間點與 BattleArea 的 CSS 時間軸共用 FLYING_SWORD_TIMING）
+        const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+        await new Promise(r => setTimeout(r, FLYING_SWORD_TIMING.impact * timeScale));
+        if (gameInstanceIdRef.current !== id) return;
+        setIsBossSlashActive(true); setIsScreenFlash(true); setIsPlayerHurt(true);
+        if (!reduceMotion) setIsScreenShaking(true);
+        setGameState(p => ({ ...p, playerHp: newPlayerHp }));
+        setTimeout(() => setIsScreenFlash(false), 150 * timeScale);
+        await new Promise(r => setTimeout(r, 300 * timeScale));
+        if (gameInstanceIdRef.current !== id) return;
+        setIsSlotsFalling(true);
+        await new Promise(r => setTimeout(r, 300 * timeScale));
+        if (gameInstanceIdRef.current !== id) return;
+        setShowSlotsUI(false); setShowQuestionUI(false);
+      } else {
         await new Promise(r => setTimeout(r, 640 * timeScale));
         if (gameInstanceIdRef.current !== id) return;
-        setIsScreenShaking(false); setTimeout(() => setIsScreenShaking(true), 10);
-        setIsScreenFlash(true); setTimeout(() => setIsScreenFlash(false), 150 * timeScale);
+        setIsBossSlashActive(true); setIsScreenShaking(true); setIsScreenFlash(true); setIsPlayerHurt(true);
+        setTimeout(() => setIsScreenFlash(false), 150 * timeScale);
+        if (attackStyle !== 'chariotCharge') {
+          await new Promise(r => setTimeout(r, 640 * timeScale));
+          if (gameInstanceIdRef.current !== id) return;
+          setIsScreenShaking(false); setTimeout(() => setIsScreenShaking(true), 10);
+          setIsScreenFlash(true); setTimeout(() => setIsScreenFlash(false), 150 * timeScale);
+        }
+        setIsSlotsFalling(true); 
+        await new Promise(r => setTimeout(r, 300 * timeScale));
+        if (gameInstanceIdRef.current !== id) return;
+        setShowSlotsUI(false); setShowQuestionUI(false); 
+        setGameState(p => ({ ...p, playerHp: newPlayerHp }));
       }
-      setIsSlotsFalling(true); 
-      await new Promise(r => setTimeout(r, 300 * timeScale));
-      if (gameInstanceIdRef.current !== id) return;
-      setShowSlotsUI(false); setShowQuestionUI(false); 
-      const newPlayerHp = Math.max(0, gameState.playerHp - 1000);
-      setGameState(p => ({ ...p, playerHp: newPlayerHp }));
       await new Promise(r => setTimeout(r, 1000 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       if (newPlayerHp <= 0) {
@@ -676,7 +694,7 @@ const App: React.FC = () => {
       
       {isLoggedIn && gameState.status === GameStatus.PLAYING && (
         <>
-          <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} isFatigue={gameState.enemyHp <= 0} bossName={currentLevel?.bossName || ""} bossImg={currentLevel?.bossImg || ""} speedMultiplier={speedMultiplier} />
+          <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} isFatigue={gameState.enemyHp <= 0} bossName={currentLevel?.bossName || ""} bossImg={currentLevel?.bossImg || ""} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} flyingSword={currentLevel?.flyingSword} />
           <div className="absolute bottom-0 left-0 w-full z-[80] h-[40%]" style={{ backgroundColor: 'var(--app-bg)' }}>
             <InputPad options={shuffledOptions} usedIndices={gameState.usedIndices} disabled={!gameState.isTurnActive || gameState.isPaused} onOptionClick={handleOptionClickAction} isEnemyAttacking={isInputErrorDimmed} showUI={showInputPadUI} isExiting={isInputPadExiting} suppressExitAnim={suppressExitAnim} />
             <BossSpeech message={bossSpeechMsg} bossName={currentLevel?.bossName || ""} duration={isFatalDefeat ? 99999 : 2000 * timeScale} isFatal={isFatalDefeat} theme={theme} />

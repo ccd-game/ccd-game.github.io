@@ -14,7 +14,20 @@ export const LEVELS_DATA: LevelConfig[] = [
     bossImg: `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan.png`,
     bgImg: `${import.meta.env.BASE_URL}resources/background/bg_level_2.png`,
     quote: '心凝形釋，與萬化冥合。',
-    locked: false
+    locked: false,
+    // 攻擊：手中火焰刀化為飛劍，刺向玩家後飛回手中
+    attackStyle: 'flyingSword',
+    flyingSword: {
+      characterImg: `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan_character.png`,
+      effectImg: `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan_effect.png`,
+      frameW: 1280, frameH: 720,
+      // liu_zong_yuan_battle.png = 全幅合成圖（effect 在下、character 在上）裁切 (70, 13) 起 1135×623
+      crop: { x: 70, y: 13, w: 1135, h: 623 },
+      pivot: { x: 612.9, y: 214.6 },
+      // 旋轉中心＝劍柄 (612.9, 214.6)；劍柄 → 劍尖 (229, 156) 角度 -171.32°（見 lzy-layers/v3/saber/saber_meta.json）
+      tipAngle: -171.32,
+      bladeLength: 388.4
+    }
   },
   {
     id: 3, title: "《岳陽樓記》", subTitle: "范仲淹", sheetIds: [3], bossName: "范仲淹",

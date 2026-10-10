@@ -49,7 +49,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
           <div className="w-1 h-4 bg-[var(--gold-accent)]"></div>
           <span className="text-[12px] font-black tracking-[6px] uppercase" style={{ color: 'var(--text-main)' }}>修煉環境設定</span>
         </div>
-        <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--text-sub)' }}>SYSTEM / V1.2.0</span>
+        <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--text-sub)' }}>SYSTEM</span>
       </div>
 
       <div className="w-full space-y-6">
@@ -162,7 +162,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
 
         <div className="flex items-center justify-between p-5 rounded-2xl border opacity-50" style={{ backgroundColor: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}>
           <span className="text-sm font-bold tracking-[2px]" style={{ color: 'var(--text-main)' }}>版本資訊</span>
-          <span className="text-[10px] font-black" style={{ color: 'var(--gold-accent)' }}>V1.2.0</span>
+          <span className="text-[10px] font-black" style={{ color: 'var(--gold-accent)' }}>v{__APP_VERSION__}</span>
         </div>
       </div>
       
