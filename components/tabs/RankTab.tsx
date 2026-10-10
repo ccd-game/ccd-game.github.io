@@ -122,7 +122,7 @@ const RankTab: React.FC = () => {
         </div>
         <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--text-sub)' }}>GLOBAL RANK</span>
       </div>
-      <p className="text-[11px] leading-relaxed opacity-60 px-1 -mt-3 mb-2" style={{ color: 'var(--text-sub)' }} data-testid="rank-score-note">每一關會按你的通關時間計分，用時愈短，得分愈高。每關只計你最好的一次成績，把各關的最高分加起來，再加上經驗值的三成，就是你的總分。</p>
+      <p className="text-[11px] leading-relaxed opacity-90 px-1 -mt-3 mb-2" style={{ color: 'var(--text-sub)' }} data-testid="rank-score-note">每一關會按你的通關時間計分，用時愈短，得分愈高。每關只計你最好的一次成績，把各關的最高分加起來，再加上經驗值的三成，就是你的總分。</p>
 
       <div className="flex items-end justify-center gap-2 mb-8 mt-4 h-48">
         <div className="flex flex-col items-center w-1/3">
@@ -132,7 +132,7 @@ const RankTab: React.FC = () => {
            <div className="w-full h-24 bg-gradient-to-t from-black/20 to-transparent border-t border-white/20 rounded-t-lg flex flex-col items-center p-2">
              <RankName label={top3[1].name} className="text-[10px] font-bold" />
              <div className="flex flex-col items-center">
-               <span className="text-[9px] text-[#d4af37] font-bold">{top3[1].score} pt</span>
+               <span className="text-[9px] font-bold" style={{ color: 'var(--gold-accent)' }}>{top3[1].score} pt</span>
                <span className="text-[8px] opacity-60 uppercase" style={{ color: 'var(--text-sub)' }}>LV.{top3[1].level}</span>
              </div>
            </div>
@@ -147,7 +147,7 @@ const RankTab: React.FC = () => {
            <div className="w-full h-32 bg-gradient-to-t from-black/20 to-transparent border-t border-[#d4af37]/40 rounded-t-lg flex flex-col items-center p-2">
              <RankName label={top3[0].name} className="text-[12px] font-black" />
              <div className="flex flex-col items-center">
-               <span className="text-[10px] text-[#d4af37] font-bold">{top3[0].score} pt</span>
+               <span className="text-[10px] font-bold" style={{ color: 'var(--gold-accent)' }}>{top3[0].score} pt</span>
                <span className="text-[9px] opacity-80 uppercase font-bold" style={{ color: 'var(--text-main)' }}>LV.{top3[0].level}</span>
              </div>
            </div>
@@ -159,7 +159,7 @@ const RankTab: React.FC = () => {
            <div className="w-full h-20 bg-gradient-to-t from-black/20 to-transparent border-t border-white/20 rounded-t-lg flex flex-col items-center p-2">
              <RankName label={top3[2].name} className="text-[10px] font-bold" />
              <div className="flex flex-col items-center">
-               <span className="text-[9px] text-[#d4af37] font-bold">{top3[2].score} pt</span>
+               <span className="text-[9px] font-bold" style={{ color: 'var(--gold-accent)' }}>{top3[2].score} pt</span>
                <span className="text-[8px] opacity-60 uppercase" style={{ color: 'var(--text-sub)' }}>LV.{top3[2].level}</span>
              </div>
            </div>

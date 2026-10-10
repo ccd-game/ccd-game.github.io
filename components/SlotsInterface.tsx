@@ -17,12 +17,12 @@ const SlotsInterface: React.FC<SlotsInterfaceProps> = React.memo(({ userInput, s
 
   const getSlotAnimationClass = (slot: UserInputSlot, idx: number) => {
     if (isConverging) return 'char-converge-active';
-    if (lastImpactIndex === idx && slot.char) return 'stamp-active'; 
+    if (lastImpactIndex === idx && slot.char && !slot.locked) return 'stamp-active';
     return '';
   };
 
   const getTileFallStyle = (slot: UserInputSlot, idx: number) => {
-    if (isFalling && slot.char) {
+    if (isFalling && slot.char && !slot.locked) { // 預填格固定，不會掉落
       const animName = idx % 2 === 0 ? 'fall-left' : 'fall-right';
       return `${animName} 1.4s cubic-bezier(0.5, 0, 0.75, 0) forwards ${idx * 0.05}s`;
     }
@@ -60,8 +60,12 @@ const SlotsInterface: React.FC<SlotsInterfaceProps> = React.memo(({ userInput, s
 
         return (
           <div key={`slot-${idx}`} 
-            onClick={() => onSlotClear(idx)}
-            className="w-full aspect-square max-w-[42px] rounded-xl flex items-center justify-center relative border-2 overflow-visible"
+            onClick={slot.locked ? undefined : () => onSlotClear(idx)}
+            data-slot-index={idx}
+            data-locked={slot.locked ? 'true' : undefined}
+            aria-disabled={slot.locked ? true : undefined}
+            title={slot.locked ? '預填（不可更改）' : undefined}
+            className={`w-full aspect-square max-w-[42px] rounded-xl flex items-center justify-center relative border-2 overflow-visible ${slot.locked ? 'cursor-default' : ''}`}
             style={{ 
               backgroundColor: 'var(--slot-bg)',
               borderColor: 'var(--panel-border)'
@@ -70,7 +74,9 @@ const SlotsInterface: React.FC<SlotsInterfaceProps> = React.memo(({ userInput, s
             {slot.char && (
               <div 
                 className={`absolute inset-[-2px] rounded-xl flex items-center justify-center text-[1.4rem] font-black border-2 transition-[opacity] duration-200 
-                  bg-white/25 border-[#d4af37] text-white shadow-[0_0_15px_rgba(212,175,55,0.4)]
+                  ${slot.locked
+                    ? 'bg-black/45 border-dashed border-[#d4af37]/60 text-[#d4af37]'
+                    : 'bg-white/25 border-[#d4af37] text-white shadow-[0_0_15px_rgba(212,175,55,0.4)]'}
                   ${animClass}
                 `}
                 style={{ 
@@ -83,7 +89,7 @@ const SlotsInterface: React.FC<SlotsInterfaceProps> = React.memo(({ userInput, s
                 }}
               >
                 {slot.char}
-                {showUI && !isFalling && !isConverging && lastImpactIndex === idx && (
+                {showUI && !isFalling && !isConverging && lastImpactIndex === idx && !slot.locked && (
                   <div className="absolute inset-0 bg-white/20 rounded-xl animate-ping pointer-events-none" />
                 )}
               </div>

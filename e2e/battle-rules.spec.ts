@@ -9,9 +9,10 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseQuestionBank } from '../src/utils/questionParser';
 
 const ROOT = process.cwd();
-const LEVEL_ID = 2; // 《始得西山宴遊記》（已開放，28 題）
+const LEVEL_ID = 2; // 《始得西山宴遊記》（已開放，40 題）
 const LEVEL_TITLE = '始得西山宴遊記';
 const PLAYER_MAX = 1000, WRONG_DMG = 100, BOSS_MAX = 1000;
 const THRESHOLDS = [80, 60, 40, 20, 0];
@@ -21,7 +22,8 @@ const GUEST_DATA_KEY = 'ccd.guest.data.v2';
 const qbMd = fs.readFileSync(path.join(ROOT, 'QUESTION_BANK.md'), 'utf8');
 const rowRe = /^\|\s*(\d+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|/;
 const levelRows = qbMd.split('\n').filter((l) => { const m = l.match(rowRe); return m && +m[1] === LEVEL_ID; });
-const bank = levelRows.map((l) => l.match(rowRe)!).map((m) => ({ question: m[3].trim(), answers: m[4].trim().split('/').map((a) => a.trim()).filter(Boolean) }));
+// 答案以遊戲本身的解析器拆出（[預填]、/ ／）；answers 只含要輸入的部分
+const bank = parseQuestionBank(levelRows.join('\n'), () => {}).map((q) => ({ question: q.question, answers: q.answers }));
 const byText = new Map(bank.map((q) => [q.question, q]));
 
 const spMd = fs.readFileSync(path.join(ROOT, 'BOSS_SPEECHES.md'), 'utf8');
@@ -123,7 +125,7 @@ async function clickChars(page: Page, chars: string[]) {
 async function wrongChars(page: Page, q: string) {
   const item = byText.get(q)!;
   const bad = [...new Set(item.answers.join(''))];
-  const n = Math.max(...item.answers.map((a) => a.length));
+  const n = Math.max(...item.answers.map((a) => [...a].length));
   return page.evaluate(({ bad, n }) => {
     const out: string[] = [];
     for (const b of document.querySelectorAll<HTMLButtonElement>('.input-pad-btn')) { const c = b.textContent!.trim(); if (!b.disabled && !bad.includes(c) && out.length < n) out.push(c); }

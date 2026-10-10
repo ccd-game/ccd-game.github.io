@@ -37,3 +37,13 @@ export function computeDamageDetail(
 export function computeDamage(input: DamageInput, multiplier: SpeedMultiplierFn = speedMultiplier): number {
   return computeDamageDetail(input, multiplier).damage;
 }
+
+/**
+ * Boss 每一擊（答錯、超時；所有攻擊演出：揮斬、戰車衝鋒、飛劍、X 斬）扣玩家 HP 的唯一計算。
+ * 傷害固定為 WRONG_ANSWER_DAMAGE（100）；結果不低於 0。App 只經此函式扣血。
+ */
+export function playerHpAfterBossHit(currentHp: number, damage: number): number {
+  const hp = Number.isFinite(currentHp) ? currentHp : 0;
+  const d = Number.isFinite(damage) ? Math.max(0, damage) : 0;
+  return Math.max(0, hp - d);
+}

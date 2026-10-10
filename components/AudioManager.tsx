@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { GameStatus } from '../types';
 import { applyBgmVolume } from './bgmVolume';
+import { BGM_FADE_IN_MS, BGM_FADE_OUT_MS, TrackFader, desiredTrack, type BgmTrack as Track } from './bgmFade';
 
 export { applyBgmVolume };
 
@@ -11,8 +12,9 @@ interface AudioManagerProps {
   bgmVolume: number; // 新增屬性
   isBooting: boolean;
   isLoggedIn: boolean;
+  /** 戰鬥暫停：戰鬥音樂淡出並暫停，繼續時由原位置淡入 */
+  isPaused?: boolean;
 }
-
 export interface AudioManagerHandle {
   resetBattleMusic: () => void;
   unlockAudio: () => Promise<void>;
@@ -31,8 +33,58 @@ battleAudio.loop = true;
 menuAudio.preload = "auto";
 battleAudio.preload = "auto";
 
+/** 使用者設定的 BGM 音量（0–1）；淡入淡出的 gain 乘上此值，所以永不超過設定 */
+let userVolume = 1;
+const menuFader = new TrackFader(menuAudio, () => userVolume);
+const battleFader = new TrackFader(battleAudio, () => userVolume);
+
 function applyVolumeToTracks(volume: number): void {
-  applyBgmVolume(volume, menuAudio, battleAudio);
+  userVolume = volume;
+  menuFader.apply();
+  battleFader.apply();
+}
+
+const TRACKS: Record<Track, { el: HTMLAudioElement; fader: TrackFader }> = {
+  menu: { el: menuAudio, fader: menuFader },
+  battle: { el: battleAudio, fader: battleFader },
+};
+
+/** 目前想播放的音軌；淡出完成時用來確認是否仍要暫停（避免與後來的轉場互相干擾） */
+let wanted: Track | null = null;
+
+function fadeIn(track: Track): void {
+  const { el, fader } = TRACKS[track];
+  if (el.paused) {
+    fader.set(0);
+    el.play()
+      .then(() => { if (wanted === track) void fader.fadeTo(1, BGM_FADE_IN_MS); })
+      .catch(e => console.warn(`${track} audio play blocked`, e));
+  } else if (fader.gain < 1 || fader.isFading) {
+    void fader.fadeTo(1, BGM_FADE_IN_MS);
+  }
+}
+
+function fadeOut(track: Track): void {
+  const { el, fader } = TRACKS[track];
+  if (el.paused) { fader.cancel(); return; }
+  void fader.fadeTo(0, BGM_FADE_OUT_MS).then(done => {
+    if (!done || wanted === track) return;
+    el.pause(); // 停在 gain 0；下次播放時由 0 淡入
+  });
+}
+
+/** 立即停止（未解鎖、開機載入中）：沒有在播放，不需要淡出 */
+function stopAll(): void {
+  wanted = null;
+  for (const { el, fader } of Object.values(TRACKS)) { fader.cancel(); el.pause(); fader.set(1); }
+}
+
+/** 轉場：想要的音軌淡入（必要時由 0 開始播放），其餘音軌淡出後暫停；新轉場會取消進行中的淡變 */
+function transitionTo(track: Track | null): void {
+  wanted = track;
+  for (const t of Object.keys(TRACKS) as Track[]) {
+    if (t === track) fadeIn(t); else fadeOut(t);
+  }
 }
 
 /** Test hook: Playwright asserts HTMLMediaElement.volume / muted on both tracks. */
@@ -45,6 +97,7 @@ if (typeof window !== "undefined") {
     menu: menuAudio,
     battle: battleAudio,
   };
+  (w as unknown as { __bgmFade?: unknown }).__bgmFade = { menu: menuFader, battle: battleFader };
   w.__applyBgmVolumeForTest = (v: number) => applyVolumeToTracks(v);
 }
 
@@ -53,7 +106,8 @@ const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({
   bgmEnabled, 
   bgmVolume, // 接收音量
   isBooting, 
-  isLoggedIn
+  isLoggedIn,
+  isPaused = false
 }, ref) => {
   const isUnlocked = useRef(false);
   const bgmVolumeRef = useRef(bgmVolume);
@@ -79,44 +133,19 @@ const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({
     };
   }, []);
 
-  // 封裝播放逻辑
+  // 封裝播放邏輯：所有頁面／音樂轉場都經 transitionTo() 淡入淡出
   const syncPlayback = () => {
-    if (!isUnlocked.current || !bgmEnabled || isBooting) {
-      menuAudio.pause();
-      battleAudio.pause();
-      return;
-    }
-
-    const isBattle = status === GameStatus.PLAYING;
-    const isMenu = status === GameStatus.MENU || status === GameStatus.CHARACTER_DETAIL;
-
-    // Re-apply before/after play so load/play cannot leave a stale non-zero volume.
-    applyVolumeToTracks(bgmVolumeRef.current);
-
-    if (isBattle) {
-      menuAudio.pause();
-      if (battleAudio.paused) {
-        battleAudio.play()
-          .then(() => applyVolumeToTracks(bgmVolumeRef.current))
-          .catch(e => console.warn("Battle audio play blocked", e));
-      }
-    } else if (isMenu) {
-      battleAudio.pause();
-      if (menuAudio.paused) {
-        menuAudio.play()
-          .then(() => applyVolumeToTracks(bgmVolumeRef.current))
-          .catch(e => console.warn("Menu audio play blocked", e));
-      }
-    } else {
-      menuAudio.pause();
-      battleAudio.pause();
-    }
+    if (!isUnlocked.current || isBooting) { stopAll(); return; }
+    transitionTo(bgmEnabled ? desiredTrack(status, isPaused) : null);
   };
 
   useImperativeHandle(ref, () => ({
     resetBattleMusic: () => {
+      // 新一場戰鬥由頭播放（此時戰鬥音樂應已淡出；若仍在淡出就直接停止）
+      battleFader.cancel();
       battleAudio.pause();
       battleAudio.currentTime = 0;
+      battleFader.set(1);
     },
     unlockAudio: async () => {
       if (isUnlocked.current) return;
@@ -144,6 +173,8 @@ const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({
         battleAudio.load();
         applyVolumeToTracks(bgmVolumeRef.current);
 
+        // 解鎖用的第一次播放由 gain 0 開始，之後由 syncPlayback 淡入（不會突然全音量響起）
+        menuFader.set(0);
         await menuAudio.play();
         applyVolumeToTracks(bgmVolumeRef.current);
         isUnlocked.current = true;
@@ -162,7 +193,7 @@ const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({
     if (isLoggedIn && isUnlocked.current) {
       syncPlayback();
     }
-  }, [status, bgmEnabled, isBooting, isLoggedIn]);
+  }, [status, bgmEnabled, isBooting, isLoggedIn, isPaused]);
 
   return null; 
 });

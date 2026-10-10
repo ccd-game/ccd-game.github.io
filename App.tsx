@@ -2,12 +2,16 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, isWeaponAttackStyle, weaponAttackTiming } from './types';
 import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle } from './data/battleLayout';
-import { TEXT_CORPUS, MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT, BOSS_MAX_HP, CORRECT_ANSWER_DAMAGE, WRONG_ANSWER_DAMAGE, BOSS_HP_SPEECH_THRESHOLDS, QUESTIONS_EXHAUSTED_POLICY } from './constants';
-import { computeDamageDetail } from './src/lib/battleRules';
+import { MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT, BOSS_MAX_HP, CORRECT_ANSWER_DAMAGE, WRONG_ANSWER_DAMAGE, BOSS_HP_SPEECH_THRESHOLDS, QUESTIONS_EXHAUSTED_POLICY } from './constants';
+import { computeDamageDetail, playerHpAfterBossHit } from './src/lib/battleRules';
+import { newBattleOrder, isQuestionsExhausted } from './src/lib/battleQuestions';
+import { deriveCinematicActive, isBattleIntroStage, useCinematicAttribute } from './src/lib/cinematic';
 import DamageMultiplierPopup, { DamagePopupData } from './components/DamageMultiplierPopup';
 import { LEVELS_DATA } from './data/levels';
 import { parseBossSpeeches } from './src/utils/speechParser';
 import { parseQuestionBank } from './src/utils/questionParser';
+import { evaluateInput, editableCellCount } from './src/utils/answerMatch';
+import { buildQuestionBoard } from './data/questionBoard';
 import bossSpeechesMd from './BOSS_SPEECHES.md?raw';
 import questionBankMd from './QUESTION_BANK.md?raw';
 
@@ -414,6 +418,9 @@ const App: React.FC = () => {
   const [isLoginExiting, setIsLoginExiting] = useState(false);
 
   const [levelQuestions, setLevelQuestions] = useState<Question[]>([]);
+  /** 本場戰鬥的出題次序（每場開始時洗牌；見 src/lib/battleQuestions.ts）。ref 供非同步流程讀取最新值 */
+  const [battleQuestions, setBattleQuestions] = useState<Question[]>([]);
+  const battleQuestionsRef = useRef<Question[]>([]);
   const [isQuestionsFetching, setIsQuestionsFetching] = useState(false);
   const [currentLevel, setCurrentLevel] = useState<LevelConfig | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -548,9 +555,18 @@ const App: React.FC = () => {
     }
     return speeches;
   }, []);
+  /** 演出中（載入動畫、Boss 台詞、Boss 受擊）：暫停 idle 飛劍，見 src/lib/cinematic.ts */
+  const isCinematicActive = deriveCinematicActive({
+    isBooting,
+    isQuestionsFetching,
+    isBattleIntro: gameState.status === GameStatus.PLAYING && isBattleIntroStage(introStage),
+    isBossSpeaking: bossSpeechMsg !== null,
+    isBossHitReaction: gameState.status === GameStatus.PLAYING && enemyAnimState === 'hurt',
+  });
+  useCinematicAttribute(isCinematicActive);
   // Boss 說話期間（開場、門檻、勝利台詞）通關計時暫停，與回合倒數相同
   const battleRecorder = useBattleRecorder({ status: gameState.status, isPaused: gameState.isPaused, isTurnActive: gameState.isTurnActive, isAutoPlaying, isBossSpeaking: bossSpeechMsg !== null }, handleVictoryClear);
-  const currentQuestion = useMemo(() => levelQuestions[gameState.currentQuestionIndex] || null, [levelQuestions, gameState.currentQuestionIndex]);
+  const currentQuestion = useMemo(() => battleQuestions[gameState.currentQuestionIndex] || null, [battleQuestions, gameState.currentQuestionIndex]);
   const timeScale = useMemo(() => isAutoPlaying ? 1.0 / speedMultiplier : 1.0, [isAutoPlaying, speedMultiplier]);
 
   useEffect(() => {
@@ -591,6 +607,8 @@ const App: React.FC = () => {
       setShuffledOptions([]);
       setCurrentLevel(null);
       setLevelQuestions([]);
+      battleQuestionsRef.current = [];
+      setBattleQuestions([]);
       setIsQuitConfirmOpen(false);
 
       setGameState(p => ({
@@ -645,17 +663,9 @@ const App: React.FC = () => {
     });
   }, [timeScale]);
 
-  const generateDynamicOptions = (answer: string) => {
-    // 移除空白與分隔符號 /，取出所有候選答案中的字元
-    const chars = answer.replace(/[\s/]/g, '').split('');
-    const corpus = TEXT_CORPUS.replace(/[\s\n\r、，。！？：；「」『』]/g, '').split('');
-    const distractors = Array.from({ length: Math.max(0, 20 - chars.length) }, () => corpus[Math.floor(Math.random() * corpus.length)]);
-    return [...chars, ...distractors].sort(() => Math.random() - 0.5);
-  };
-
   const startLevelSequence = useCallback(async (index: number, id: number, isRetry: boolean = false) => {
     if (gameInstanceIdRef.current !== id || battleEndedRef.current) return;
-    const target = levelQuestions[index];
+    const target = battleQuestionsRef.current[index];
     if (!target || !target.answers || target.answers.length === 0) return;
 
     clearVisualEffects();
@@ -663,18 +673,19 @@ const App: React.FC = () => {
     await new Promise(r => setTimeout(r, (isRetry ? 50 : 100) * timeScale));
     if (gameInstanceIdRef.current !== id) return;
 
-    // 格數以最長的正確答案為準
-    const maxLen = Math.max(...target.answers.map(a => a.length));
+    // 格數 = 預填格 + 最長的可接受答案字數（較短的答案在輸入完成時即判定正確）
+    const maxLen = editableCellCount(target.answers);
+    const prefillSlots = (target.prefill ?? []).map(c => ({ char: c, originIndex: null, locked: true }));
 
     setIsInputPadExiting(false);
     answerRemainingRef.current = null;
     setGameState(prev => ({
       ...prev, timer: TURN_TIME, isTurnActive: false,
-      userInput: Array(maxLen).fill(null).map(() => ({ char: "", originIndex: null })),
+      userInput: [...prefillSlots, ...Array(maxLen).fill(null).map(() => ({ char: "", originIndex: null }))],
       usedIndices: new Set()
     }));
 
-    setShuffledOptions(target.options && target.options.length > 0 ? target.options : generateDynamicOptions(target.answer));
+    setShuffledOptions(target.options && target.options.length > 0 ? target.options : buildQuestionBoard(target));
 
     if (!skillPanelShown) setSkillPanelShown(true);
     setShowInputPadUI(true);
@@ -688,7 +699,7 @@ const App: React.FC = () => {
     turnLockRef.current = false; // 新回合開始，重新接受結算
     answerRemainingRef.current = null;
     setGameState(p => ({ ...p, isTurnActive: true }));
-  }, [levelQuestions, skillPanelShown, timeScale, clearVisualEffects]);
+  }, [skillPanelShown, timeScale, clearVisualEffects]);
 
   const fetchQuestionsForLevel = async (level: LevelConfig) => {
     setIsQuestionsFetching(true);
@@ -700,7 +711,7 @@ const App: React.FC = () => {
         .filter(q => level.sheetIds.includes(Number(q.id)))
         .map(q => ({
           ...q,
-          options: generateDynamicOptions(q.answer)
+          options: buildQuestionBoard(q)
         }))
         .sort((a, b) => a.id - b.id);
 
@@ -722,6 +733,10 @@ const App: React.FC = () => {
     try {
       setIsDemoMode(testMode); setIsAutoPlaying(false); setSpeedMultiplier(1);
       resetBattleRefs();
+      // 每場戰鬥（含再戰）重新洗牌；同一場內依次出題，不重複
+      const order = newBattleOrder(levelQuestions);
+      battleQuestionsRef.current = order;
+      setBattleQuestions(order);
       setGameState(prev => ({
         ...prev, status: GameStatus.PLAYING, isTurnActive: false, enemyHp: BOSS_MAX_HP, maxEnemyHp: BOSS_MAX_HP,
         playerHp: 0, maxPlayerHp: MAX_HP, currentQuestionIndex: 0
@@ -810,7 +825,7 @@ const App: React.FC = () => {
       setGameState(p => ({ ...p, enemyHp: newHp }));
       const thresholdSpeeches = collectThresholdSpeeches(currentLevel, newHp);
       const questionIndex = gameStateRef.current.currentQuestionIndex;
-      const isQuestionsExhausted = questionIndex >= levelQuestions.length - 1;
+      const questionsExhausted = isQuestionsExhausted(battleQuestionsRef.current, questionIndex);
       // 收起題目與格子，並保留原有的命中演出時間
       setTimeout(() => { setShowQuestionUI(false); setShowSlotsUI(false); }, 200 * timeScale);
       await new Promise(r => setTimeout(r, 1000 * timeScale));
@@ -829,7 +844,7 @@ const App: React.FC = () => {
       }
 
       // 題目用盡而 Boss 仍未倒下：依 QUESTIONS_EXHAUSTED_POLICY（老師決定為戰敗）
-      if (isQuestionsExhausted && QUESTIONS_EXHAUSTED_POLICY !== 'loop') {
+      if (questionsExhausted && QUESTIONS_EXHAUSTED_POLICY !== 'loop') {
         battleEndedRef.current = true;
         if (QUESTIONS_EXHAUSTED_POLICY === 'victory') {
           battleRecorder.markVictoryDecided();
@@ -839,11 +854,11 @@ const App: React.FC = () => {
         }
         return;
       }
-      const nextIndex = isQuestionsExhausted ? 0 : questionIndex + 1; // 'loop'：由第一題重新開始
+      const nextIndex = questionsExhausted ? 0 : questionIndex + 1; // 'loop'：由第一題重新開始
       setGameState(p => ({ ...p, currentQuestionIndex: nextIndex }));
       startLevelSequence(nextIndex, id);
     } catch (e) {}
-  }, [currentLevel, levelQuestions, timeScale, acquireTurnLock, collectThresholdSpeeches, runVictorySequence, runDefeatSequence, startLevelSequence, triggerBossSpeechAction, clearVisualEffects, battleRecorder]);
+  }, [currentLevel, timeScale, acquireTurnLock, collectThresholdSpeeches, runVictorySequence, runDefeatSequence, startLevelSequence, triggerBossSpeechAction, clearVisualEffects, battleRecorder]);
 
   /**
    * Boss 反擊（答錯或超時）：玩家損失 WRONG_ANSWER_DAMAGE HP；HP 歸零才戰敗，否則重答同一題。
@@ -859,7 +874,7 @@ const App: React.FC = () => {
       await new Promise(r => setTimeout(r, 500 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       const attackStyle = getBossAttackStyle(currentLevel);
-      const newPlayerHp = Math.max(0, gameStateRef.current.playerHp - (damageOverride ?? WRONG_ANSWER_DAMAGE));
+      const newPlayerHp = playerHpAfterBossHit(gameStateRef.current.playerHp, damageOverride ?? WRONG_ANSWER_DAMAGE);
       if (newPlayerHp <= 0) battleEndedRef.current = true;
       setEnemyAnimState('attack');
       if (isWeaponAttackStyle(attackStyle)) {
@@ -900,7 +915,7 @@ const App: React.FC = () => {
         await runDefeatSequence(id);
         return;
       }
-      setGameState(p => ({ ...p, userInput: p.userInput.map(s => ({ ...s, char: "" })), usedIndices: new Set() }));
+      setGameState(p => ({ ...p, userInput: p.userInput.map(s => (s.locked ? s : { ...s, char: "" })), usedIndices: new Set() }));
       await new Promise(r => setTimeout(r, 400 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       clearVisualEffects();
@@ -913,8 +928,9 @@ const App: React.FC = () => {
       const autoPlayTimeout = window.setTimeout(() => {
         const nextSlotIndex = gameState.userInput.findIndex(s => !s.char);
         if (nextSlotIndex !== -1 && currentQuestion.answers.length > 0) {
-          // 預設以第一個答案為自動填入目標
-          const targetChar = currentQuestion.answers[0][nextSlotIndex];
+          // 預設以第一個答案為自動填入目標（扣除前面的預填格）
+          const editableIndex = gameState.userInput.slice(0, nextSlotIndex).filter(s => !s.locked).length;
+          const targetChar = Array.from(currentQuestion.answers[0])[editableIndex];
           if (targetChar) {
             // 在選項中尋找尚未被使用的目標字元
             const optionIndex = shuffledOptions.findIndex((char, idx) => char === targetChar && !gameState.usedIndices.has(idx));
@@ -948,18 +964,12 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!gameState.isTurnActive || gameState.isPaused || bossSpeechMsg || !currentQuestion) return;
 
-    const currentInputStr = gameState.userInput.map(s => s.char).join('');
-    const isFull = gameState.userInput.every(s => s.char);
-
-    // 檢查是否符合任一正確答案
-    const isMatch = currentQuestion.answers.some(ans => ans === currentInputStr);
-
-    if (isMatch) {
+    // 判定見 src/utils/answerMatch.ts：預填格不參與；與任一可接受答案完全相同即正確；
+    // 可輸入格全部填滿仍不相符才判錯（較短的答案無須填滿所有格子）
+    const result = evaluateInput(gameState.userInput, currentQuestion.answers);
+    if (result === 'correct') {
       onCorrectAnswer();
-    } else if (isFull) {
-      // 只有在填滿所有格子且不完全符合任何答案時才判定錯誤
-      // 這裡需要多檢閱一次，因為有可能輸入了 XXX 但答案列有 XXX/YYYY
-      // 如果 isMatch 為 false 且 isFull 為 true，則代表真的錯了
+    } else if (result === 'wrong') {
       triggerEnemyAttack(false);
     }
   }, [gameState.userInput, gameState.isTurnActive, gameState.isPaused, currentQuestion, onCorrectAnswer, triggerEnemyAttack, bossSpeechMsg]);
@@ -1008,6 +1018,7 @@ const App: React.FC = () => {
         bgmVolume={bgmVolume}
         isBooting={isBooting}
         isLoggedIn={isLoggedIn}
+        isPaused={gameState.isPaused}
       />
 
       {isBooting && <BootLoadingMask assets={preloadAssets} onComplete={() => setIsBooting(false)} />}
@@ -1058,7 +1069,7 @@ const App: React.FC = () => {
           <div className="absolute left-0 w-full h-[42px] z-[100] flex flex-col items-center" style={{ bottom: "calc(40% + 80px)" }}>
              <SlotsInterface userInput={gameState.userInput} showUI={showSlotsUI && !isFatalDefeat} isFalling={isSlotsFalling} isConverging={isConverging} onSlotClear={idx => {
                 setGameState(p => {
-                  const s = p.userInput[idx]; if (!s.char || p.isPaused) return p;
+                  const s = p.userInput[idx]; if (!s || !s.char || s.locked || p.isPaused) return p; // 預填格不能清除
                   const nUsed = new Set(p.usedIndices); nUsed.delete(s.originIndex!);
                   const nInput = [...p.userInput]; nInput[idx] = { char: "", originIndex: null };
                   return { ...p, userInput: nInput, usedIndices: nUsed };

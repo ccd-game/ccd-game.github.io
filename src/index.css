@@ -769,3 +769,12 @@
     .login-guest-btn, .guest-pill-btn { transition: none; }
     .login-guest-btn:active, .guest-pill-btn:active { transform: none; }
 }
+
+/* ===== 演出中暫停 idle 飛劍（src/lib/cinematic.ts：載入動畫、Boss 台詞、Boss 受擊）=====
+   只暫停、不卸載：演出結束後由原位置繼續。主頁、圖鑑、戰鬥（第 2 關）三處共用。 */
+html[data-cinematic="1"] .home-saber,
+html[data-cinematic="1"] .home-saber-idle,
+html[data-cinematic="1"] .codex-saber,
+html[data-cinematic="1"] .codex-saber-idle,
+html[data-cinematic="1"] .btl-saber,
+html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !important; }

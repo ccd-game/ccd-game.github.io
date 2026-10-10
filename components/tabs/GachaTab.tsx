@@ -159,9 +159,9 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
       </div>
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
-        <div className="flex items-center gap-2 mb-6 bg-black/40 px-4 py-1.5 rounded-full border border-white/10 shadow-inner">
+        <div className="flex items-center gap-2 mb-6 px-4 py-1.5 rounded-full" style={{ backgroundColor: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}>
           <span className="text-[11px] font-bold" style={{ color: 'var(--gold-accent)' }}>現有機緣</span>
-          <span className="text-[14px] font-black text-white">{userData?.jiyuan || 0}</span>
+          <span className="text-[14px] font-black" style={{ color: 'var(--text-main)' }}>{userData?.jiyuan || 0}</span>
         </div>
         {isGuest && (
           <p className="gacha-guest-note" data-testid="gacha-guest-hint">
@@ -176,7 +176,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
             className="flex-1 h-16 rounded-xl border border-white/10 flex flex-col items-center justify-center relative overflow-hidden active:scale-95 transition-all disabled:opacity-60 disabled:scale-100"
             style={{ backgroundColor: 'var(--panel-bg)' }}
           >
-            <span className="text-[15px] font-bold text-white relative z-10">{hasEnoughOne ? '探索一次' : '測試召喚'}</span>
+            <span className="text-[15px] font-bold relative z-10" style={{ color: 'var(--text-main)' }}>{hasEnoughOne ? '探索一次' : '測試召喚'}</span>
             <span className={`text-[11px] font-medium mt-0.5 relative z-10 ${!hasEnoughOne ? 'opacity-50 line-through' : ''}`} style={{ color: 'var(--gold-accent)' }}>✨ 10 機緣</span>
           </button>
           

@@ -15,13 +15,17 @@ export interface Question {
   type: QuestionType;
   question: string;
   answer: string; // 原始答案字串 (包含 /)
-  answers: string[]; // 分解後的正確答案列表
+  answers: string[]; // 分解後的正確答案列表（只含學生要輸入的部分，不含預填）
+  /** 預填格（鎖定、不可點選或清除），例如 ['以', '…']；沒有則為空陣列或缺省 */
+  prefill?: string[];
   options: string[];
 }
 
 export interface UserInputSlot {
   char: string;
   originIndex: number | null;
+  /** 預填格：鎖定，不能點選、清除 */
+  locked?: boolean;
 }
 
 /**
