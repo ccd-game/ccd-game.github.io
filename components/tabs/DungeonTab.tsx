@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { LevelConfig } from '../../types';
 import ChapterHero from '../home/ChapterHero';
 import { anchorStyle, chapterLabel } from '../home/heroUtils';
@@ -31,20 +31,102 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
   // 十二篇章入口抽屜：收合時只露出底部一條；展開時占滿首頁（底部分頁列之上），十二篇一次全見、不需捲動
   const [drawerOpen, setDrawerOpen] = useState(false);
   const barRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
+  const openRef = useRef(drawerOpen);
+  useEffect(() => { openRef.current = drawerOpen; }, [drawerOpen]);
+  // 手指拖曳：以 transform 跟手，松手後依位移／速度決定開或關；與左右滑切分頁互不干擾
+  const drag = useRef<{ x: number; y: number; t: number; dragging: boolean; axis: 'x' | 'y' | null } | null>(null);
+
+  const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const setOpen = useCallback((open: boolean) => {
+    const el = drawerRef.current;
+    if (el) {
+      el.classList.remove('is-dragging');
+      el.style.transform = '';
+    }
+    setDrawerOpen(open);
+  }, []);
 
   useEffect(() => {
     if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setDrawerOpen(false); barRef.current?.focus(); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); barRef.current?.focus(); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [drawerOpen]);
+  }, [drawerOpen, setOpen]);
 
   // 選篇：收合抽屜，預覽切換到該篇（不直接入陣；入陣仍由預覽的「入陣」按鈕）
   const pick = (level: LevelConfig) => {
     setActiveId(level.id);
-    setDrawerOpen(false);
+    setOpen(false);
     barRef.current?.focus({ preventScroll: true });
   };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    drag.current = { x: e.clientX, y: e.clientY, t: e.timeStamp, dragging: false, axis: null };
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    const el = drawerRef.current;
+    if (!d || !el) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.axis) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      // 水平優先：交給外層切分頁，本抽屜不接管
+      if (Math.abs(dx) > Math.abs(dy)) { d.axis = 'x'; return; }
+      d.axis = 'y';
+      d.dragging = true;
+      el.classList.add('is-dragging');
+      try { (e.target as Element).setPointerCapture?.(e.pointerId); } catch { /* */ }
+    }
+    if (d.axis !== 'y' || !d.dragging) return;
+    e.stopPropagation();
+    if (reduceMotion()) return; // 減少動態：不跟手，松手再切
+    const h = el.clientHeight;
+    const bar = parseFloat(getComputedStyle(el).getPropertyValue('--bar-h')) || 52;
+    const closedY = Math.max(0, h - bar);
+    const base = openRef.current ? 0 : closedY;
+    // 收合時只接受上滑（dy<0）；展開時只接受下滑（dy>0）
+    const delta = openRef.current ? Math.max(0, dy) : Math.min(0, dy);
+    const y = Math.min(closedY, Math.max(0, base + delta));
+    el.style.transform = `translate3d(0, ${y}px, 0)`;
+  };
+
+  const finishDrag = (e: React.PointerEvent) => {
+    const d = drag.current;
+    const el = drawerRef.current;
+    drag.current = null;
+    if (!d || !el) return;
+    if (d.axis === 'x' || !d.dragging) return; // 點按由 button onClick 處理；水平滑不動作
+    e.stopPropagation();
+    e.preventDefault();
+    const dy = e.clientY - d.y;
+    const dt = Math.max(16, e.timeStamp - d.t);
+    const v = dy / dt; // px/ms
+    const THRESH = 48;
+    const VEL = 0.45;
+    let next = openRef.current;
+    if (openRef.current) {
+      // 展開中：下滑超過門檻或夠快 → 收合
+      if (dy > THRESH || v > VEL) next = false;
+    } else {
+      // 收合中：上滑超過門檻或夠快 → 展開
+      if (dy < -THRESH || v < -VEL) next = true;
+    }
+    if (reduceMotion()) {
+      el.classList.remove('is-dragging');
+      el.style.transform = '';
+      setDrawerOpen(next);
+      return;
+    }
+    setOpen(next);
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => finishDrag(e);
+  const onPointerCancel = (e: React.PointerEvent) => finishDrag(e);
 
   return (
     <div className="flex-1 tab-slide-active home-surface home-dungeon">
@@ -54,16 +136,24 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
         </div>
       )}
 
-      <section className={`home-drawer ${drawerOpen ? 'is-open' : ''}`} aria-label="十二篇章入口">
+      <section
+        ref={drawerRef}
+        className={`home-drawer ${drawerOpen ? 'is-open' : ''}`}
+        aria-label="十二篇章入口"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+      >
         <button
           ref={barRef}
           type="button"
           className="home-drawer-bar home-focus"
           aria-expanded={drawerOpen}
           aria-controls="home-chapter-list"
-          onClick={() => setDrawerOpen(o => !o)}
+          onClick={() => setOpen(!openRef.current)}
         >
-          <h3 className="home-section-title">十二篇章入口</h3>
+<h3 className="home-section-title">十二篇章入口</h3>
           <span className="home-section-meta">已啟 {featured.length}／{levels.length}</span>
           <span className="home-drawer-chev" aria-hidden="true"><IconChevronUp /></span>
           <span className="sr-only">{drawerOpen ? '（收合）' : '（展開）'}</span>

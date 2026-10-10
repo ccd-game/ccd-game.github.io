@@ -451,8 +451,43 @@
         .home-scene-fig { position: absolute; }
         .home-scene-bg { -webkit-mask-image: linear-gradient(180deg, transparent, #000 24%); mask-image: linear-gradient(180deg, transparent, #000 24%); }
         .home-hero-bg.is-under-scene { filter: blur(8px); }
-        @keyframes homeSceneBreathe { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.01); } }
-        .home-scene-breathe { animation: homeSceneBreathe 4.5s ease-in-out infinite; }
+        @keyframes homeSceneBreathe { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.012); } }
+        .home-scene-breathe { animation: homeSceneBreathe 4.5s ease-in-out infinite; will-change: transform; }
+
+        /* 首頁飛劍（目前僅柳宗元）：路徑／靜候呼吸與圖鑑內頁相同（6.432s 循環、靜候加倍） */
+        .home-saber { will-change: transform, opacity; }
+        .home-saber.is-back { opacity: 0; animation: homeSaberPath 6.432s infinite, homeSaberBack 6.432s infinite; }
+        .home-saber.is-front { animation: homeSaberPath 6.432s infinite, homeSaberFront 6.432s infinite; }
+        .home-saber-idle { animation: homeSaberIdle 3.4s ease-in-out -1.1s infinite; will-change: transform; }
+        @keyframes homeSaberIdle {
+          0%, 100% { transform: translate3d(0, 0.15%, 0) rotate(-0.9deg); }
+          50% { transform: translate3d(0, -0.15%, 0) rotate(0.9deg); }
+        }
+        @keyframes homeSaberPath {
+          0%     { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: ease-in-out; }
+          26.87% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(.55,0,.85,.45); }
+          38.81% { transform: translate3d(-40.07%, -8.97%, 0) rotate(-10deg) scale(0.85); animation-timing-function: linear; }
+          41.79% { transform: translate3d(-67.41%, -8.97%, 0) rotate(-180deg) scale(0.7); animation-timing-function: linear; }
+          47.01% { transform: translate3d(-17.41%, 1.44%, 0) rotate(-178deg) scale(0.65); animation-timing-function: linear; }
+          55.22% { transform: translate3d(65.40%, 11.86%, 0) rotate(-172deg) scale(0.62); animation-timing-function: linear; }
+          58.21% { transform: translate3d(96.65%, 22.97%, 0) rotate(-356deg) scale(1.25); animation-timing-function: linear; }
+          65.67% { transform: translate3d(30.24%, 14.64%, 0) rotate(-352deg) scale(1.28); animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+          76.12% { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); animation-timing-function: linear; }
+          100%   { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); }
+        }
+        @keyframes homeSaberFront {
+          0%, 38.73% { opacity: 1; }
+          38.81%, 55.22% { opacity: 0; }
+          55.3%, 100% { opacity: 1; }
+        }
+        @keyframes homeSaberBack {
+          0%, 38.73% { opacity: 0; }
+          38.81%, 55.22% { opacity: 0.85; }
+          55.3%, 100% { opacity: 0; }
+        }
+        .home-hero[data-hidden="1"] .home-scene-breathe,
+        .home-hero[data-hidden="1"] .home-saber,
+        .home-hero[data-hidden="1"] .home-saber-idle { animation-play-state: paused; }
         .home-fig-stage { position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 39 / 47; max-height: 100%; }
         .home-hero-bg { filter: brightness(.62) saturate(.85) contrast(1.05); }
         .home-hero-wash {
@@ -460,7 +495,16 @@
               linear-gradient(90deg, rgba(13,11,9,.82) 0%, rgba(13,11,9,.35) 34%, rgba(13,11,9,0) 60%),
               linear-gradient(180deg, rgba(13,11,9,.45) 0%, rgba(13,11,9,0) 22%);
         }
-        .home-hero-floor { background: linear-gradient(0deg, var(--ink) 10%, rgba(13,11,9,.82) 48%, rgba(13,11,9,0)); z-index: 3; }
+        /* 場景下方：淡入墨黑（不再用鏡射填滿）；岩石／地面線以上不受影響 */
+        .home-hero-floor {
+            background: linear-gradient(0deg, var(--ink) 0%, var(--ink) 18%, rgba(13,11,9,.92) 42%, rgba(13,11,9,.55) 68%, rgba(13,11,9,0) 100%);
+            z-index: 3;
+        }
+        .home-scene-fade {
+            position: absolute; left: 0; right: 0; bottom: 0; height: max(28%, calc(100% - var(--ui, 190px) + 8px));
+            background: linear-gradient(0deg, var(--ink) 0%, rgba(13,11,9,.85) 35%, rgba(13,11,9,0) 100%);
+            pointer-events: none; z-index: 2;
+        }
         .home-hero-fig { filter: drop-shadow(0 12px 28px rgba(0,0,0,.6)); }
         @keyframes homeBreathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         .home-breathe { animation: homeBreathe 6s ease-in-out infinite; }
@@ -488,15 +532,15 @@
         /* 直排篇名底下的柔焦層：只模糊背後的畫面，背景全透明、無暗色；四邊以遮罩羽化，沒有硬邊。
            不支援 backdrop-filter 的瀏覽器：此層完全透明、不影響版面，篇名維持原樣（原有文字陰影仍在）。 */
         .home-vtitle-wrap { position: relative; display: flex; max-height: 100%; }
-        /* 左側不羽化：柔焦一路延伸到螢幕左緣（英雄區 overflow:hidden 會切齊），看不到起始線；右側與上下仍羽化 */
+        /* 柔焦：左緣一路到螢幕左緣（不羽化、無起始線）；右緣停在金色直劃線（篇名 border-right）內側，金線本身保持清晰；上下羽化；無暗色 */
         .home-vtitle-blur {
-            position: absolute; inset: -32px -90px -32px -20px; pointer-events: none; /* 左緣正好是螢幕左緣（篇名區左內距 20px） */
-            min-height: 220px; /* 短篇名（如「師說」）也有足夠的柔焦範圍，平均掉背後的亮部 */
+            position: absolute; inset: -32px 0 -32px -20px; pointer-events: none; /* right:0 → 與 .home-vtitle 的 border-right（金線）對齊 */
+            min-height: 220px;
             background: transparent;
             -webkit-backdrop-filter: blur(var(--vt-blur, 40px)); backdrop-filter: blur(var(--vt-blur, 40px));
-            -webkit-mask-image: linear-gradient(90deg, #000, #000 calc(100% - 64px), transparent), linear-gradient(180deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+            -webkit-mask-image: linear-gradient(90deg, #000, #000), linear-gradient(180deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
             -webkit-mask-composite: source-in;
-            mask-image: linear-gradient(90deg, #000, #000 calc(100% - 64px), transparent), linear-gradient(180deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+            mask-image: linear-gradient(90deg, #000, #000), linear-gradient(180deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
             mask-composite: intersect;
         }
         .home-vtitle-wrap > .home-vtitle { position: relative; }
@@ -561,24 +605,26 @@
             position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column;
             background: var(--home-surface); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
             transform: translate3d(0, calc(100% - var(--bar-h)), 0);
-            transition: transform .42s cubic-bezier(.22,.8,.24,1);
+            transition: transform .48s cubic-bezier(.22,1,.36,1);
             will-change: transform;
+            touch-action: pan-y;
         }
         .home-drawer.is-open { transform: translate3d(0, 0, 0); }
+        .home-drawer.is-dragging { transition: none; }
         .home-drawer-bar {
             flex: 0 0 var(--bar-h); display: flex; align-items: center; gap: 10px; padding: 6px 18px 0 20px; position: relative;
             border-top: 1px solid var(--home-line); color: var(--home-text); text-align: left; cursor: pointer;
         }
         .home-drawer-bar::before { content: ''; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--home-muted); opacity: .5; }
         .home-drawer-bar .home-section-meta { margin-left: auto; }
-        .home-drawer-chev { display: flex; color: var(--home-accent); transition: transform .42s cubic-bezier(.22,.8,.24,1); }
+        .home-drawer-chev { display: flex; color: var(--home-accent); transition: transform .48s cubic-bezier(.22,1,.36,1); }
         .home-drawer.is-open .home-drawer-chev { transform: rotate(180deg); }
         .home-drawer-list {
             flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: repeat(12, minmax(0, 1fr)); grid-template-columns: minmax(0, 1fr); gap: 4px;
             padding: 2px 16px 10px; container-type: size; container-name: drawer;
-            transition: opacity .3s ease;
+            transition: opacity .36s cubic-bezier(.22,1,.36,1);
         }
-        .home-drawer:not(.is-open) .home-drawer-list { opacity: 0; }
+        .home-drawer:not(.is-open) .home-drawer-list { opacity: 0; pointer-events: none; }
         .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }
         .home-drawer-list .home-slip { flex: 1; min-width: 0; min-height: 0; padding: 0 8px 0 0; }
         .home-drawer-list .home-slip-no { width: 50px; letter-spacing: 0; font-size: clamp(12px, 2.6cqh, 14px); }
@@ -597,7 +643,8 @@
         @media (prefers-reduced-motion: reduce) {
             .home-drawer, .home-drawer-chev { transition: none !important; }
             .home-drawer-list { transition: opacity .15s linear; }
-            .home-breathe, .home-scene-breathe, .home-embers span { animation: none !important; }
+            .home-breathe, .home-scene-breathe, .home-saber, .home-saber-idle, .home-embers span { animation: none !important; }
+            .home-saber.is-back { opacity: 0 !important; }
             .home-meter-fill, .home-slip, .home-nav-icon { transition: none !important; }
         }
     </style>

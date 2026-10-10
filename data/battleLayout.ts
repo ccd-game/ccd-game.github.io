@@ -26,19 +26,22 @@ export interface BattleSpriteAnchor {
   fitPriority?: 'left' | 'right';
   /** 允許入鏡範圍左／右緣超出畫面的量（佔畫面寬比例），讓臉能更接近目標位置 */
   cropL?: number; cropR?: number;
+  /** 名字標籤底邊與頭頂的間距（px）；未設則用 BATTLE_LAYOUT.headGap。目前只調柳宗元 */
+  nameGap?: number;
   bottomY: number;
 }
 
 export const BATTLE_ANCHORS: Record<string, BattleSpriteAnchor> = {
   // liu_zong_yuan_battle.png 1135×623（= 全幅 1280×720 合成圖裁切 x70 y13）
-  // 入鏡範圍：刀尖（全幅 x229 → 159）到衣襬右緣；待機姿勢不必顯示整把刀，刀尖與火焰可在左緣被裁切（cropL），臉與其他角色同樣對齊偏左目標
-  liu_zong_yuan_battle: { w: 1135, h: 623, faceX: 750, eyeY: 112, faceH: 52, headTopY: 28, fitX0: 159, fitX1: 1127, cropL: 0.6, bottomY: 622 },
+  // 入鏡範圍：刀尖（全幅 x229 → 159）到衣襬右緣；待機姿勢不必顯示整把刀，刀尖與火焰可在左緣被裁切（cropL）
+  // nameGap：名字底邊與頭頂間距（390 寬約 18px）；全體可玩 Boss 統一
+  liu_zong_yuan_battle: { w: 1135, h: 623, faceX: 750, eyeY: 112, faceH: 52, headTopY: 28, fitX0: 159, fitX1: 1127, cropL: 0.6, nameGap: 18, bottomY: 622 },
   // kong_zi.png 1408×768：頭頂＝髮冠頂；入鏡範圍＝車輪（x248）到馬頭（x1355）；放不下時保住戰車（車輪外緣可裁切約 6% 畫面寬），馬匹可被裁切
-  kong_zi: { w: 1408, h: 768, faceX: 610, eyeY: 177, faceH: 45, headTopY: 122, fitX0: 248, fitX1: 1355, fitPriority: 'left', cropL: 0.06, bottomY: 767 },
+  kong_zi: { w: 1408, h: 768, faceX: 610, eyeY: 177, faceH: 45, headTopY: 122, fitX0: 248, fitX1: 1355, fitPriority: 'left', cropL: 0.06, nameGap: 18, bottomY: 767 },
   // zhu_ge_liang.png 768×1344：頭頂＝綸巾頂；身形含八卦光環
-  zhu_ge_liang: { w: 768, h: 1344, faceX: 392, eyeY: 144, faceH: 97, headTopY: 35, fitX0: 54, fitX1: 739, bottomY: 1343 },
+  zhu_ge_liang: { w: 768, h: 1344, faceX: 392, eyeY: 144, faceH: 97, headTopY: 35, fitX0: 54, fitX1: 739, nameGap: 18, bottomY: 1343 },
   // li_bai.png 1645×1503：頭頂＝髮頂；身形含舉杯的手與兩側衣袖（左側衣袖末端可裁切約 8% 畫面寬，酒杯不會被裁）
-  li_bai: { w: 1645, h: 1503, faceX: 1040, eyeY: 205, faceH: 125, headTopY: 103, fitX0: 281, fitX1: 1644, cropL: 0.08, bottomY: 1502 },
+  li_bai: { w: 1645, h: 1503, faceX: 1040, eyeY: 205, faceH: 125, headTopY: 103, fitX0: 281, fitX1: 1644, cropL: 0.08, nameGap: 18, bottomY: 1502 },
 };
 
 /** 全體共用的版面參數（以戰鬥區＝畫面上方 62% 為基準） */
@@ -108,7 +111,7 @@ export function computeBattleLayout(anchor: BattleSpriteAnchor | undefined, root
   else left = a.fitPriority === 'right' ? leftMax : a.fitPriority === 'left' ? leftMin : (leftMin + leftMax) / 2; // 放不下：保住指定的一側
   return {
     scale: s, left, top, width: a.w * s, height: a.h * s,
-    headX: left + a.faceX * s, headY: top + a.headTopY * s - P.headGap,
+    headX: left + a.faceX * s, headY: top + a.headTopY * s - (a.nameGap ?? P.headGap),
     faceX: left + a.faceX * s, faceY: top + a.eyeY * s,
     centerX: rootW / 2, bottomY: top + a.bottomY * s,
     anchor: a,
@@ -186,9 +189,12 @@ export function computeGroundedBattle(
   }
 
   // 名字標籤：水平對準臉心，避開左上 AUTO／WIN／LOSE 直欄與右上題型；垂直貼在頭頂上方（不低於 HP 條下緣）
-  const headMin = Math.max(28, P.headTopMinPx * 0.35);
+  // headMin≈26：保住 HP 條下緣，同時讓高帽 Boss（孔子）仍能維持 nameGap≈18
+  const headMin = Math.max(26, P.headTopMinPx * 0.3);
   const headX = Math.min(Math.max(targetX, 126), rootW - 126);
-  const headY = Math.max(figTop + a.headTopY * figScale - P.headGap, headMin);
+  const nameGap = a.nameGap ?? P.headGap;
+  // headY＝名字底邊；帽頂＝figTop + headTopY·s；間距＝nameGap（可玩 Boss 皆 18；未設則用 headGap）
+  const headY = Math.max(figTop + a.headTopY * figScale - nameGap, headMin);
   const layout: BattleLayout = {
     scale: figScale,
     left: figLeft, top: figTop, width: figW, height: figH,

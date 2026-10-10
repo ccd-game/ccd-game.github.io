@@ -134,6 +134,14 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
   const weaveStageRef = useRef<HTMLDivElement>(null);
   /** 本次攻擊的特效是否已播完（播完即卸載所有覆蓋層，不留任何可能擋住點擊的元素） */
   const [fxDone, setFxDone] = useState(false);
+  /** 分頁隱藏時暫停 idle 飛劍（與圖鑑一致） */
+  const [tabHidden, setTabHidden] = useState(false);
+  useEffect(() => {
+    const sync = () => setTabHidden(document.visibilityState === 'hidden');
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
   // 攻擊開始的同一影格（繪製前）量測劍在手中的位置，換算成根座標系的路徑
   useLayoutEffect(() => {
     if (!isSwordAttack || !weaponLayers) return;
@@ -187,13 +195,54 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
   } : undefined;
   const restFxClass = isSwordAttack ? 'fs-rest-hidden' : '';
   const restFxAnim: React.CSSProperties = isSwordAttack ? { animationDuration: `${fxTotal}ms` } : {};
+  /** 第 2 關 idle：圖鑑飛劍繞身迴圈（攻擊時關掉，改走現有 X 斬） */
+  const idleSaberLoop = levelId === 2 && isWeaponStyle;
+  const idleSaberActive = idleSaberLoop && !isSwordAttack;
   const renderSwordLayers = (withRef: boolean) => weaponLayers && (
     <>
       <img ref={withRef ? restFxRef : undefined} src={weaponLayers.effectImg} alt="" className={restFxClass} style={{ ...frameLayerStyle, ...restFxAnim }} />
       <img src={weaponLayers.characterImg} alt="" style={frameLayerStyle} />
     </>
   );
+  /** 全幅框內層（idle 飛劍 % 位移與此對齊） */
+  const frameFill: React.CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', display: 'block', pointerEvents: 'none' };
   const pivotOrigin = weaponLayers ? `${pct(weaponLayers.pivot.x / weaponLayers.frameW)} ${pct(weaponLayers.pivot.y / weaponLayers.frameH)}` : undefined;
+  const bladeMidOrigin = weaponLayers ? (() => {
+    const rad = weaponLayers.tipAngle * Math.PI / 180;
+    const mx = weaponLayers.pivot.x + Math.cos(rad) * weaponLayers.bladeLength * 0.5;
+    const my = weaponLayers.pivot.y + Math.sin(rad) * weaponLayers.bladeLength * 0.5;
+    return `${pct(mx / weaponLayers.frameW)} ${pct(my / weaponLayers.frameH)}`;
+  })() : undefined;
+  /** 第 2 關：idle 雙層飛劍／攻擊時靜態手中劍（供量測＋隱藏） */
+  const renderLiuWeaponStack = (withRef: boolean) => weaponLayers && (
+    <div
+      className="btl-saber-stage"
+      data-hidden={tabHidden ? '1' : '0'}
+      data-attacking={isSwordAttack ? '1' : '0'}
+      style={frameLayerStyle}
+    >
+      {idleSaberActive ? (
+        <>
+          <div className="btl-saber is-back" style={{ transformOrigin: pivotOrigin }}>
+            <div className="btl-saber-idle" style={{ transformOrigin: bladeMidOrigin }}>
+              <img src={weaponLayers.effectImg} alt="" style={frameFill} draggable={false} />
+            </div>
+          </div>
+          <img src={weaponLayers.characterImg} alt="" style={frameFill} draggable={false} />
+          <div className="btl-saber is-front" style={{ transformOrigin: pivotOrigin }}>
+            <div className="btl-saber-idle" style={{ transformOrigin: bladeMidOrigin }}>
+              <img ref={withRef ? restFxRef : undefined} src={weaponLayers.effectImg} alt="" style={frameFill} draggable={false} />
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <img ref={withRef ? restFxRef : undefined} src={weaponLayers.effectImg} alt="" className={restFxClass} style={{ ...frameFill, ...restFxAnim }} draggable={false} />
+          <img src={weaponLayers.characterImg} alt="" style={frameFill} draggable={false} />
+        </>
+      )}
+    </div>
+  );
 
   // ---- 立繪版面（人物錨點）＋落地場景（背景與立繪同一 transform）----
   const imgFill: React.CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', display: 'block', objectFit: 'contain', objectPosition: 'center bottom' };
@@ -353,12 +402,14 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
               )}
               {isWeaponStyle ? (
                 <>
-                  {/* 分層立繪：effect（劍＋火焰）在下、character 在上，靜止時與戰鬥立繪相同；攻擊時手中的劍隱藏、改由飛行層演出 */}
+                  {/* 分層立繪：effect（劍＋火焰）在下、character 在上；第 2 關 idle 為圖鑑飛劍繞身，攻擊仍走 X 斬 */}
                   <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)' }}>
-                    {renderSwordLayers(false)}
+                    {idleSaberLoop
+                      ? <img src={weaponLayers!.characterImg} alt="" style={frameLayerStyle} draggable={false} />
+                      : renderSwordLayers(false)}
                   </div>
                   <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10, filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.8))' }} role="img" aria-label={bossName}>
-                    {renderSwordLayers(true)}
+                    {idleSaberLoop ? renderLiuWeaponStack(true) : renderSwordLayers(true)}
                     {isSwordAttack && <img src={weaponLayers!.effectImg} alt="" className="fs-reduced-flash" style={{ ...frameLayerStyle, animationDuration: `${fxImpact + 200 * animScale}ms` }} />}
                   </div>
                 </>
@@ -516,6 +567,47 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
           /* 減少動態：劍不離手，命中時只有 App 的閃光（不震屏） */
           @media (prefers-reduced-motion: reduce) {
             .xs-fly { display: none !important; }
+          }
+
+          /* ===== 第 2 關 idle：圖鑑飛劍繞身（6.432s；攻擊時 data-attacking 卸載迴圈）=====
+             路徑／前後層／劍身呼吸與 CharacterDetailView 同款；位移％相對全幅框 */
+          .btl-saber-stage { pointer-events: none; }
+          .btl-saber { position: absolute; inset: 0; width: 100%; height: 100%; will-change: transform, opacity; }
+          .btl-saber.is-back { opacity: 0; animation: btlSaberPath 6.432s infinite, btlSaberBack 6.432s infinite; }
+          .btl-saber.is-front { animation: btlSaberPath 6.432s infinite, btlSaberFront 6.432s infinite; }
+          .btl-saber-idle { position: absolute; inset: 0; width: 100%; height: 100%;
+            animation: btlSaberIdle 3.4s ease-in-out -1.1s infinite; will-change: transform; }
+          @keyframes btlSaberIdle {
+            0%, 100% { transform: translate3d(0, 0.15%, 0) rotate(-0.9deg); }
+            50% { transform: translate3d(0, -0.15%, 0) rotate(0.9deg); }
+          }
+          .btl-saber-stage[data-hidden="1"] .btl-saber,
+          .btl-saber-stage[data-hidden="1"] .btl-saber-idle { animation-play-state: paused; }
+          @media (prefers-reduced-motion: reduce) {
+            .btl-saber, .btl-saber-idle { animation: none !important; }
+            .btl-saber.is-back { opacity: 0 !important; }
+          }
+          @keyframes btlSaberPath {
+            0%     { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: ease-in-out; }
+            26.87% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(.55,0,.85,.45); }
+            38.81% { transform: translate3d(-40.07%, -8.97%, 0) rotate(-10deg) scale(0.85); animation-timing-function: linear; }
+            41.79% { transform: translate3d(-67.41%, -8.97%, 0) rotate(-180deg) scale(0.7); animation-timing-function: linear; }
+            47.01% { transform: translate3d(-17.41%, 1.44%, 0) rotate(-178deg) scale(0.65); animation-timing-function: linear; }
+            55.22% { transform: translate3d(65.40%, 11.86%, 0) rotate(-172deg) scale(0.62); animation-timing-function: linear; }
+            58.21% { transform: translate3d(96.65%, 22.97%, 0) rotate(-356deg) scale(1.25); animation-timing-function: linear; }
+            65.67% { transform: translate3d(30.24%, 14.64%, 0) rotate(-352deg) scale(1.28); animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+            76.12% { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); animation-timing-function: linear; }
+            100%   { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); }
+          }
+          @keyframes btlSaberFront {
+            0%, 38.73% { opacity: 1; }
+            38.81%, 55.22% { opacity: 0; }
+            55.3%, 100% { opacity: 1; }
+          }
+          @keyframes btlSaberBack {
+            0%, 38.73% { opacity: 0; }
+            38.81%, 55.22% { opacity: 0.85; }
+            55.3%, 100% { opacity: 0; }
           }
         `}</style>
       </div>

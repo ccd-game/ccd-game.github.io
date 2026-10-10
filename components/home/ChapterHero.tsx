@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { LevelConfig } from '../../types';
-import { portraitKey } from '../../data/portraits';
+import { portraitKey, LAYERED_PORTRAITS } from '../../data/portraits';
 import { anchorStyle, chapterLabel, faceCircleStyle, type Target } from './heroUtils';
 import { useGyroParallax, type GyroLayer } from './useGyroParallax';
 
@@ -36,8 +36,8 @@ const HERO_SCENES: Record<string, HeroScene> = {
   // 立於月下岩台
   li_bai: { bg: `${BG}/bg_level_11_1.png`, w: 2760, h: 1504, fig: [804, 270, 985, 900], ax: 1380, X: 0.5, head: 329, foot: 1200, k: 2.97, breathe: '50% 100%' },
 };
-// 本體與左、右、下方的鏡像延伸（上方不鏡射，以免倒掛的山峰；改以上緣羽化接到底層柔焦的同一張背景）
-const SCENE_TILES: [number, number][] = [0, 1].flatMap(j => [-1, 0, 1].map(i => [i, j] as [number, number]));
+// 只做左右鏡射補滿；下方不再鏡射（改由 .home-scene-fade / .home-hero-floor 淡入墨黑）
+const SCENE_TILES: [number, number][] = [-1, 0, 1].map(i => [i, 0] as [number, number]);
 const sceneVars = (sc: HeroScene) => ({ '--W': sc.w, '--H': sc.h, '--ax': sc.ax, '--X': sc.X, '--head': sc.head, '--foot': sc.foot, '--span': sc.foot - sc.head, '--k': sc.k }) as React.CSSProperties;
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 
@@ -86,6 +86,16 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
   ], []);
   useGyroParallax(heroRef, gyroLayers);
 
+  // 分頁隱藏時暫停飛劍／呼吸（與圖鑑內頁相同）
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el) return;
+    const sync = () => { el.dataset.hidden = document.hidden ? '1' : '0'; };
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, []);
+
   // 地面線＝篇名區下緣：量一次（尺寸改變時再量），寫入 CSS 變數 --ui（英雄區底至篇名區下緣的距離）
   const titleBoxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -124,6 +134,7 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
   const key = portraitKey(level.bossImg);
   const figTarget = HERO_TARGET[key] || HERO_TARGET.default;
   const scene = HERO_SCENES[key];
+  const layered = scene && LAYERED_PORTRAITS[key]; // 目前僅柳宗元：分層人物＋飛劍（與圖鑑／戰鬥同一組資產）
 
   const d = dir;
 
@@ -173,7 +184,7 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
               {/* 場景拆成兩個同幾何的容器（同一個父層、同一個 transform，逐像素對齊）：
                   背景 → 墨色收邊（篇名可讀）→ 立繪；收邊只壓背景，不壓人物 */}
               <div className="home-scene" style={sceneVars(scene)}>
-                {/* 背景本體＋左右下鏡像延伸：場景比英雄區小時，以鏡射接續畫面，接縫連續、沒有硬邊 */}
+                {/* 背景本體＋左右鏡射：場景比英雄區窄時水平補滿；下方不鏡射 */}
                 {SCENE_TILES.map(([i, j]) => (
                   <img key={`${i}${j}`} src={scene.bg} alt="" className="home-scene-layer home-scene-bg" draggable={false}
                     style={i || j ? { left: `${i * 100}%`, top: `${j * 100}%`, transform: `scale(${i ? -1 : 1}, ${j ? -1 : 1})` } : undefined} />
@@ -182,8 +193,25 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
               <div className="absolute inset-0 home-hero-wash" />
               <div className="home-scene" style={sceneVars(scene)}>
                 <div className="home-scene-fig" style={{ left: pct(scene.fig[0], scene.w), top: pct(scene.fig[1], scene.h), width: pct(scene.fig[2], scene.w), height: pct(scene.fig[3], scene.h) }}>
-                  <div className={`home-scene-layer ${reduce ? '' : 'home-scene-breathe'}`} style={{ transformOrigin: scene.breathe }}>
-                    <img src={level.bossImg} alt={level.bossName} className="home-scene-layer" draggable={false} />
+                  {/* 呼吸套在人物與飛劍共同父層：靜候時劍隨手起伏。有 LAYERED 時拆成人物＋飛劍（前／後兩份切 z） */}
+                  <div className={`home-scene-layer ${reduce ? '' : 'home-scene-breathe'}`} style={{ transformOrigin: layered?.seat ?? scene.breathe }}>
+                    {layered ? (
+                      <>
+                        <div className={`home-scene-layer home-saber is-back${reduce ? ' is-still' : ''}`} style={{ transformOrigin: layered.pivot }}>
+                          <div className="home-scene-layer home-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
+                            <img src={layered.effect} alt="" className="home-scene-layer" draggable={false} />
+                          </div>
+                        </div>
+                        <img src={layered.character} alt={level.bossName} className="home-scene-layer" draggable={false} />
+                        <div className={`home-scene-layer home-saber is-front${reduce ? ' is-still' : ''}`} style={{ transformOrigin: layered.pivot }}>
+                          <div className="home-scene-layer home-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
+                            <img src={layered.effect} alt="" className="home-scene-layer" draggable={false} />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <img src={level.bossImg} alt={level.bossName} className="home-scene-layer" draggable={false} />
+                    )}
                   </div>
                 </div>
               </div>
@@ -206,6 +234,8 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 h-[48%] pointer-events-none home-hero-floor" />
+      {/* 場景下方改淡入墨黑（取代向下鏡射）；岩石／地面線以上仍清晰 */}
+      <div className="home-scene-fade" aria-hidden="true" />
 
       {/* 文字層 */}
       <div className="relative z-10 h-full flex flex-col px-5 pt-5 pb-5">
