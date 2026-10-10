@@ -40,6 +40,8 @@ React 19 · Vite 6 · TypeScript · Firebase（Firestore）
 - **更換姓氏對照表**：以新檔覆蓋 `src/config/surname_map.json`（格式 `{ "chan": { "options": ["陳"], "mode": "auto" } }`，鍵值為小寫、無空格及連字號），然後執行 `npm run test:unit`；只有 `src/config/surnames.ts` 載入此檔，程式碼毋須修改。測試中的數量（266／187／79）及個別例子需按新資料更新。
 - `users/{uid}` 所有學校用戶都可讀取，所以只存 `displayLabel`、`schoolDomain`、中文 `surname`、`surnameSource` 及遊戲數值，**不存全名、英文拼寫、電郵、相片**（規則以欄位白名單強制）。可供選擇的中文姓氏存於只有本人可讀寫的 `users/{uid}/private/surname`。舊文件的 `name`／`displayName` 等欄位會在該用戶下次登入時自動刪除。
 - 規則部署目標（具名資料庫）設定於 `firebase.json`。
+- **設定同步：** 主題／背景音樂／音量／「記住我」存於本機 `localStorage`（`ccd.settings.v1`），登入後同步至 `users/{uid}/private/settings`。首次成功 pull 前本機優先；之後 last-write-wins（`updatedAt`）。
+- **記住我：** 勾選 → Firebase `browserLocalPersistence`（關閉瀏覽器後仍登入）；取消 → `browserSessionPersistence`（瀏覽器工作階段結束後清除）。Firebase 無法保證「只關閉單一瀏覽器分頁即登出」。
 
 ## 測試
 
