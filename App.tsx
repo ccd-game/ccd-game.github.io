@@ -640,8 +640,17 @@ const App: React.FC = () => {
 
   const showMenuScreen = (isLoggedIn || isLoginExiting) && (gameState.status === GameStatus.MENU || gameState.status === GameStatus.CHARACTER_DETAIL);
 
+  // 底層畫框顏色：顯示不透明深色全屏畫面時，底層改用相同深色，
+  // 避免淺色主題的米色底 (--app-bg) 在圓角抗鋸齒邊緣透出
+  const frameBg =
+    isBooting ? '#0a0a0a' :
+    (!isLoggedIn && !isLoginExiting) ? '#0f0f0f' :
+    (isLoggedIn && gameState.status === GameStatus.LOADING) ? '#1a1a1a' :
+    (isLoggedIn && gameState.status === GameStatus.GAME_OVER) ? '#1a0000' :
+    'var(--app-bg)';
+
   return (
-    <div className={`w-full h-full relative transition-all duration-300 ${isPlayerHurt ? 'bg-red-950/20' : ''} ${isScreenShaking ? 'shake-active' : ''}`} style={{ backgroundColor: 'var(--app-bg)' }}>
+    <div className={`w-full h-full relative transition-all duration-300 ${isPlayerHurt ? 'bg-red-950/20' : ''} ${isScreenShaking ? 'shake-active' : ''}`} style={{ backgroundColor: frameBg }}>
       <AudioManager 
         ref={audioManagerRef}
         status={gameState.status} 
