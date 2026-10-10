@@ -26,7 +26,7 @@ export const CHARACTER_DETAILS: Record<number, {
     stats: { hp: 920, atk: 98 },
     leaderSkill: { name: "隆中對策", desc: "【隊長技】全隊文言理解力提升 60%，且延長答題時間 5 秒。" },
     activeSkills: [
-      { name: "七星北斗", desc: "消耗少量文氣，直接排除題目中的三個錯誤字元。" }
+      { name: "七星北斗", desc: "直接排除題目中的三個錯誤字元。" }
     ]
   },
   12: { 

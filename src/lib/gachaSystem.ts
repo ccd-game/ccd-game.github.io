@@ -1,6 +1,6 @@
 
 /**
- * 機緣系統獎勵定義
+ * 尋訪系統獎勵定義
  */
 
 export enum Rarity {
@@ -62,7 +62,7 @@ export const GACHA_POOL: GachaItem[] = [
     name: '九轉金丹',
     type: 'ITEM',
     rarity: Rarity.EPIC,
-    description: '服之可大幅提升文氣上限與修為。',
+    description: '服之可大幅提升悟性與修為。',
   },
   // 稀有 (RARE)
   {

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GachaItem, pullGacha, Rarity } from '../../src/lib/gachaSystem';
-import { subscribeToUser, CURRENT_USER, updateUserGold, watchAuthState, UserData } from '../../src/lib/firebase';
+import { subscribeToUser, CURRENT_USER, updateUserJiyuan, watchAuthState, UserData } from '../../src/lib/firebase';
 
 const RARITY_COLORS = {
   [Rarity.COMMON]: { 
@@ -64,7 +64,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
 
   const handleSummon = async (count: number) => {
     const cost = count === 1 ? 10 : 45; 
-    const isTestMode = !userData || userData.gold < cost; 
+    const isTestMode = !userData || userData.jiyuan < cost;
 
     setLastCount(count);
     setIsSummoning(true);
@@ -73,9 +73,9 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
     
     if (!isTestMode && userData) {
       try {
-        await updateUserGold(CURRENT_USER, userData.gold - cost);
+        await updateUserJiyuan(CURRENT_USER, userData.jiyuan - cost);
       } catch (e) {
-        console.error('扣除文氣失敗', e);
+        console.error('扣除機緣失敗', e);
       }
     }
 
@@ -91,8 +91,8 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
     setIsSummoning(false);
   };
 
-  const hasEnoughOne = (userData?.gold || 0) >= 10;
-  const hasEnoughFive = (userData?.gold || 0) >= 45;
+  const hasEnoughOne = (userData?.jiyuan || 0) >= 10;
+  const hasEnoughFive = (userData?.jiyuan || 0) >= 45;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-6 px-6 tab-slide-active relative overflow-hidden" style={{ backgroundColor: 'var(--app-bg)' }}>
@@ -142,7 +142,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
                  className="absolute w-32 h-32 rounded-full blur-xl" 
                  style={{ backgroundColor: 'var(--gold-accent)' }}
                />
-               <div className="text-6xl font-black opacity-80 relative z-10" style={{ color: 'var(--gold-accent)', textShadow: '0 0 20px var(--gold-accent)' }}>緣</div>
+               <div className="text-6xl font-black opacity-80 relative z-10" style={{ color: 'var(--gold-accent)', textShadow: '0 0 20px var(--gold-accent)' }}>訪</div>
             </div>
         </div>
 
@@ -151,7 +151,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center"
         >
-          <h3 className="text-2xl font-black tracking-[8px] mb-1" style={{ color: 'var(--text-main)' }}>文墨機緣</h3>
+          <h3 className="text-2xl font-black tracking-[8px] mb-1" style={{ color: 'var(--text-main)' }}>尋訪聖賢</h3>
           <p className="text-[11px] tracking-[3px] opacity-50" style={{ color: 'var(--text-sub)' }}>
             天命感召 ・ 聖賢歸位
           </p>
@@ -160,12 +160,12 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-sm">
         <div className="flex items-center gap-2 mb-6 bg-black/40 px-4 py-1.5 rounded-full border border-white/10 shadow-inner">
-          <span className="text-[11px] font-bold" style={{ color: 'var(--gold-accent)' }}>當前文氣</span>
-          <span className="text-[14px] font-black text-white">{userData?.gold || 0}</span>
+          <span className="text-[11px] font-bold" style={{ color: 'var(--gold-accent)' }}>現有機緣</span>
+          <span className="text-[14px] font-black text-white">{userData?.jiyuan || 0}</span>
         </div>
         {isGuest && (
           <p className="gacha-guest-note" data-testid="gacha-guest-hint">
-            遊客的文氣只在本機暫存，不會保存
+            遊客的機緣只在本機暫存，不會保存
           </p>
         )}
 
@@ -177,7 +177,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
             style={{ backgroundColor: 'var(--panel-bg)' }}
           >
             <span className="text-[15px] font-bold text-white relative z-10">{hasEnoughOne ? '探索一次' : '測試召喚'}</span>
-            <span className={`text-[11px] font-medium mt-0.5 relative z-10 ${!hasEnoughOne ? 'opacity-50 line-through' : ''}`} style={{ color: 'var(--gold-accent)' }}>✨ 10 文氣</span>
+            <span className={`text-[11px] font-medium mt-0.5 relative z-10 ${!hasEnoughOne ? 'opacity-50 line-through' : ''}`} style={{ color: 'var(--gold-accent)' }}>✨ 10 機緣</span>
           </button>
           
           <button 
@@ -187,7 +187,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
             style={{ background: 'linear-gradient(135deg, #d4af37 0%, #b8860b 100%)' }}
           >
             <span className="text-[15px] font-bold text-black relative z-10">{hasEnoughFive ? '探索五次' : '測試召喚'}</span>
-            <span className={`text-[11px] font-black text-black/60 mt-0.5 relative z-10 ${!hasEnoughFive ? 'opacity-30 line-through' : ''}`}>✨ 45 文氣</span>
+            <span className={`text-[11px] font-black text-black/60 mt-0.5 relative z-10 ${!hasEnoughFive ? 'opacity-30 line-through' : ''}`}>✨ 45 機緣</span>
           </button>
         </div>
       </div>
@@ -205,7 +205,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
                 animate={{ y: 0, opacity: 1 }}
                 className="text-2xl font-black text-white tracking-[8px] mb-8"
               >
-                機緣揭曉
+                尋訪所得
               </motion.h4>
               
               <div className="w-full relative py-2 group">
@@ -284,7 +284,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
                 onClick={closeResults}
                 className="mt-8 px-8 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm tracking-[2px] active:scale-95 transition-all"
               >
-                收下機緣
+                收入行囊
               </motion.button>
 
               <motion.button
@@ -296,7 +296,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
               >
                 <div className="flex items-center gap-1.5 pr-3 border-r border-black/20">
                   <div className="w-3.5 h-3.5 rounded-full bg-yellow-500 border border-white/20 shadow-sm"></div>
-                  <span className="text-[13px] font-bold tabular-nums">{userData?.gold || 0}</span>
+                  <span className="text-[13px] font-bold tabular-nums">{userData?.jiyuan || 0}</span>
                 </div>
                 <span>再試一次</span>
               </motion.button>

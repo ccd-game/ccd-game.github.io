@@ -27,6 +27,7 @@ import {
   orderBy,
   limit,
   connectFirestoreEmulator,
+  runTransaction,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { GOOGLE_HOSTED_DOMAIN_HINT, REJECTION_MESSAGE, isAllowedUser, emailDomainOf, schoolNameForEmail } from '../config/auth';
@@ -53,10 +54,25 @@ import {
   clearGuestSessionStorage,
   isGuestSessionStored,
   persistGuestSession,
+  recordGuestClear,
   resetGuestUserData,
-  setGuestGold,
+  restoreGuestUserData,
+  setGuestJiyuan,
   subscribeGuestUserData,
 } from './guestSession';
+import {
+  ClearInput,
+  ClearOutcome,
+  LevelBests,
+  NEW_PLAYER_PROGRESS,
+  PLAYER_LIMITS,
+  PUBLIC_PROFILE_FIELDS,
+  applyClear,
+  clampInt,
+  migrateGameFields,
+  normalizeLevels,
+  scoreFor,
+} from './playerData';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -216,7 +232,7 @@ onAuthStateChanged(auth, async (user) => {
     if (authState.status !== 'rejected') {
       // Restore guest after refresh if sessionStorage flag is set (teacher convenience).
       if (isGuestSessionStored()) {
-        resetGuestUserData();
+        restoreGuestUserData();
         setAuthState({ status: 'guest', user: null, message: null, isGuest: true });
       } else {
         setAuthState({ status: 'signedOut', user: null, message: null, isGuest: false });
@@ -373,9 +389,14 @@ export enum OperationType {
 
 export interface UserData {
   level: number;
-  gold: number;
+  /** 機緣（舊欄位 gold／舊稱「文氣」） */
+  jiyuan: number;
   exp: number;
   stamina: number;
+  /** 總分＝各關最佳分數之和（排行榜依此排序） */
+  score: number;
+  /** 各關個人最佳：{ [levelId]: { bestTimeMs, bestScore } } */
+  levels: LevelBests;
   /** 排行榜名稱，例如「救世軍卜維廉中學 林同學」 */
   displayLabel?: string;
   /** 本人畫面頂部的短稱，例如「林同學」；由 surname 推算，不會寫入資料庫 */
@@ -427,13 +448,10 @@ function logFirestoreError(error: unknown, operationType: OperationType, path: s
 }
 
 /** users/{uid} 只可包含這些欄位（亦由 firestore.rules 強制）；不可存全名、英文拼寫、電郵、相片 */
-const PROFILE_FIELDS = ['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'gold', 'exp', 'stamina', 'updatedAt'];
+const PROFILE_FIELDS: readonly string[] = PUBLIC_PROFILE_FIELDS;
 
 export type { SurnameSource } from './surnameSync';
-function clampInt(v: unknown, min: number, max: number, fallback: number): number {
-  if (typeof v !== 'number' || !Number.isFinite(v)) return fallback;
-  return Math.min(max, Math.max(min, Math.floor(v)));
-}
+export type { LevelBest, LevelBests } from './playerData';
 
 const validSurnameValue = isSurnameValue;
 const validSource = isSurnameSource;
@@ -445,6 +463,7 @@ const validSource = isSurnameSource;
  * - 已保存的登入（沒有 family_name）：保留現有有效的 auto／han／pending
  * - 剛以 Google 登入（有 family_name）：重新推算 auto／han／pending
  * - 舊文件含 name / displayName 等欄位，或 v2 的英文姓氏（如 "Chan"）：以完整覆寫（非 merge）遷移
+ * - 計分改版：舊文件有 gold → jiyuan = gold、刪除 gold、levels {}、score ＝ floor(exp × 0.3)（舊文件 exp 皆為 0，即 0；migrateGameFields，冪等）
  */
 async function syncUserProfile(user: User, oauthProfile: NameProfile | null) {
   const domain = emailDomainOf(user.email);
@@ -470,18 +489,18 @@ async function syncUserProfile(user: User, oauthProfile: NameProfile | null) {
       schoolDomain: domain,
       surname,
       surnameSource: source,
-      level: 1,
-      gold: 1,
-      exp: 0,
-      stamina: 100,
+      ...NEW_PLAYER_PROGRESS,
+      levels: {},
       updatedAt: serverTimestamp(),
     });
     return;
   }
 
   const hasLegacyFields = Object.keys(d).some((k) => !PROFILE_FIELDS.includes(k));
+  const { progress, needsRewrite } = migrateGameFields(d);
   const upToDate =
     !hasLegacyFields &&
+    !needsRewrite &&
     d.surname === surname &&
     d.surnameSource === source &&
     d.schoolDomain === domain &&
@@ -494,10 +513,7 @@ async function syncUserProfile(user: User, oauthProfile: NameProfile | null) {
     schoolDomain: domain,
     surname,
     surnameSource: source,
-    level: clampInt(d.level, 1, 999, 1),
-    gold: clampInt(d.gold, 0, 100000000, 0),
-    exp: clampInt(d.exp, 0, 100000000, 0),
-    stamina: clampInt(d.stamina, 0, 1000, 100),
+    ...progress,
     updatedAt: serverTimestamp(),
   });
 }
@@ -626,11 +642,15 @@ export async function saveSurnameChoice(input: string, source: 'chosen' | 'manua
 /** 只把公開、已清理的欄位交給介面；絕不轉交 name / displayName 等舊欄位 */
 function toPublicUserData(raw: Record<string, unknown>): UserData {
   const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+  const levels = normalizeLevels(raw.levels);
   return {
     level: num(raw.level, 1),
-    gold: num(raw.gold, 0),
+    // 未遷移的舊文件（尚未重新登入）暫以 gold 顯示，登入時 syncUserProfile 會改寫為 jiyuan
+    jiyuan: num(raw.jiyuan, num(raw.gold, 0)),
     exp: num(raw.exp, 0),
     stamina: num(raw.stamina, 0),
+    score: num(raw.score, scoreFor(levels, num(raw.exp, 0))),
+    levels,
     displayLabel: safeDisplayLabel(raw),
     name: shortLabelFor(typeof raw.surname === 'string' ? raw.surname : ''),
     surname: sanitizeSurname(typeof raw.surname === 'string' ? raw.surname : ''),
@@ -686,10 +706,17 @@ export function subscribeToUser(
   };
 }
 
-/** 排行榜：users 集合依等級排序（只在通過檢查後才查詢） */
+/** 排行榜最多讀取的人數（規則 list 上限為 100） */
+export const RANKING_LIMIT = 50;
+
+/**
+ * 排行榜：users 集合依總分 score 由高至低排序（只在通過檢查後才查詢）。
+ * 單一欄位降序排序由 Firestore 自動建立的單欄索引支援，不需 firestore.indexes.json。
+ * 注意：沒有 score 欄位的舊文件（遷移前）不會出現在 orderBy('score') 的結果中，該用戶下次登入後即會上榜。
+ */
 export function subscribeToRanking(
   onUpdate: (data: (UserData & { id: string })[]) => void,
-  limitCount: number = 50,
+  limitCount: number = RANKING_LIMIT,
   onError?: (error: unknown) => void,
 ) {
   let unsubQuery: (() => void) | null = null;
@@ -702,7 +729,7 @@ export function subscribeToRanking(
       return;
     }
     if (s.status !== 'authorized' || !s.user) return;
-    const q = query(collection(db, 'users'), orderBy('level', 'desc'), limit(limitCount));
+    const q = query(collection(db, 'users'), orderBy('score', 'desc'), limit(limitCount));
     unsubQuery = onSnapshot(
       q,
       (snapshot) => {
@@ -721,11 +748,12 @@ export function subscribeToRanking(
   };
 }
 
-/** 扣除金幣（文氣）：只可修改自己的文件 */
-export async function updateUserGold(userId: string, newGold: number) {
+/** 設定機緣（尋訪扣除）：只可修改自己的文件 */
+export async function updateUserJiyuan(userId: string, newJiyuan: number) {
+  const value = clampInt(newJiyuan, PLAYER_LIMITS.jiyuan.min, PLAYER_LIMITS.jiyuan.max, 0);
   if (isGuestAuth()) {
-    // Local-only temp gold — never write Firestore as guest.
-    setGuestGold(newGold);
+    // 遊客：只存本機 sessionStorage，絕不寫入 Firestore
+    setGuestJiyuan(value);
     return;
   }
   const user = authState.status === 'authorized' ? authState.user : null;
@@ -733,8 +761,44 @@ export async function updateUserGold(userId: string, newGold: number) {
   const uid = resolveUid(userId, user);
   const userRef = doc(db, 'users', uid);
   try {
-    await setDoc(userRef, { gold: Math.max(0, Math.floor(newGold)), updatedAt: serverTimestamp() }, { merge: true });
+    await setDoc(userRef, { jiyuan: value, updatedAt: serverTimestamp() }, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `users/${uid}`);
+  }
+}
+
+/**
+ * 記錄一次勝利（只應在 VICTORY 時呼叫；戰敗不呼叫）。
+ * - 遊客：只更新本機 sessionStorage。
+ * - 登入用戶：以 transaction 讀取最新文件，寫入經驗（+5 × 答對題數 + 50）、等級及總分；
+ *   只在新分數高於該關最佳分數時寫入 levels.{id}（規則會重算並核對）。
+ * - 時間低於防作弊下限：不寫入任何東西。
+ * 回傳結果供介面顯示（例如「新紀錄」）；未登入時回傳 null。
+ */
+export async function recordLevelClear(input: ClearInput): Promise<ClearOutcome | null> {
+  if (isGuestAuth()) return recordGuestClear(input);
+  const user = authState.status === 'authorized' ? authState.user : null;
+  if (!user) return null;
+  const userRef = doc(db, 'users', user.uid);
+  try {
+    return await runTransaction(db, async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists()) throw new Error('個人檔案不存在');
+      const data = snap.data();
+      const outcome = applyClear({ level: data.level, exp: data.exp, levels: normalizeLevels(data.levels) }, input);
+      if (outcome.recorded) {
+        const { level, exp, score } = outcome.progress;
+        tx.update(userRef, {
+          ...(outcome.improved ? { [`levels.${outcome.levelId}`]: outcome.entry } : {}),
+          level,
+          exp,
+          score,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      return outcome;
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
   }
 }

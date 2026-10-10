@@ -28,6 +28,11 @@ import {
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
+import { MAX_EXP_PER_CLEAR, MAX_LEVEL_SCORE, MIN_CLEAR_TIME_SEC, SCORED_LEVEL_IDS, expScore, levelScoreForTime } from '../src/lib/scoring';
+import { LevelBests, applyClear, migrateGameFields } from '../src/lib/playerData';
+
+/** 一小時前（經驗增加須距上次寫入至少 MIN_CLEAR_TIME_SEC 秒） */
+const anHourAgo = () => Timestamp.fromMillis(Date.now() - 3600_000);
 
 let env: RulesTestEnvironment;
 
@@ -49,16 +54,18 @@ const newProfile = (over: Record<string, unknown> = {}) => ({
   surname: '林',
   surnameSource: 'auto',
   level: 1,
-  gold: 1,
+  jiyuan: 1,
   exp: 0,
   stamina: 100,
+  score: 0,
+  levels: {},
   updatedAt: serverTimestamp(),
   ...over,
 });
 
 const alice = () => env.authenticatedContext(ALICE, google('alice@wbss.edu.hk')).firestore();
 // 與排名分頁完全相同的查詢（src/lib/firebase.ts subscribeToRanking）
-const rankQuery = (db: ReturnType<typeof alice>) => query(collection(db, 'users'), orderBy('level', 'desc'), limit(50));
+const rankQuery = (db: ReturnType<typeof alice>) => query(collection(db, 'users'), orderBy('score', 'desc'), limit(50));
 
 beforeAll(async () => {
   const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080').split(':');
@@ -76,12 +83,14 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    const seed = (level: number) => ({
+    const seed = (level: number, levels: Record<string, { bestTimeMs: number; bestScore: number }> = {}) => ({
       displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
-      level, gold: 50, exp: 0, stamina: 100, updatedAt: Timestamp.now(),
+      level, jiyuan: 50, exp: 0, stamina: 100,
+      score: Object.values(levels).reduce((a, e) => a + e.bestScore, 0), levels, updatedAt: anHourAgo(),
     });
     await setDoc(doc(db, 'users', ALICE), seed(3));
-    await setDoc(doc(db, 'users', BOB), seed(5));
+    // Bob 已通過第 2 關（滿分）
+    await setDoc(doc(db, 'users', BOB), seed(5, { '2': { bestTimeMs: 60000, bestScore: 1000 } }));
   });
 });
 
@@ -93,13 +102,13 @@ describe('允許：已驗證 @wbss.edu.hk Google 帳戶', () => {
     const db = env.authenticatedContext('carol', google('carol@wbss.edu.hk')).firestore();
     await assertSucceeds(setDoc(doc(db, 'users', 'carol'), newProfile()));
   });
-  it('可更新自己的文氣（gold，merge 寫入，與抽卡相同）', async () => {
-    await assertSucceeds(setDoc(doc(alice(), 'users', ALICE), { gold: 40, updatedAt: serverTimestamp() }, { merge: true }));
+  it('可更新自己的機緣（jiyuan，merge 寫入，與尋訪相同）', async () => {
+    await assertSucceeds(setDoc(doc(alice(), 'users', ALICE), { jiyuan: 40, updatedAt: serverTimestamp() }, { merge: true }));
   });
-  it('可升一級', async () => {
-    await assertSucceeds(updateDoc(doc(alice(), 'users', ALICE), { level: 4, exp: 10, updatedAt: serverTimestamp() }));
+  it('可升一級（經驗增加時總分按 floor(exp × 0.3) 同步）', async () => {
+    await assertSucceeds(updateDoc(doc(alice(), 'users', ALICE), { level: 4, exp: 10, score: 3, updatedAt: serverTimestamp() }));
   });
-  it('排名分頁的 list 查詢成功（orderBy level desc, limit 50）', async () => {
+  it('排名分頁的 list 查詢成功（orderBy score desc, limit 50）', async () => {
     await assertSucceeds(getDocs(rankQuery(alice())));
   });
   it('可讀取別人的檔案（排行榜顯示用）', async () => {
@@ -117,7 +126,7 @@ describe('拒絕：其他網域（@gmail.com）', () => {
     await assertFails(getDoc(doc(gmail(), 'users', ALICE)));
   });
   it('寫入被拒', async () => {
-    await assertFails(setDoc(doc(gmail(), 'users', ALICE), { gold: 1, updatedAt: serverTimestamp() }, { merge: true }));
+    await assertFails(setDoc(doc(gmail(), 'users', ALICE), { jiyuan: 1, updatedAt: serverTimestamp() }, { merge: true }));
   });
   it('排名查詢被拒', async () => {
     await assertFails(getDocs(rankQuery(gmail())));
@@ -136,7 +145,7 @@ describe('拒絕：未驗證的 @wbss.edu.hk 電郵', () => {
     await assertFails(getDoc(doc(unverified(), 'users', ALICE)));
   });
   it('寫入被拒', async () => {
-    await assertFails(setDoc(doc(unverified(), 'users', ALICE), { gold: 1, updatedAt: serverTimestamp() }, { merge: true }));
+    await assertFails(setDoc(doc(unverified(), 'users', ALICE), { jiyuan: 1, updatedAt: serverTimestamp() }, { merge: true }));
   });
   it('排名查詢被拒', async () => {
     await assertFails(getDocs(rankQuery(unverified())));
@@ -171,8 +180,8 @@ describe('拒絕：未登入', () => {
 });
 
 describe('拒絕：修改他人資料及不合理數值', () => {
-  it('不可寫入別人的文氣', async () => {
-    await assertFails(setDoc(doc(alice(), 'users', BOB), { gold: 999999, updatedAt: serverTimestamp() }, { merge: true }));
+  it('不可寫入別人的機緣', async () => {
+    await assertFails(setDoc(doc(alice(), 'users', BOB), { jiyuan: 999999, updatedAt: serverTimestamp() }, { merge: true }));
   });
   it('不可替別人建立檔案', async () => {
     await assertFails(setDoc(doc(alice(), 'users', 'mallory'), newProfile()));
@@ -183,29 +192,30 @@ describe('拒絕：修改他人資料及不合理數值', () => {
   it('亦不可刪除自己的檔案', async () => {
     await assertFails(deleteDoc(doc(alice(), 'users', ALICE)));
   });
-  it('建立時不可直接設定高等級／大量文氣', async () => {
+  it('建立時不可直接設定高等級／大量機緣／分數', async () => {
     const db = env.authenticatedContext('carol', google('carol@wbss.edu.hk')).firestore();
     await assertFails(setDoc(doc(db, 'users', 'carol'), newProfile({ level: 99 })));
-    await assertFails(setDoc(doc(db, 'users', 'carol'), newProfile({ gold: 1000000 })));
+    await assertFails(setDoc(doc(db, 'users', 'carol'), newProfile({ jiyuan: 1000000 })));
+    await assertFails(setDoc(doc(db, 'users', 'carol'), newProfile({ score: 1000, levels: { '1': { bestTimeMs: 100000, bestScore: 1000 } } })));
   });
   it('不可一次跳多級或降級', async () => {
     await assertFails(updateDoc(doc(alice(), 'users', ALICE), { level: 9, updatedAt: serverTimestamp() }));
     await assertFails(updateDoc(doc(alice(), 'users', ALICE), { level: 2, updatedAt: serverTimestamp() }));
   });
-  it('文氣不可為負數或非整數', async () => {
-    await assertFails(setDoc(doc(alice(), 'users', ALICE), { gold: -5, updatedAt: serverTimestamp() }, { merge: true }));
-    await assertFails(setDoc(doc(alice(), 'users', ALICE), { gold: 1.5, updatedAt: serverTimestamp() }, { merge: true }));
-    await assertFails(setDoc(doc(alice(), 'users', ALICE), { gold: '100', updatedAt: serverTimestamp() }, { merge: true }));
+  it('機緣不可為負數或非整數', async () => {
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { jiyuan: -5, updatedAt: serverTimestamp() }, { merge: true }));
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { jiyuan: 1.5, updatedAt: serverTimestamp() }, { merge: true }));
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { jiyuan: '100', updatedAt: serverTimestamp() }, { merge: true }));
   });
   it('不可加入額外欄位（例如 isAdmin）', async () => {
     await assertFails(setDoc(doc(alice(), 'users', ALICE), { isAdmin: true, updatedAt: serverTimestamp() }, { merge: true }));
   });
   it('updatedAt 必須為伺服器時間', async () => {
-    await assertFails(setDoc(doc(alice(), 'users', ALICE), { gold: 10, updatedAt: Timestamp.fromDate(new Date('2030-01-01')) }, { merge: true }));
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { jiyuan: 10, updatedAt: Timestamp.fromDate(new Date('2030-01-01')) }, { merge: true }));
   });
   it('沒有 limit 或 limit 過大的整個集合查詢被拒', async () => {
     await assertFails(getDocs(collection(alice(), 'users')));
-    await assertFails(getDocs(query(collection(alice(), 'users'), orderBy('level', 'desc'), limit(500))));
+    await assertFails(getDocs(query(collection(alice(), 'users'), orderBy('score', 'desc'), limit(500))));
   });
   it('其他集合一律拒絕', async () => {
     await assertFails(getDoc(doc(alice(), 'leaderboard', ALICE)));
@@ -259,13 +269,13 @@ describe('排行榜名稱：不可儲存全名，displayLabel 格式', () => {
         name: '陳大文', displayName: 'Chan Tai Man', level: 3, gold: 50, exp: 0, stamina: 100, updatedAt: Timestamp.now(),
       });
     });
-    // 舊文件保留 name 時，任何部分更新（例如扣文氣）都被拒，必須先遷移
-    await assertFails(setDoc(doc(alice(), 'users', ALICE), { gold: 40, updatedAt: serverTimestamp() }, { merge: true }));
+    // 舊文件保留 name 時，任何部分更新（例如扣除機緣）都被拒，必須先遷移
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { jiyuan: 40, updatedAt: serverTimestamp() }, { merge: true }));
     // 客戶端 syncUserProfile 的完整覆寫（非 merge）
     await assertSucceeds(
       setDoc(doc(alice(), 'users', ALICE), {
         displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
-        level: 3, gold: 50, exp: 0, stamina: 100, updatedAt: serverTimestamp(),
+        level: 3, jiyuan: 50, exp: 0, stamina: 100, score: 0, levels: {}, updatedAt: serverTimestamp(),
       }),
     );
     const snap = await assertSucceeds(getDocs(rankQuery(alice())));
@@ -334,11 +344,11 @@ describe('中文姓氏選擇（surnameSource 及 private/surname）', () => {
         level: 3, gold: 50, exp: 0, stamina: 100, updatedAt: Timestamp.now(),
       });
     });
-    await assertFails(setDoc(doc(alice(), 'users', ALICE), { gold: 40, updatedAt: serverTimestamp() }, { merge: true }));
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { jiyuan: 40, updatedAt: serverTimestamp() }, { merge: true }));
     await assertSucceeds(
       setDoc(doc(alice(), 'users', ALICE), {
         displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
-        level: 3, gold: 50, exp: 0, stamina: 100, updatedAt: serverTimestamp(),
+        level: 3, jiyuan: 50, exp: 0, stamina: 100, score: 0, levels: {}, updatedAt: serverTimestamp(),
       }),
     );
   });
@@ -401,6 +411,182 @@ describe('private/settings（主題／BGM 雲端同步）', () => {
     await assertFails(setDoc(ref, { ...good(), theme: 'neon' }));
     await assertSucceeds(setDoc(ref, good()));
     await assertFails(deleteDoc(ref));
+  });
+});
+
+describe('計分改版：機緣 jiyuan 取代 gold（遷移）', () => {
+  const oldGoldDoc = { displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto', level: 3, gold: 77, exp: 5, stamina: 90 };
+  // 與 syncUserProfile 相同：以 migrateGameFields 推算遊戲欄位，完整覆寫
+  const migrated = () => ({
+    displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
+    ...migrateGameFields(oldGoldDoc).progress, updatedAt: serverTimestamp(),
+  });
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'users', ALICE), { ...oldGoldDoc, updatedAt: Timestamp.now() });
+    });
+  });
+
+  it('舊 gold 文件：部分更新被拒（必須先遷移）', async () => {
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { jiyuan: 77, updatedAt: serverTimestamp() }, { merge: true }));
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { gold: 70, updatedAt: serverTimestamp() }, { merge: true }));
+  });
+  it('舊 gold 文件：完整覆寫為 jiyuan = gold、levels {}、score = floor(exp × 0.3) 成功；之後 gold 已不存在', async () => {
+    await assertSucceeds(setDoc(doc(alice(), 'users', ALICE), migrated()));
+    const snap = await getDoc(doc(alice(), 'users', ALICE));
+    expect(snap.data()).not.toHaveProperty('gold');
+    expect(snap.data()?.jiyuan).toBe(77);
+    expect(snap.data()?.score).toBe(1); // 舊 exp 5 → floor(1.5) = 1；實際舊文件 exp 皆為 0 → 0
+    expect(snap.data()?.levels).toEqual({});
+  });
+  it('遷移時保留 gold 欄位被拒', async () => {
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { ...migrated(), gold: 77 }));
+  });
+  it('遷移時不可順便寫入分數（score 須等於各關之和）', async () => {
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { ...migrated(), score: 500 }));
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { ...migrated(), score: 0 }));
+  });
+  it('已遷移文件不可再寫入 gold', async () => {
+    await assertSucceeds(setDoc(doc(alice(), 'users', ALICE), migrated()));
+    await assertFails(setDoc(doc(alice(), 'users', ALICE), { gold: 10, updatedAt: serverTimestamp() }, { merge: true }));
+    await assertFails(updateDoc(doc(alice(), 'users', ALICE), { gold: 10, updatedAt: serverTimestamp() }));
+  });
+  it('新建檔案不可含 gold', async () => {
+    const db = env.authenticatedContext('carol', google('carol@wbss.edu.hk')).firestore();
+    await assertFails(setDoc(doc(db, 'users', 'carol'), { ...newProfile(), gold: 1 }));
+  });
+});
+
+describe('計分：各關最佳紀錄 levels、經驗 exp 與總分 score', () => {
+  const ref = () => doc(alice(), 'users', ALICE);
+  const bobRef = () => doc(env.authenticatedContext(BOB, google('bob@wbss.edu.hk')).firestore(), 'users', BOB);
+  type Bests = Record<string, { bestTimeMs: number; bestScore: number }>;
+  const entry = (timeMs: number) => ({ bestTimeMs: timeMs, bestScore: levelScoreForTime(1, timeMs)! });
+  /** 把文件的 updatedAt 撥回一小時前（模擬兩次通關之間至少隔了一場戰鬥） */
+  const age = async (uid: string) => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', uid), { updatedAt: anHourAgo() });
+    });
+  };
+  /** 與 src/lib/firebase.ts recordLevelClear 完全相同的寫法：讀取 → applyClear → transaction 欄位 */
+  const clear = async (r: ReturnType<typeof ref>, levelId: number, timeMs: number, correctAnswers = 20) => {
+    const d = (await getDoc(r)).data()!;
+    const outcome = applyClear({ level: d.level, exp: d.exp, levels: d.levels as LevelBests }, { levelId, timeMs, correctAnswers });
+    if (!outcome.recorded) throw new Error('invalid time');
+    const { level, exp, score } = outcome.progress;
+    return updateDoc(r, {
+      ...(outcome.improved ? { [`levels.${outcome.levelId}`]: outcome.entry } : {}),
+      level, exp, score, updatedAt: serverTimestamp(),
+    });
+  };
+  /** 直接寫入指定欄位（用於測試不合法的寫入） */
+  const raw = (r: ReturnType<typeof ref>, fields: Record<string, unknown>) => updateDoc(r, { ...fields, updatedAt: serverTimestamp() });
+
+  it('合法的新紀錄可寫入：90 秒 → 816 分；經驗 +5×20+50 = 150；總分 816 + 45', async () => {
+    expect(entry(90000).bestScore).toBe(816);
+    await assertSucceeds(clear(ref(), 1, 90000));
+    const d = (await getDoc(ref())).data()!;
+    expect(d.levels['1']).toEqual({ bestTimeMs: 90000, bestScore: 816 });
+    expect(d.exp).toBe(150);
+    expect(d.score).toBe(816 + 45);
+  });
+  it('90 秒的四捨五入：816 接受，817／815 被拒', async () => {
+    await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: 90000, bestScore: 817 }, score: 817 }));
+    await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: 90000, bestScore: 815 }, score: 815 }));
+    await assertSucceeds(raw(ref(), { 'levels.1': { bestTimeMs: 90000, bestScore: 816 }, score: 816 }));
+  });
+  it('客戶端與規則的算式一致：600 → 300 → 240 → 120 → 90 → 60 秒逐步改善都被接受', async () => {
+    const expected: [number, number][] = [[3600000, 129], [600000, 316], [300000, 447], [240000, 500], [120000, 707], [90000, 816], [60000, 1000]];
+    for (const [ms, pts] of expected) {
+      expect(levelScoreForTime(1, ms)).toBe(pts);
+      await age(ALICE);
+      await assertSucceeds(clear(ref(), 1, ms));
+    }
+    const d = (await getDoc(ref())).data()!;
+    expect(d.levels['1'].bestScore).toBe(1000);
+    expect(d.exp).toBe(150 * expected.length);
+    expect(d.score).toBe(1000 + expScore(150 * expected.length));
+  });
+  it('分數與時間不符被拒（以慢時間聲稱滿分）', async () => {
+    await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: 300000, bestScore: 1000 }, score: 1000 }));
+  });
+  it('單關分數超過上限被拒', async () => {
+    await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: 60000, bestScore: MAX_LEVEL_SCORE + 1 }, score: MAX_LEVEL_SCORE + 1 }));
+  });
+  it('時間低於防作弊下限被拒；等於下限可寫入', async () => {
+    const floor = MIN_CLEAR_TIME_SEC * 1000;
+    await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: floor - 1, bestScore: 1000 }, score: 1000 }));
+    await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: 1, bestScore: 1000 }, score: 1000 }));
+    await assertSucceeds(raw(ref(), { 'levels.1': { bestTimeMs: floor, bestScore: 1000 }, score: 1000 }));
+  });
+  it('最佳分數下降被拒（以較慢的時間覆寫）', async () => {
+    await assertFails(raw(bobRef(), { 'levels.2': entry(300000), score: entry(300000).bestScore }));
+  });
+  it('同分（例如更快但已滿分）不可覆寫紀錄', async () => {
+    await assertFails(raw(bobRef(), { 'levels.2': { bestTimeMs: 50000, bestScore: 1000 }, score: 1000 }));
+  });
+  it('沒有刷新紀錄的勝利：只增加經驗及總分，紀錄保持不變', async () => {
+    await assertSucceeds(clear(bobRef(), 2, 50000, 28));
+    const d = (await getDoc(bobRef())).data()!;
+    expect(d.levels['2']).toEqual({ bestTimeMs: 60000, bestScore: 1000 });
+    expect(d.exp).toBe(5 * 28 + 50);
+    expect(d.score).toBe(1000 + expScore(190));
+  });
+  it('總分不可下降（刪除關卡紀錄或直接改低）', async () => {
+    await assertFails(raw(bobRef(), { score: 900 }));
+    await assertFails(raw(bobRef(), { levels: {}, score: 0 }));
+  });
+  it('總分必須等於差額（不可多報；不可只改總分）', async () => {
+    const e = entry(90000);
+    await assertFails(raw(ref(), { 'levels.1': e, score: e.bestScore + 1 }));
+    await assertFails(raw(ref(), { score: 100 }));
+    await assertFails(raw(ref(), { exp: 100, score: 31 }));
+  });
+  it('經驗：不可下降；單次不可超過上限；距上次寫入不足防作弊下限時不可增加', async () => {
+    await assertSucceeds(raw(ref(), { exp: 100, score: 30 }));
+    // 剛寫入：再加經驗被拒（連續刷經驗）
+    await assertFails(raw(ref(), { exp: 200, score: 60 }));
+    await age(ALICE);
+    await assertFails(raw(ref(), { exp: 50, score: 15 }));
+    await assertFails(raw(ref(), { exp: 100 + MAX_EXP_PER_CLEAR + 1, score: expScore(100 + MAX_EXP_PER_CLEAR + 1) }));
+    await assertSucceeds(raw(ref(), { exp: 100 + MAX_EXP_PER_CLEAR, score: expScore(100 + MAX_EXP_PER_CLEAR) }));
+  });
+  it('不合法的關卡紀錄被拒：未知關卡、多餘欄位、非整數時間、缺欄位', async () => {
+    await assertFails(raw(ref(), { 'levels.99': { bestTimeMs: 60000, bestScore: 1000 }, score: 1000 }));
+    await assertFails(raw(ref(), { 'levels.1': { ...entry(90000), cheat: true }, score: 816 }));
+    await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: 90000.5, bestScore: 816 }, score: 816 }));
+    await assertFails(raw(ref(), { 'levels.1': { bestScore: 816 }, score: 816 }));
+  });
+  it('不可替別人寫入通關紀錄', async () => {
+    await assertFails(updateDoc(doc(alice(), 'users', BOB), { 'levels.1': entry(90000), score: 1816, updatedAt: serverTimestamp() }));
+  });
+  it('寫入其他欄位（例如機緣）時，原有各關紀錄不受影響、仍然通過', async () => {
+    await assertSucceeds(setDoc(bobRef(), { jiyuan: 10, updatedAt: serverTimestamp() }, { merge: true }));
+  });
+  it('每次寫入最多新增或改善一關：一次寫入多關被拒', async () => {
+    const all: Bests = {};
+    for (const id of SCORED_LEVEL_IDS) all[id] = entry(400000);
+    const total = Object.values(all).reduce((a, e) => a + e.bestScore, 0);
+    await assertFails(raw(ref(), { levels: all, score: total }));
+    await assertFails(raw(ref(), { levels: { '1': all['1'], '3': all['3'] }, score: all['1'].bestScore * 2 }));
+  });
+  it('運算量：12 關全滿的文件，完整覆寫（不變）及勝利（改善一關＋經驗）都在規則運算上限內', async () => {
+    const full: Bests = {};
+    for (const id of SCORED_LEVEL_IDS) full[id] = entry(400000);
+    const sum = Object.values(full).reduce((a, e) => a + e.bestScore, 0);
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE), { levels: full, score: sum, updatedAt: anHourAgo() });
+    });
+    const snap = await getDoc(ref());
+    await assertSucceeds(setDoc(ref(), { ...snap.data(), jiyuan: 1, updatedAt: serverTimestamp() }));
+    await age(ALICE);
+    await assertSucceeds(clear(ref(), 12, 100000, 60));
+  });
+  it('排名查詢依 score 由高至低排序', async () => {
+    await assertSucceeds(clear(ref(), 1, 90000));
+    const snap = await assertSucceeds(getDocs(rankQuery(alice())));
+    expect(snap.docs.map((d) => d.id)).toEqual([BOB, ALICE]);
+    expect(snap.docs.map((d) => d.data().score)).toEqual([1000, 861]);
   });
 });
 

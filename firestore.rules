@@ -27,14 +27,102 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
 
-    // 個人檔案（亦即排行榜及文氣 gold 的資料來源）。所有學校用戶都可讀取，
+    // ───────── 通關計分（每關最佳紀錄 levels、經驗 exp 及總分 score）─────────
+    // ⚠️ 同步點：以下常數及算式必須與 src/lib/scoring.ts 完全一致
+    //    （MAX_LEVEL_SCORE、FULL_SCORE_TIME_SEC、MIN_CLEAR_TIME_SEC、MAX_RECORDABLE_TIME_MS、
+    //     EXP_SCORE_NUMERATOR／DENOMINATOR、MAX_EXP_PER_CLEAR、MAX_LEVEL_UPS_PER_WRITE、SCORED_LEVEL_IDS、
+    //     levelScoreForTime()、expScore()）。src/lib/scoring.test.ts 會讀取本檔核對；
+    //    改任何一邊都要同時改另一邊，並先部署規則、後部署網站。
+    function maxLevelScore() { return 1000; }
+    function fullScoreTimeMs() { return 60000; }
+    function minClearTimeSec() { return 12; }
+    function maxRecordableTimeMs() { return 3600000; }
+    function expScoreNumerator() { return 3; }
+    function expScoreDenominator() { return 10; }
+    function maxExpPerClear() { return 350; }
+    function maxLevelUpsPerWrite() { return 3; }
+    function levelIds() { return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']; }
+
+    // 通關時間（整數毫秒）→ 分數：60 秒或更快滿分 1000；之後 round(1000 × √(60 / t))，沒有下限
+    function levelScoreFor(t) {
+      return t <= fullScoreTimeMs() ? maxLevelScore()
+        : math.round(maxLevelScore() * math.sqrt(fullScoreTimeMs() * 1.0 / t));
+    }
+
+    // 經驗計入總分的部分：floor(exp × 0.3)（以整數乘除，與客戶端相同）
+    function expScore(e) { return math.floor(e * expScoreNumerator() * 1.0 / expScoreDenominator()); }
+
+    // 單關紀錄 { bestTimeMs, bestScore }：時間不低於防作弊下限，分數必須等於由時間算出的分數
+    function isValidLevelEntry(e) {
+      return e is map
+        && e.keys().hasAll(['bestTimeMs', 'bestScore'])
+        && e.keys().hasOnly(['bestTimeMs', 'bestScore'])
+        && e.bestTimeMs is int
+        && e.bestTimeMs >= minClearTimeSec() * 1000
+        && e.bestTimeMs <= maxRecordableTimeMs()
+        && e.bestScore is int
+        && e.bestScore >= 1
+        && e.bestScore <= maxLevelScore()
+        && e.bestScore == levelScoreFor(e.bestTimeMs);
+    }
+
+    // 由（只有一個元素的）key 集合取出該 key（規則的 Set 沒有 toList()）
+    function onlyKey(s) {
+      return '1' in s ? '1' : ('2' in s ? '2' : ('3' in s ? '3' : ('4' in s ? '4' : ('5' in s ? '5' : ('6' in s ? '6' : ('7' in s ? '7' : ('8' in s ? '8' : ('9' in s ? '9' : ('10' in s ? '10' : ('11' in s ? '11' : '12'))))))))));
+    }
+
+    // 一關的新增／改善：紀錄合法；更新時分數必須高於原有最佳分數
+    function levelUpdateOk(id, next, prev) {
+      return isValidLevelEntry(next[id])
+        && (!(id in prev) || next[id].bestScore > prev[id].bestScore);
+    }
+
+    // 各關紀錄的變更（以 MapDiff 計算，運算量與已通關數目無關）：
+    // 不可刪除任何一關；只可使用已知關卡 id；每次寫入最多新增或改善一關（客戶端每次通關只寫一關）
+    function levelsOk(next, prev) {
+      let d = next.diff(prev);
+      return d.removedKeys().size() == 0
+        && next.keys().hasOnly(levelIds())
+        && d.affectedKeys().size() <= 1
+        && (d.affectedKeys().size() == 0 || levelUpdateOk(onlyKey(d.affectedKeys()), next, prev));
+    }
+
+    // 本次寫入令「各關最佳分數之和」增加的分數
+    function bestsDelta(next, prev) {
+      let d = next.diff(prev);
+      return d.affectedKeys().size() == 0 ? 0 : bestDeltaFor(onlyKey(d.affectedKeys()), next, prev);
+    }
+    function bestDeltaFor(id, next, prev) { return next[id].bestScore - (id in prev ? prev[id].bestScore : 0); }
+
+    // 舊文件（遷移前）沒有 score：視為 floor(舊 exp × 0.3)（舊版沒有途徑增加經驗，實際為 0）
+    function prevExp() { return existing().get('exp', 0); }
+    function prevScore() { return existing().get('score', expScore(prevExp())); }
+
+    // 經驗：不可下降；每次最多增加 maxExpPerClear()；增加時距離上次寫入必須至少 minClearTimeSec() 秒
+    // （任何真正的通關都不會快過防作弊下限，所以不會誤拒；可阻止連續刷經驗）
+    function expOk(d) {
+      return d.exp >= prevExp()
+        && d.exp - prevExp() <= maxExpPerClear()
+        && (d.exp == prevExp() || request.time >= existing().updatedAt + duration.value(minClearTimeSec(), 's'));
+    }
+
+    // 「總分＝各關最佳分數之和＋floor(exp × 0.3)」以歸納方式保證：
+    // 建立時 score 0、exp 0、levels {}；之後每次只可按差額改變。
+    function scoreOk(d, prevLevels) {
+      return d.score >= prevScore()
+        && d.score == prevScore() + bestsDelta(d.levels, prevLevels) + expScore(d.exp) - expScore(prevExp());
+    }
+
+    // 個人檔案（亦即排行榜、總分 score 及機緣 jiyuan 的資料來源）。所有學校用戶都可讀取，
     // 所以只允許以下欄位：不可存全名、英文拼寫、name、displayName、fullName、email、photoURL 等。
     // surname 只可為一至兩個中文字或空字串（英文拼寫已不再接受）。
     // 排行榜名稱 displayLabel 必須等於「學校名稱 + 空格 + 姓氏 + 同學」，學校名稱由電郵網域決定。
     // surnameSource：han／auto（系統推算）、chosen／manual（學生選擇／輸入）、pending（未選擇）、none（不顯示）。
+    // 機緣 jiyuan 取代舊欄位 gold（gold 不在白名單，故不可再寫入）；score 及 levels 見上方計分函式。
+    // ⚠️ 同步點：欄位白名單＝src/lib/playerData.ts PUBLIC_PROFILE_FIELDS；數值範圍＝PLAYER_LIMITS。
     function isValidProfile(d) {
-      return d.keys().hasAll(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'gold', 'exp', 'stamina', 'updatedAt'])
-        && d.keys().hasOnly(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'gold', 'exp', 'stamina', 'updatedAt'])
+      return d.keys().hasAll(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'jiyuan', 'exp', 'stamina', 'score', 'levels', 'updatedAt'])
+        && d.keys().hasOnly(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'jiyuan', 'exp', 'stamina', 'score', 'levels', 'updatedAt'])
         && d.schoolDomain == emailDomain()
         && d.surname is string
         && d.surname.matches('^(\\p{Han}{1,2})?$')
@@ -44,14 +132,16 @@ service cloud.firestore {
         && d.displayLabel.size() <= 40
         && d.displayLabel == schools()[d.schoolDomain] + ' ' + d.surname + '同學'
         && d.level is int && d.level >= 1 && d.level <= 999
-        && d.gold is int && d.gold >= 0 && d.gold <= 100000000
+        && d.jiyuan is int && d.jiyuan >= 0 && d.jiyuan <= 100000000
         && d.exp is int && d.exp >= 0 && d.exp <= 100000000
         && d.stamina is int && d.stamina >= 0 && d.stamina <= 1000
+        && d.levels is map
+        && d.score is int && d.score >= 0
         && d.updatedAt == request.time;
     }
 
     match /users/{userId} {
-      // 排位（排名）分頁使用 list 查詢：users 依 level 排序，limit 50
+      // 排位（排名）分頁使用 list 查詢：users 依 score 由高至低排序，limit 50（公開文件只含白名單欄位）
       allow get: if isSchoolUser();
       allow list: if isSchoolUser() && request.query.limit <= 100;
 
@@ -60,14 +150,21 @@ service cloud.firestore {
         && isValidProfile(incoming())
         && incoming().level == 1
         && incoming().exp == 0
-        && incoming().gold <= 100;
+        && incoming().jiyuan <= 100
+        && incoming().score == 0
+        && incoming().levels.size() == 0;
 
-      // 只可修改自己的檔案；等級不可下降，每次最多升一級。
-      // 舊文件若仍有 name 等欄位，只能以完整覆寫（客戶端登入時自動遷移）移除後才可再寫入。
+      // 只可修改自己的檔案；等級不可下降，每次最多升 maxLevelUpsPerWrite() 級（經驗由通關累計，等級隨之推算）；
+      // 總分不可下降；各關紀錄只可新增或改善；經驗只可按通關增加。
+      // 舊文件若仍有 name、gold 等欄位，只能以完整覆寫（客戶端登入時自動遷移）移除後才可再寫入；
+      // 舊文件沒有 score／levels，視為 floor(exp × 0.3)／{}。
       allow update: if isSchoolUser() && isOwner(userId)
         && isValidProfile(incoming())
+        && levelsOk(incoming().levels, existing().get('levels', {}))
+        && expOk(incoming())
+        && scoreOk(incoming(), existing().get('levels', {}))
         && incoming().level >= existing().level
-        && incoming().level <= existing().level + 1;
+        && incoming().level <= existing().level + maxLevelUpsPerWrite();
 
       // 任何人都不可從客戶端刪除檔案（如需刪除，由老師於主控台處理）
       allow delete: if false;

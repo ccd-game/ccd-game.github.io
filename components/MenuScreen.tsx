@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { LevelConfig } from '../types';
 import DungeonTab from './tabs/DungeonTab';
 import { subscribeToUser, TEST_USER_ID, UserData, watchAuthState } from '../src/lib/firebase';
-import { getRequiredExpForLevel } from '../src/lib/levelSystem';
+import { getRequiredExpForLevel, expIntoLevel } from '../src/lib/levelSystem';
 
 // Default tab (dungeon) stays eager; other tabs + codex detail are lazy.
 const CharacterTab = lazy(() => import('./tabs/CharacterTab'));
@@ -67,8 +67,10 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
   const [playerData, setPlayerData] = useState<UserData & { maxStamina: number, maxExp: number }>({
     name: "文言修煉者",
     level: 1,
-    gold: 0,
+    jiyuan: 0,
     stamina: 0,
+    score: 0,
+    levels: {},
     maxStamina: 100,
     exp: 0,
     maxExp: 100,
@@ -88,6 +90,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
           ...data,
           name: data.name || prev.name,
           maxStamina: 100, // 假設固定為 100
+          exp: expIntoLevel(data.level, data.exp), // exp 為累計值；經驗條只顯示本級內的進度
           maxExp: getRequiredExpForLevel(data.level)
         }));
       }
@@ -222,10 +225,10 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
                 <span data-testid="guest-badge" className="home-guest-tag">遊客</span>
               )}
             </div>
-            <div className="home-coin" aria-label={`文氣 ${playerData.gold}`}>
-              <span className="home-coin-label" aria-hidden="true">文氣</span>
+            <div className="home-coin" aria-label={`機緣 ${playerData.jiyuan}`}>
+              <span className="home-coin-label" aria-hidden="true">機緣</span>
               <span className="home-coin-icon" aria-hidden="true"></span>
-              <span className="home-coin-num" aria-hidden="true">{playerData.gold.toLocaleString()}</span>
+              <span className="home-coin-num" aria-hidden="true">{playerData.jiyuan.toLocaleString()}</span>
             </div>
           </div>
           <div className="home-meter">
@@ -280,7 +283,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         <NavButton label="圖鑒" icon={<IconUser />} active={activeTab === 'character'} onClick={() => handleNavClick('character')} />
         <NavButton label="排名" icon={<IconRank />} active={activeTab === 'rank'} onClick={() => handleNavClick('rank')} />
         <NavButton label="地城" icon={<IconDungeon />} active={activeTab === 'dungeon'} onClick={() => handleNavClick('dungeon')} />
-        <NavButton label="機緣" icon={<IconGacha />} active={activeTab === 'gacha'} onClick={() => handleNavClick('gacha')} />
+        <NavButton label="尋訪" icon={<IconGacha />} active={activeTab === 'gacha'} onClick={() => handleNavClick('gacha')} />
         <NavButton label="設定" icon={<IconSettings />} active={activeTab === 'settings'} onClick={() => handleNavClick('settings')} />
       </nav>
     </div>

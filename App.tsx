@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, isWeaponAttackStyle, weaponAttackTiming } from './types';
 import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle } from './data/battleLayout';
-import { TEXT_CORPUS, MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT } from './constants';
+import { TEXT_CORPUS, MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT, BOSS_MAX_HP, CORRECT_ANSWER_DAMAGE, WRONG_ANSWER_DAMAGE, BOSS_HP_SPEECH_THRESHOLDS, QUESTIONS_EXHAUSTED_POLICY } from './constants';
+import { computeDamageDetail } from './src/lib/battleRules';
+import DamageMultiplierPopup, { DamagePopupData } from './components/DamageMultiplierPopup';
 import { LEVELS_DATA } from './data/levels';
 import { parseBossSpeeches } from './src/utils/speechParser';
 import { parseQuestionBank } from './src/utils/questionParser';
@@ -26,7 +28,9 @@ LEVELS_DATA.forEach(level => {
 import InkSplash from './components/InkSplash';
 import BootLoadingMask from './components/BootLoadingMask';
 import AudioManager, { AudioManagerHandle } from './components/AudioManager';
-import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence } from './src/lib/firebase';
+import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence, recordLevelClear } from './src/lib/firebase';
+import { useBattleRecorder } from './src/lib/useBattleRecorder';
+import type { VictoryClear } from './src/lib/battleRecorder';
 import { ALLOWED_EMAIL_DOMAINS } from './src/config/auth';
 import { loadSettings, updateSettings, subscribeSettings, pushSettingsIfSynced } from './src/lib/settingsStore';
 
@@ -418,7 +422,7 @@ const App: React.FC = () => {
   const [viewingCharacter, setViewingCharacter] = useState<any | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
-    playerHp: 0, maxPlayerHp: MAX_HP, enemyHp: 1000, maxEnemyHp: 1000,
+    playerHp: 0, maxPlayerHp: MAX_HP, enemyHp: BOSS_MAX_HP, maxEnemyHp: BOSS_MAX_HP,
     currentQuestionIndex: 0, timer: TURN_TIME, isTurnActive: false,
     status: GameStatus.MENU, userInput: [], usedIndices: new Set(), isPaused: false
   });
@@ -427,7 +431,6 @@ const App: React.FC = () => {
   const [bossSpeechMsg, setBossSpeechMsg] = useState<string | null>(null);
   const [isSpeechDimmed, setIsSpeechDimmed] = useState(false);
   const [bgDimDuration, setBgDimDuration] = useState(400);
-  const [triggeredHpThresholds, setTriggeredHpThresholds] = useState<Set<number>>(new Set());
   const [showInputPadUI, setShowInputPadUI] = useState(false);
   const [showQuestionUI, setShowQuestionUI] = useState(false);
   const [showSlotsUI, setShowSlotsUI] = useState(false);
@@ -502,6 +505,51 @@ const App: React.FC = () => {
 
   const timerRef = useRef<number | null>(null);
   const gameInstanceIdRef = useRef<number>(0);
+  // 通關計時及紀錄（只在 VICTORY 記錄；見 src/lib/battleRecorder.ts）
+  const handleVictoryClear = useCallback((clear: VictoryClear) => {
+    recordLevelClear(clear).catch((e) => console.error('通關紀錄寫入失敗', e));
+  }, []);
+  // 速度傷害：完成作答（最後一次點選）當刻的剩餘秒數（小數），由倒數計時器的整數秒＋上次跳秒後經過的時間推算
+  const gameStateRef = useRef<GameState>(gameState);
+  useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
+  const lastTickAtRef = useRef<number>(0);
+  const answerRemainingRef = useRef<number | null>(null);
+  const [damagePopup, setDamagePopup] = useState<DamagePopupData | null>(null);
+  const damagePopupIdRef = useRef<number>(0);
+  // 戰鬥判定（HP 歸零即勝）：避免 useCallback 閉包讀到舊 state，以及同一回合被答題／超時重複結算
+  /** 本場已說過的 HP 門檻台詞 */
+  const triggeredHpThresholdsRef = useRef<Set<number>>(new Set());
+  /** 本回合已在結算（答對／答錯／超時），在下一回合開始前不再接受其他結算 */
+  const turnLockRef = useRef<boolean>(false);
+  /** 本場已分勝負（勝利或戰敗演出進行中），不再出題、不再結算 */
+  const battleEndedRef = useRef<boolean>(false);
+  const resetBattleRefs = useCallback(() => {
+    battleEndedRef.current = false; turnLockRef.current = false;
+    triggeredHpThresholdsRef.current = new Set();
+    answerRemainingRef.current = null; setDamagePopup(null);
+  }, []);
+  /** 嘗試取得本回合的結算權；成功時同時停止倒數計時器 */
+  const acquireTurnLock = useCallback(() => {
+    if (turnLockRef.current || battleEndedRef.current) return false;
+    turnLockRef.current = true;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    return true;
+  }, []);
+  /** 取出這一擊越過、而本場尚未說過的門檻台詞（由高至低；一擊越過多個門檻時逐一說出，每個只說一次） */
+  const collectThresholdSpeeches = useCallback((level: LevelConfig, newEnemyHp: number): string[] => {
+    const pct = newEnemyHp / BOSS_MAX_HP;
+    const speeches: string[] = [];
+    for (const t of BOSS_HP_SPEECH_THRESHOLDS) {
+      if (pct <= t / 100 && !triggeredHpThresholdsRef.current.has(t)) {
+        triggeredHpThresholdsRef.current.add(t);
+        const msg = level.hpThresholds?.[t];
+        if (msg) speeches.push(msg);
+      }
+    }
+    return speeches;
+  }, []);
+  // Boss 說話期間（開場、門檻、勝利台詞）通關計時暫停，與回合倒數相同
+  const battleRecorder = useBattleRecorder({ status: gameState.status, isPaused: gameState.isPaused, isTurnActive: gameState.isTurnActive, isAutoPlaying, isBossSpeaking: bossSpeechMsg !== null }, handleVictoryClear);
   const currentQuestion = useMemo(() => levelQuestions[gameState.currentQuestionIndex] || null, [levelQuestions, gameState.currentQuestionIndex]);
   const timeScale = useMemo(() => isAutoPlaying ? 1.0 / speedMultiplier : 1.0, [isAutoPlaying, speedMultiplier]);
 
@@ -529,6 +577,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       gameInstanceIdRef.current++;
       if (timerRef.current) clearInterval(timerRef.current);
+      resetBattleRefs();
 
       clearVisualEffects();
       setIntroStage('none');
@@ -547,7 +596,7 @@ const App: React.FC = () => {
       setGameState(p => ({
         ...p,
         playerHp: 0,
-        enemyHp: 1000,
+        enemyHp: BOSS_MAX_HP,
         currentQuestionIndex: 0,
         timer: TURN_TIME,
         isTurnActive: false,
@@ -561,7 +610,7 @@ const App: React.FC = () => {
         setIsScreenFadingOut(false);
       }, 50);
     }, 200);
-  }, [clearVisualEffects]);
+  }, [clearVisualEffects, resetBattleRefs]);
 
   const triggerBossSpeechAction = useCallback(async (msg: string, id: number) => {
     if (gameInstanceIdRef.current !== id) return;
@@ -579,6 +628,12 @@ const App: React.FC = () => {
   }, [timeScale]);
 
   const handleOptionClickAction = useCallback((char: string, idx: number) => {
+    // 記錄點選當刻的精確剩餘秒數（最後一次點選即為完成作答的時刻）；暫停時計時器不走，不更新
+    const gs = gameStateRef.current;
+    if (gs.isTurnActive && !gs.isPaused) {
+      const elapsed = Math.min(Math.max((performance.now() - lastTickAtRef.current) / (1000 * timeScale), 0), 1);
+      answerRemainingRef.current = Math.min(Math.max(gs.timer - elapsed, 0), TURN_TIME);
+    }
     setGameState(p => {
       const n = p.userInput.findIndex(s => !s.char);
       if (n === -1 || p.usedIndices.has(idx)) return p;
@@ -599,7 +654,7 @@ const App: React.FC = () => {
   };
 
   const startLevelSequence = useCallback(async (index: number, id: number, isRetry: boolean = false) => {
-    if (gameInstanceIdRef.current !== id) return;
+    if (gameInstanceIdRef.current !== id || battleEndedRef.current) return;
     const target = levelQuestions[index];
     if (!target || !target.answers || target.answers.length === 0) return;
 
@@ -612,6 +667,7 @@ const App: React.FC = () => {
     const maxLen = Math.max(...target.answers.map(a => a.length));
 
     setIsInputPadExiting(false);
+    answerRemainingRef.current = null;
     setGameState(prev => ({
       ...prev, timer: TURN_TIME, isTurnActive: false,
       userInput: Array(maxLen).fill(null).map(() => ({ char: "", originIndex: null })),
@@ -625,9 +681,12 @@ const App: React.FC = () => {
     await new Promise(r => setTimeout(r, (isRetry ? 50 : 250) * timeScale));
     if (gameInstanceIdRef.current !== id) return;
 
+    if (battleEndedRef.current) return;
     setSuppressExitAnim(isRetry);
     setShowQuestionUI(true);
     setShowSlotsUI(true);
+    turnLockRef.current = false; // 新回合開始，重新接受結算
+    answerRemainingRef.current = null;
     setGameState(p => ({ ...p, isTurnActive: true }));
   }, [levelQuestions, skillPanelShown, timeScale, clearVisualEffects]);
 
@@ -658,17 +717,18 @@ const App: React.FC = () => {
     if (!currentLevel || levelQuestions.length === 0 || isQuestionsFetching) return;
 
     const instanceId = ++gameInstanceIdRef.current;
+    battleRecorder.begin(currentLevel.id, !testMode);
     audioManagerRef.current?.resetBattleMusic();
     try {
       setIsDemoMode(testMode); setIsAutoPlaying(false); setSpeedMultiplier(1);
+      resetBattleRefs();
       setGameState(prev => ({
-        ...prev, status: GameStatus.PLAYING, isTurnActive: false, enemyHp: 1000,
-        playerHp: 0, currentQuestionIndex: 0
+        ...prev, status: GameStatus.PLAYING, isTurnActive: false, enemyHp: BOSS_MAX_HP, maxEnemyHp: BOSS_MAX_HP,
+        playerHp: 0, maxPlayerHp: MAX_HP, currentQuestionIndex: 0
       }));
       setIntroStage('starting');
       await new Promise(r => setTimeout(r, 50));
       if (gameInstanceIdRef.current !== instanceId) return;
-      setTriggeredHpThresholds(new Set());
       const introSequence = [
         { stage: 'gold_line', delay: ANIMATION_CONFIG.INTRO.GOLD_LINE },
         { stage: 'bg', delay: ANIMATION_CONFIG.INTRO.BG_FADE },
@@ -691,13 +751,44 @@ const App: React.FC = () => {
       if (gameInstanceIdRef.current !== instanceId) return;
       await triggerBossSpeechAction(currentLevel.startSpeech || "", instanceId);
       setIntroStage('playing');
+      battleRecorder.startClock();
       await startLevelSequence(0, instanceId);
     } catch (e) { }
-  }, [currentLevel, levelQuestions, isQuestionsFetching, triggerBossSpeechAction, startLevelSequence]);
+  }, [currentLevel, levelQuestions, isQuestionsFetching, triggerBossSpeechAction, startLevelSequence, battleRecorder, resetBattleRefs]);
+
+  /** 勝利演出：沿用原有勝利流程（尚未說的門檻台詞 → Boss 勝利台詞 → VICTORY 畫面） */
+  const runVictorySequence = useCallback(async (id: number, preSpeeches: string[] = []) => {
+    if (!currentLevel) return;
+    for (const msg of preSpeeches) {
+      await triggerBossSpeechAction(msg, id);
+      if (gameInstanceIdRef.current !== id) return;
+    }
+    await triggerBossSpeechAction(currentLevel.victorySpeech || "", id);
+    if (gameInstanceIdRef.current !== id) return;
+    setGameState(p => ({ ...p, status: GameStatus.VICTORY, isTurnActive: false }));
+  }, [currentLevel, triggerBossSpeechAction]);
+
+  /** 戰敗演出：沿用原有戰敗流程（戰敗台詞 → 墨染 → GAME_OVER 畫面） */
+  const runDefeatSequence = useCallback(async (id: number) => {
+    if (!currentLevel) return;
+    setIsFatalDefeat(true); setBossSpeechMsg(currentLevel.defeatSpeech || ""); setIsSpeechDimmed(true);
+    await new Promise(r => setTimeout(r, 800));
+    if (gameInstanceIdRef.current !== id) return;
+    setIsInkActive(true);
+    await new Promise(r => setTimeout(r, 1750));
+    if (gameInstanceIdRef.current !== id) return;
+    setGameState(x => ({ ...x, status: GameStatus.GAME_OVER, isTurnActive: false }));
+  }, [currentLevel]);
 
   const onCorrectAnswer = useCallback(async () => {
     if (!currentLevel) return;
+    if (!acquireTurnLock()) return;
     const id = gameInstanceIdRef.current;
+    // 速度傷害：以完成作答當刻的剩餘秒數計算（不受其後動畫延遲影響）
+    const remainingSeconds = answerRemainingRef.current ?? gameStateRef.current.timer;
+    answerRemainingRef.current = null;
+    const { damage, multiplier: speedMult } = computeDamageDetail({ baseDamage: CORRECT_ANSWER_DAMAGE, remainingSeconds, totalSeconds: TURN_TIME });
+    battleRecorder.noteCorrectAnswer(); // 經驗 +5（只在勝利時入帳）
     try {
       setGameState(p => ({ ...p, isTurnActive: false }));
       setIsConverging(true); setIsInputPadExiting(true);
@@ -707,40 +798,60 @@ const App: React.FC = () => {
       await new Promise(r => setTimeout(r, 200 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       setIsConverging(false); setEnemyAnimState('hurt'); setIsScreenShaking(true); setIsPlayerSlashActive(true);
-      const damage = 100;
-      const newHp = gameState.enemyHp - damage;
-      const hpPct = newHp / 1000;
-      setGameState(p => ({ ...p, enemyHp: newHp }));
-      const isLast = gameState.currentQuestionIndex >= levelQuestions.length - 1;
-      if (isLast) {
-        setTimeout(() => { setShowQuestionUI(false); setShowSlotsUI(false); }, 200 * timeScale);
-        await new Promise(r => setTimeout(r, 1000 * timeScale));
-        if (gameInstanceIdRef.current !== id) return;
-        clearVisualEffects();
-        await triggerBossSpeechAction(currentLevel.victorySpeech || "", id);
-        setGameState(p => ({ ...p, status: GameStatus.VICTORY }));
-        return;
+      const popupId = ++damagePopupIdRef.current;
+      setDamagePopup({ id: popupId, damage, multiplier: speedMult });
+      setTimeout(() => setDamagePopup(p => (p && p.id === popupId ? null : p)), 1400 * timeScale);
+      const newHp = Math.max(0, gameStateRef.current.enemyHp - damage);
+      const isBossDefeated = newHp <= 0;
+      if (isBossDefeated) {
+        battleEndedRef.current = true; // 立即封鎖計時器／其他結算
+        battleRecorder.markVictoryDecided(); // 勝負已定：停止通關計時
       }
+      setGameState(p => ({ ...p, enemyHp: newHp }));
+      const thresholdSpeeches = collectThresholdSpeeches(currentLevel, newHp);
+      const questionIndex = gameStateRef.current.currentQuestionIndex;
+      const isQuestionsExhausted = questionIndex >= levelQuestions.length - 1;
+      // 收起題目與格子，並保留原有的命中演出時間
       setTimeout(() => { setShowQuestionUI(false); setShowSlotsUI(false); }, 200 * timeScale);
       await new Promise(r => setTimeout(r, 1000 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       clearVisualEffects();
-      let speechToTrigger: string | null = null;
-      const thresholds = [80, 60, 40, 20, 0];
-      for (const t of thresholds) {
-        if (hpPct <= t / 100 && !triggeredHpThresholds.has(t)) {
-          speechToTrigger = currentLevel.hpThresholds ? currentLevel.hpThresholds[t] : null;
-          setTriggeredHpThresholds(prev => new Set(prev).add(t));
-          break;
-        }
-      }
-      if (speechToTrigger) { await triggerBossSpeechAction(speechToTrigger, id); }
-      setGameState(p => { startLevelSequence(p.currentQuestionIndex + 1, id); return { ...p, currentQuestionIndex: p.currentQuestionIndex + 1 }; });
-    } catch (e) {}
-  }, [gameState.enemyHp, gameState.currentQuestionIndex, currentLevel, levelQuestions, timeScale, triggeredHpThresholds, startLevelSequence, triggerBossSpeechAction, clearVisualEffects]);
 
-  const triggerEnemyAttack = useCallback(async (isTimeout = false) => {
+      // Boss HP 歸零即勝（即使仍有題目）；0% 等門檻台詞先說，再接勝利台詞
+      if (isBossDefeated) {
+        await runVictorySequence(id, thresholdSpeeches);
+        return;
+      }
+
+      for (const msg of thresholdSpeeches) {
+        await triggerBossSpeechAction(msg, id);
+        if (gameInstanceIdRef.current !== id) return;
+      }
+
+      // 題目用盡而 Boss 仍未倒下：依 QUESTIONS_EXHAUSTED_POLICY（老師決定為戰敗）
+      if (isQuestionsExhausted && QUESTIONS_EXHAUSTED_POLICY !== 'loop') {
+        battleEndedRef.current = true;
+        if (QUESTIONS_EXHAUSTED_POLICY === 'victory') {
+          battleRecorder.markVictoryDecided();
+          await runVictorySequence(id);
+        } else {
+          await runDefeatSequence(id);
+        }
+        return;
+      }
+      const nextIndex = isQuestionsExhausted ? 0 : questionIndex + 1; // 'loop'：由第一題重新開始
+      setGameState(p => ({ ...p, currentQuestionIndex: nextIndex }));
+      startLevelSequence(nextIndex, id);
+    } catch (e) {}
+  }, [currentLevel, levelQuestions, timeScale, acquireTurnLock, collectThresholdSpeeches, runVictorySequence, runDefeatSequence, startLevelSequence, triggerBossSpeechAction, clearVisualEffects, battleRecorder]);
+
+  /**
+   * Boss 反擊（答錯或超時）：玩家損失 WRONG_ANSWER_DAMAGE HP；HP 歸零才戰敗，否則重答同一題。
+   * damageOverride 只供測試模式的「直接戰敗」按鈕使用。
+   */
+  const triggerEnemyAttack = useCallback(async (isTimeout = false, damageOverride?: number) => {
     if (!currentLevel) return;
+    if (!acquireTurnLock()) return;
     const id = gameInstanceIdRef.current;
     try {
       setGameState(p => ({ ...p, isTurnActive: false }));
@@ -748,7 +859,8 @@ const App: React.FC = () => {
       await new Promise(r => setTimeout(r, 500 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       const attackStyle = getBossAttackStyle(currentLevel);
-      const newPlayerHp = Math.max(0, gameState.playerHp - 1000);
+      const newPlayerHp = Math.max(0, gameStateRef.current.playerHp - (damageOverride ?? WRONG_ANSWER_DAMAGE));
+      if (newPlayerHp <= 0) battleEndedRef.current = true;
       setEnemyAnimState('attack');
       if (isWeaponAttackStyle(attackStyle)) {
         // 分層武器攻擊（飛劍／飛劍穿梭 X 斬）：一段命中；扣血與命中特效同步（時間點與 BattleArea 的動畫共用 types.ts 的時間表）
@@ -785,22 +897,16 @@ const App: React.FC = () => {
       await new Promise(r => setTimeout(r, 1000 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       if (newPlayerHp <= 0) {
-        setIsFatalDefeat(true); setBossSpeechMsg(currentLevel.defeatSpeech || ""); setIsSpeechDimmed(true);
-        await new Promise(r => setTimeout(r, 800));
-        if (gameInstanceIdRef.current !== id) return;
-        setIsInkActive(true);
-        await new Promise(r => setTimeout(r, 1750));
-        if (gameInstanceIdRef.current !== id) return;
-        setGameState(x => ({ ...x, status: GameStatus.GAME_OVER }));
+        await runDefeatSequence(id);
         return;
       }
       setGameState(p => ({ ...p, userInput: p.userInput.map(s => ({ ...s, char: "" })), usedIndices: new Set() }));
       await new Promise(r => setTimeout(r, 400 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       clearVisualEffects();
-      startLevelSequence(gameState.currentQuestionIndex, id, true);
+      startLevelSequence(gameStateRef.current.currentQuestionIndex, id, true);
     } catch (e) {}
-  }, [gameState.playerHp, gameState.currentQuestionIndex, currentLevel, timeScale, startLevelSequence, clearVisualEffects]);
+  }, [currentLevel, timeScale, acquireTurnLock, runDefeatSequence, startLevelSequence, clearVisualEffects]);
 
   useEffect(() => {
     if (gameState.status === GameStatus.PLAYING && gameState.isTurnActive && isAutoPlaying && !gameState.isPaused && !bossSpeechMsg && currentQuestion) {
@@ -824,7 +930,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (gameState.status === GameStatus.PLAYING && gameState.isTurnActive && !gameState.isPaused && !bossSpeechMsg) {
+      lastTickAtRef.current = performance.now();
       timerRef.current = window.setInterval(() => {
+        lastTickAtRef.current = performance.now();
         setGameState(p => {
           const newTime = p.timer <= 1 ? 0 : p.timer - 1;
           if (newTime <= 10 && newTime > 0) { setIsTimerPulse(true); setTimeout(() => setIsTimerPulse(false), 500 * timeScale); }
@@ -934,6 +1042,7 @@ const App: React.FC = () => {
         <Suspense fallback={<SoftFallback />}>
         <>
           <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} bossName={currentLevel?.bossName || ""} bossImg={battleImg} bgImg={currentLevel?.bgImg} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} weaponLayers={currentLevel?.weaponLayers} layout={battleLayout} scene={battleScene} sceneBox={battleSceneBox} bgDimmed={((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed)} bgDimDuration={bgDimDuration} />
+          <DamageMultiplierPopup popup={damagePopup} timeScale={timeScale} />
           <div className="absolute bottom-0 left-0 w-full z-[80] h-[40%]" style={{ backgroundColor: 'var(--app-bg)' }}>
             <InputPad options={shuffledOptions} usedIndices={gameState.usedIndices} disabled={!gameState.isTurnActive || gameState.isPaused} onOptionClick={handleOptionClickAction} isEnemyAttacking={isInputErrorDimmed} showUI={showInputPadUI} isExiting={isInputPadExiting} suppressExitAnim={suppressExitAnim} />
             <BossSpeech message={bossSpeechMsg} bossName={currentLevel?.bossName || ""} duration={isFatalDefeat ? 99999 : 2000 * timeScale} isFatal={isFatalDefeat} theme={theme} />
@@ -964,7 +1073,7 @@ const App: React.FC = () => {
               else if (speedMultiplier === 1) setSpeedMultiplier(3);
               else if (speedMultiplier === 3) setSpeedMultiplier(5);
               else setIsAutoPlaying(false);
-          }} onDebugVictory={() => setGameState(p => ({ ...p, status: GameStatus.VICTORY }))} onDebugGameOver={() => triggerEnemyAttack(true)} isDimmed={introStage === 'none' || introStage === 'starting'} theme={theme} />
+          }} onDebugVictory={() => setGameState(p => ({ ...p, status: GameStatus.VICTORY }))} onDebugGameOver={() => triggerEnemyAttack(true, MAX_HP)} isDimmed={introStage === 'none' || introStage === 'starting'} theme={theme} />
         </>
         </Suspense>
       )}

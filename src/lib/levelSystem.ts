@@ -30,3 +30,35 @@ export function getLevelExpList(maxLevel: number = 20) {
   }
   return list;
 }
+
+/** 等級上限（與 firestore.rules 及 PLAYER_LIMITS.level 一致） */
+export const MAX_PLAYER_LEVEL = 999;
+
+/**
+ * 到達某等級所需的累計經驗（第 1 級為 0）。
+ * 經驗 exp 為累計值（計入總分），等級由累計經驗推算，升級不會扣除經驗。
+ */
+export function cumulativeExpForLevel(level: number): number {
+  let total = 0;
+  for (let l = 1; l < Math.min(level, MAX_PLAYER_LEVEL); l++) total += getRequiredExpForLevel(l);
+  return total;
+}
+
+/** 由累計經驗推算等級（1–999） */
+export function levelForExp(totalExp: number): number {
+  let level = 1;
+  let need = getRequiredExpForLevel(1);
+  let remaining = Number.isFinite(totalExp) ? Math.max(0, totalExp) : 0;
+  while (level < MAX_PLAYER_LEVEL && remaining >= need) {
+    remaining -= need;
+    level += 1;
+    need = getRequiredExpForLevel(level);
+  }
+  return level;
+}
+
+/** 目前等級內已累積的經驗（0 至該級所需經驗），供經驗條顯示 */
+export function expIntoLevel(level: number, totalExp: number): number {
+  const into = (Number.isFinite(totalExp) ? totalExp : 0) - cumulativeExpForLevel(level);
+  return Math.min(getRequiredExpForLevel(level), Math.max(0, into));
+}

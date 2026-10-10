@@ -94,7 +94,7 @@ const RankTab: React.FC = () => {
   const top3 = rankingData.slice(0, 3).map((u, i) => ({
     // 只使用 displayLabel（已清理）；絕不顯示 name / displayName 等舊欄位
     name: u.displayLabel || "同學",
-    score: u.level * 100 + u.exp, // 計算虛擬積分
+    score: u.score, // 總分＝各關最佳分數之和＋經驗 × 0.3（src/lib/scoring.ts）
     level: u.level,
     rank: i + 1
   }));
@@ -122,6 +122,7 @@ const RankTab: React.FC = () => {
         </div>
         <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--text-sub)' }}>GLOBAL RANK</span>
       </div>
+      <p className="text-[11px] leading-relaxed opacity-60 px-1 -mt-3 mb-2" style={{ color: 'var(--text-sub)' }} data-testid="rank-score-note">每一關會按你的通關時間計分，用時愈短，得分愈高。每關只計你最好的一次成績，把各關的最高分加起來，再加上經驗值的三成，就是你的總分。</p>
 
       <div className="flex items-end justify-center gap-2 mb-8 mt-4 h-48">
         <div className="flex flex-col items-center w-1/3">

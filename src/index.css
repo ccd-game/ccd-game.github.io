@@ -726,7 +726,7 @@
 .login-link:hover { color: var(--gilt); }
 .login-link:focus-visible { outline: 2px solid var(--gilt); outline-offset: 2px; border-radius: 2px; }
 
-/* 頂欄：遊客身分小標籤（與文氣框同族，但更輕） */
+/* 頂欄：遊客身分小標籤（與機緣框同族，但更輕） */
 .home-guest-tag {
     flex-shrink: 0; display: inline-flex; align-items: center; height: 18px; padding: 0 7px 0 8px;
     font-family: 'LXGW WenKai Mono TC', serif; font-size: 11px; letter-spacing: 1px; line-height: 1;
@@ -759,7 +759,7 @@
 .rank-guest-text { margin-top: 10px; max-width: 260px; font-size: 13px; line-height: 1.7; color: var(--text-sub); }
 .rank-guest .guest-pill-btn { margin-top: 24px; }
 
-/* 機緣：本機暫存提示 */
+/* 尋訪：本機暫存提示 */
 .gacha-guest-note {
     margin: -10px 0 18px; font-size: 11px; line-height: 1.5; letter-spacing: 1px;
     color: var(--text-sub); opacity: .8; text-align: center;

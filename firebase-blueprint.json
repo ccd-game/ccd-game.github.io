@@ -31,15 +31,31 @@
         },
         "level": {
           "type": "integer",
-          "description": "Current level"
+          "description": "Current level (derived from cumulative exp; never decreases)"
         },
-        "gold": {
+        "jiyuan": {
           "type": "integer",
-          "description": "Current gold"
+          "description": "機緣 currency (renamed from gold; value carried over on migration)"
         },
         "exp": {
           "type": "integer",
-          "description": "Current experience points"
+          "description": "Cumulative experience points (+5 per correct answer, +50 per clear, granted on victory)"
+        },
+        "score": {
+          "type": "integer",
+          "description": "Leaderboard score = sum of levels[*].bestScore + floor(exp * 0.3); never decreases"
+        },
+        "levels": {
+          "type": "object",
+          "description": "Personal best per level id ('1'..'12'): { bestTimeMs: integer, bestScore: integer }",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "bestTimeMs": { "type": "integer", "description": "Best clear time in ms (>= MIN_CLEAR_TIME_SEC * 1000)" },
+              "bestScore": { "type": "integer", "description": "Score of that time (1..1000)" }
+            },
+            "required": ["bestTimeMs", "bestScore"]
+          }
         },
         "stamina": {
           "type": "integer",
@@ -57,9 +73,11 @@
         "surname",
         "surnameSource",
         "level",
-        "gold",
+        "jiyuan",
         "exp",
         "stamina",
+        "score",
+        "levels",
         "updatedAt"
       ]
     }
