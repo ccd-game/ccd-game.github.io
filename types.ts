@@ -107,32 +107,35 @@ export const FLYING_SWORD_TIMING = {
 /**
  * 飛劍穿梭 X 斬時間軸（毫秒，速度倍率 1x 時）；App 的命中／扣血時機與 BattleArea / swordWeave 的 rAF 動畫共用此表。
  * keys 為 3D 曲線的關鍵點時間（曲線本身連續平滑，見 components/swordWeave.ts）。
+ * 四段：①飛出畫面（左上）→ 飛回 ②舉刀蓄勢 → 下劈（左上→右下）③飛出畫面（右下）→ 繞到另一側（右上）飛回 ④再舉刀蓄勢 → 下劈（右上→左下）
  */
 export const X_SLASH_TIMING = {
   keys: {
     rest: 0,
     /** 離手上提 */
     lift: 110,
-    /** 從人物背後飛出畫面左上（最遠） */
-    exit1: 250,
-    /** 第一刀：左上 → 右下，刀身由舉起（柄下刀上）往前下方劈落約 150° */
-    pass1Start: 360, pass1Mid: 470, pass1End: 580,
-    /** 近鏡頭衝出右下，再於畫面外繞到右上（遠） */
-    exit2: 690, loop: 790,
-    /** 第二刀：右上 → 左下，同樣舉起後劈落 */
-    pass2Start: 860, pass2Mid: 970,
+    /** ① 從人物背後飛出畫面左上（最遠） */
+    exit1: 270,
+    /** ② 飛回左上、刀身舉起（柄下刀上）；charge1 前高舉蓄勢，之後往前下方劈落 */
+    pass1Start: 430, charge1: 560, pass1Mid: 630, pass1End: 700,
+    /** ③ 近鏡頭衝出右下，再於畫面外繞到另一側（右上，遠） */
+    exit2: 830, loop: 990,
+    /** ④ 從右上飛回、再舉刀蓄勢，然後下劈（右上 → 左下） */
+    pass2Start: 1150, charge2: 1290, pass2Mid: 1360,
     /** 第二刀劈完＝命中 */
-    impact: 1080,
+    impact: 1430,
     /** 上揚弧線回程 */
-    rise: 1190,
-    total: 1380,
+    rise: 1550,
+    total: 1740,
   },
   /** 刀圖水平鏡像的開／關（讓刀刃朝向下劈方向）：都在劍飛出畫面的最遠點切換 */
-  mirrorOn: 250, mirrorOff: 790,
+  mirrorOn: 270, mirrorOff: 990,
+  /** 第一刀劈完（只有震屏＋紅閃，不扣血） */
+  impact1: 700,
   /** 命中（第二刀劈完：扣血、震屏、閃光） */
-  impact: 1080,
+  impact: 1430,
   /** 劍回到手中、演出結束 */
-  total: 1380,
+  total: 1740,
 } as const;
 
 /** 分層武器攻擊的命中時間與總長（ms，1x） */

@@ -270,7 +270,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            background: rgba(10, 10, 10, 0.75);
+            background: rgba(10, 10, 10, 0.95); /* 0.75 → 0.95：底下的題目／文字幾乎看不清 */
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
         }
@@ -452,6 +452,12 @@
         .home-saber { will-change: transform, opacity; }
         .home-saber.is-back { opacity: 0; animation: homeSaberPath 6.432s infinite, homeSaberBack 6.432s infinite; }
         .home-saber.is-front { animation: homeSaberPath 6.432s infinite, homeSaberFront 6.432s infinite; }
+        /* 整把劍上下浮動：幅度略大於人物呼吸（homeSceneBreathe scaleY 1.012）；尖／柄微擺仍由 homeSaberIdle 負責 */
+        .home-saber-float { animation: homeSaberFloat 4.5s ease-in-out infinite; will-change: transform; }
+        @keyframes homeSaberFloat {
+          0%, 100% { transform: translate3d(0, 2px, 0); }
+          50% { transform: translate3d(0, -5px, 0); }
+        }
         .home-saber-idle { animation: homeSaberIdle 3.4s ease-in-out -1.1s infinite; will-change: transform; }
         @keyframes homeSaberIdle {
           0%, 100% { transform: translate3d(0, 0.15%, 0) rotate(-0.9deg); }
@@ -481,6 +487,7 @@
         }
         .home-hero[data-hidden="1"] .home-scene-breathe,
         .home-hero[data-hidden="1"] .home-saber,
+        .home-hero[data-hidden="1"] .home-saber-float,
         .home-hero[data-hidden="1"] .home-saber-idle { animation-play-state: paused; }
         .home-fig-stage { position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 39 / 47; max-height: 100%; }
         .home-hero-bg { filter: brightness(.62) saturate(.85) contrast(1.05); }
@@ -676,7 +683,7 @@
         @media (prefers-reduced-motion: reduce) {
             .home-drawer, .home-drawer-chev, .home-hero-slot { transition: none !important; }
             .home-drawer-list { transition: opacity .15s linear; }
-            .home-breathe, .home-scene-breathe, .home-saber, .home-saber-idle, .home-embers span { animation: none !important; }
+            .home-breathe, .home-scene-breathe, .home-saber, .home-saber-float, .home-saber-idle, .home-embers span { animation: none !important; }
             .home-saber.is-back { opacity: 0 !important; }
             .home-meter-fill, .home-slip, .home-nav-icon { transition: none !important; }
         }
@@ -773,8 +780,29 @@
 /* ===== 演出中暫停 idle 飛劍（src/lib/cinematic.ts：載入動畫、Boss 台詞、Boss 受擊）=====
    只暫停、不卸載：演出結束後由原位置繼續。主頁、圖鑑、戰鬥（第 2 關）三處共用。 */
 html[data-cinematic="1"] .home-saber,
+html[data-cinematic="1"] .home-saber-float,
 html[data-cinematic="1"] .home-saber-idle,
 html[data-cinematic="1"] .codex-saber,
+html[data-cinematic="1"] .codex-saber-float,
 html[data-cinematic="1"] .codex-saber-idle,
 html[data-cinematic="1"] .btl-saber,
+html[data-cinematic="1"] .btl-saber-float,
 html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !important; }
+/* ── 入陣無縫轉場（src/lib/enterTransition.ts）──
+   戰鬥頁已在主頁底下掛好（背景／人物與主頁預覽同一位置），主頁只把 UI 滑走：
+   頂欄上滑出畫面、抽屜與底部導覽下滑出畫面（ease-in），篇名列／入陣鈕隨抽屜淡出下移；
+   主頁底色改透明，被滑開的區域直接露出下面的戰鬥畫面（不閃白／米色）。 */
+.enter-busy { pointer-events: none !important; }
+.enter-exit, .enter-exit > *, .enter-exit .home-dungeon, .enter-exit main, .enter-exit .home-hero { background: transparent !important; background-color: transparent !important; }
+.enter-exit .home-bar-top { animation: eeUp var(--ee-dur, 460ms) cubic-bezier(.55, 0, .8, .25) forwards; }
+.enter-exit :is(.home-drawer, .home-drawer-chev, .home-bar-bottom) { animation: eeDown var(--ee-dur, 460ms) cubic-bezier(.55, 0, .8, .25) forwards; }
+.enter-exit .home-hero > .relative.z-10 { animation: eeFadeDown var(--ee-dur, 460ms) cubic-bezier(.55, 0, .8, .25) forwards; }
+.enter-exit :is(.home-scene-feather, .home-embers) { animation: eeFade var(--ee-dur, 460ms) ease-in forwards; }
+/* 主頁場景（背景／人物／飛劍）在滑出開始時（仍在選擇小視窗的模糊遮罩底下）換成下面同位置、同動畫進度的戰鬥場景 */
+:is(.enter-exit, .enter-exit-reduced) .home-hero :is(.home-gyro-layer, .home-hero-bg) { visibility: hidden; }
+@keyframes eeUp { to { translate: 0 calc(-100% - 8px); } }
+@keyframes eeDown { to { translate: 0 calc(100% + 40px); } }
+@keyframes eeFadeDown { to { translate: 0 56px; opacity: 0; } }
+@keyframes eeFade { to { opacity: 0; } }
+/* 減少動態：不滑動，主頁整層淡出（下面即相同場景的戰鬥畫面） */
+.enter-exit-reduced { animation: eeFade var(--ee-dur, 300ms) linear forwards; }

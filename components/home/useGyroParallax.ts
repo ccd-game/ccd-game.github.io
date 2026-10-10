@@ -78,6 +78,7 @@ export function useGyroParallax(rootRef: RefObject<HTMLElement | null>, layers: 
     };
 
     const frame = (t: number) => {
+      if (document.documentElement.hasAttribute('data-enter-freeze')) { raf = 0; lastFrameT = 0; return; } // 入陣：停在當下位移
       const dt = lastFrameT ? Math.min(0.1, (t - lastFrameT) / 1000) : 1 / 60;
       lastFrameT = t;
       const k = 1 - Math.exp(-dt / SMOOTH_TAU);
@@ -93,6 +94,8 @@ export function useGyroParallax(rootRef: RefObject<HTMLElement | null>, layers: 
 
     const onOrient = (e: DeviceOrientationEvent) => {
       if (e.beta == null || e.gamma == null) return; // 桌面瀏覽器或無感應器
+      // 入陣無縫轉場中：凍結視差（保留當下位移，戰鬥畫面沿用同一位置；見 src/lib/enterTransition.ts）
+      if (document.documentElement.hasAttribute('data-enter-freeze')) return;
       const [sx, sy] = toScreenTilt(e.beta, e.gamma, screenAngle());
       const now = performance.now();
       gotReading = true;

@@ -135,7 +135,8 @@ test.describe('音樂淡入淡出', () => {
 
     // 深入不毛 → 戰鬥音樂由 0 淡入至使用者音量
     await clearVol(page);
-    const go = page.getByRole('button', { name: '深入不毛' });
+    // 按「入陣」後跳出選擇小視窗（深入不毛／驀然回首），選深入不毛才開始無縫入陣
+    const go = page.getByRole('dialog', { name: '選擇入陣方式' }).getByRole('button', { name: '深入不毛' });
     await expect(go).toBeEnabled({ timeout: 20_000 });
     await go.click();
     await page.waitForTimeout(BGM_FADE_IN_MS + 600);

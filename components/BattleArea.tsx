@@ -4,12 +4,19 @@ import { BossAttackStyle, WeaponLayerConfig, FLYING_SWORD_TIMING, X_SLASH_TIMING
 import { BattleLayout, BattleScene, BattleSceneBox } from '../data/battleLayout';
 import { buildWeave, sampleWeave, WeaveTrack, WEAVE_PERSPECTIVE } from './swordWeave';
 
+/** 鏡射補邊圖塊（不含中央本體） */
+const MIRROR_TILES: [number, number][] = [-1, 0, 1].flatMap(i => [-1, 0, 1].map(j => [i, j] as [number, number])).filter(([i, j]) => i || j);
+
 interface BattleAreaProps {
   levelId: number;
   enemyAnim: 'idle' | 'hurt' | 'attack';
   isBossSlashActive: boolean;
   isPlayerSlashActive?: boolean;
   introStage: string;
+  /** 入陣無縫轉場：主頁場景交接期間，背景與人物直接顯示（開場其餘照原順序） */
+  holdScene?: boolean;
+  /** 入陣無縫轉場：待機呼吸改用主頁的 homeSceneBreathe 與同一原點（App 根容器座標），相位由 syncHeroAnimations 接續 */
+  inheritBreathOrigin?: [number, number] | null;
   bossName: string;
   /** 戰鬥立繪（level.battleImg ?? level.bossImg） */
   bossImg: string;
@@ -97,6 +104,8 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
   isBossSlashActive,
   isPlayerSlashActive,
   introStage,
+  holdScene = false,
+  inheritBreathOrigin = null,
   bossName,
   bossImg,
   bgImg,
@@ -109,6 +118,8 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
   bgDimmed = false,
   bgDimDuration = 400,
 }) => {
+  /** 入陣交接：主頁人物沒有紅光／陰影，交接後才淡入（避免瞬間跳出） */
+  const auraFade: React.CSSProperties = { transition: 'opacity 700ms ease, filter 700ms ease' };
   const isCharacterVisible = !['none', 'starting', 'gold_line', 'bg'].includes(introStage);
   const isNameVisible = ['boss_name_show', 'enemy_hp', 'player_hp', 'input_pad', 'ready', 'playing'].includes(introStage);
   const isLiBai = levelId === 11;
@@ -224,14 +235,18 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
       {idleSaberActive ? (
         <>
           <div className="btl-saber is-back" style={{ transformOrigin: pivotOrigin }}>
-            <div className="btl-saber-idle" style={{ transformOrigin: bladeMidOrigin }}>
-              <img src={weaponLayers.effectImg} alt="" style={frameFill} draggable={false} />
+            <div className="btl-saber-float">
+              <div className="btl-saber-idle" style={{ transformOrigin: bladeMidOrigin }}>
+                <img src={weaponLayers.effectImg} alt="" style={frameFill} draggable={false} />
+              </div>
             </div>
           </div>
           <img src={weaponLayers.characterImg} alt="" style={frameFill} draggable={false} />
           <div className="btl-saber is-front" style={{ transformOrigin: pivotOrigin }}>
-            <div className="btl-saber-idle" style={{ transformOrigin: bladeMidOrigin }}>
-              <img ref={withRef ? restFxRef : undefined} src={weaponLayers.effectImg} alt="" style={frameFill} draggable={false} />
+            <div className="btl-saber-float">
+              <div className="btl-saber-idle" style={{ transformOrigin: bladeMidOrigin }}>
+                <img ref={withRef ? restFxRef : undefined} src={weaponLayers.effectImg} alt="" style={frameFill} draggable={false} />
+              </div>
             </div>
           </div>
         </>
@@ -336,13 +351,20 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
       {/* 落地場景背景：與立繪共用同一位置／縮放（逐像素對齊岩石／地面）；底層 cover 填滿戰鬥區 */}
       {grounded && sceneBox && (
         <div
-          className={`absolute top-0 left-0 w-full h-[62%] z-[0] overflow-hidden pointer-events-none transition-opacity duration-[700ms] ${isCharacterVisible ? 'opacity-100' : 'opacity-0'} ${bgDimmed ? 'bg-attack-dim' : ''}`}
+          className={`absolute top-0 left-0 w-full h-[62%] z-[0] overflow-hidden pointer-events-none transition-opacity duration-[700ms] ${isCharacterVisible || holdScene ? 'opacity-100' : 'opacity-0'} ${bgDimmed ? 'bg-attack-dim' : ''}`}
           style={{ transition: `opacity 0.7s, filter ${bgDimDuration}ms` }}
           aria-hidden="true"
         >
           {/* 場景本體：與立繪同一 left/top/scale（cover 縮放後通常蓋滿戰鬥區；多出的從上方／兩側裁切） */}
           <div style={{ position: 'absolute', left: sceneBox.left, top: sceneBox.top, width: sceneBox.width, height: sceneBox.height }}>
             <img src={bgImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', display: 'block' }} draggable={false} />
+            {sceneBox.mirrorTiles && MIRROR_TILES.map(([i, j]) => (
+              /* 沿用主頁背景：未蓋滿的邊以鏡射圖塊補滿（與主頁左右鏡射同法；1px 重疊避免接縫） */
+              <img key={`${i}${j}`} src={bgImg} alt="" draggable={false} style={{
+                position: 'absolute', left: `calc(${i * 100}% ${i < 0 ? '+ 1px' : i > 0 ? '- 1px' : ''})`, top: `calc(${j * 100}% ${j < 0 ? '+ 1px' : j > 0 ? '- 1px' : ''})`,
+                width: '100%', height: '100%', maxWidth: 'none', display: 'block', transform: `scale(${i ? -1 : 1}, ${j ? -1 : 1})`,
+              }} />
+            ))}
             {sceneBox.mirrorBottom && (
               /* 下方鏡射延伸：背景上移後補滿底部（被題目／答案區覆蓋為主） */
               <img src={bgImg} alt="" style={{ position: 'absolute', left: 0, top: 'calc(100% - 1px)', width: '100%', height: '100%', maxWidth: 'none', display: 'block', transform: 'scaleY(-1)' }} draggable={false} />
@@ -353,18 +375,20 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
 
       {/* 角色層容器（戰鬥區＝畫面上方 62%） */}
       <div
-        className={`absolute top-0 left-0 w-full h-[62%] transition-opacity duration-[1000ms] ${isCharacterVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute top-0 left-0 w-full h-[62%] transition-opacity duration-[1000ms] ${isCharacterVisible || holdScene ? 'opacity-100' : 'opacity-0'}`}
         style={{ overflow: 'visible', pointerEvents: 'none', transitionDuration: `${1000 * animScale}ms` }}
       >
         <div
           className={`absolute inset-0 ${enemyAnim === 'idle' ? 'enemy-breathing' : 'base-offset'}`}
-          style={{ transformOrigin: spriteOrigin, willChange: 'transform', zIndex: 10 }}
+          style={inheritBreathOrigin && enemyAnim === 'idle'
+            ? { transformOrigin: `${inheritBreathOrigin[0]}px ${inheritBreathOrigin[1]}px`, animation: `homeSceneBreathe ${4.5 * animScale}s ease-in-out infinite`, willChange: 'transform', zIndex: 10 }
+            : { transformOrigin: spriteOrigin, willChange: 'transform', zIndex: 10 }}
         >
           <div
             className={`
               absolute inset-0
               ${enemyAnim === 'hurt' ? 'hurt-anim-base' : ''}
-              ${enemyAnim === 'attack' ? (isWeaponStyle ? 'boss-cast-lean' : attackStyle === 'chariotCharge' ? 'confucius-chariot-charge' : 'enemy-swing-x') : ''}
+              ${enemyAnim === 'attack' ? (isWeaponStyle ? '' : attackStyle === 'chariotCharge' ? 'confucius-chariot-charge' : '') : ''}
             `}
             style={cssVars({ willChange: 'transform', transformOrigin: spriteOrigin, '--cast-duration': `${fxTotal}ms` })}
           >
@@ -419,20 +443,20 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
               {isWeaponStyle ? (
                 <>
                   {/* 分層立繪：effect（劍＋火焰）在下、character 在上；第 2 關 idle 為圖鑑飛劍繞身，攻擊仍走 X 斬 */}
-                  <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)' }}>
+                  <div className="absolute inset-0 pointer-events-none" style={{ opacity: holdScene ? 0 : 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)', ...auraFade }}>
                     {idleSaberLoop
                       ? <img src={weaponLayers!.characterImg} alt="" style={frameLayerStyle} draggable={false} />
                       : renderSwordLayers(false)}
                   </div>
-                  <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10, filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.8))' }} role="img" aria-label={bossName}>
+                  <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10, filter: holdScene ? 'drop-shadow(0 0 0px rgba(0,0,0,0))' : 'drop-shadow(0 0 8px rgba(0,0,0,0.8))', ...auraFade }} role="img" aria-label={bossName}>
                     {idleSaberLoop ? renderLiuWeaponStack(true) : renderSwordLayers(true)}
                     {isSwordAttack && <img src={weaponLayers!.effectImg} alt="" className="fs-reduced-flash" style={{ ...frameLayerStyle, animationDuration: `${fxImpact + 200 * animScale}ms` }} />}
                   </div>
                 </>
               ) : (
                 <>
-                  <img src={bossImg} alt="" style={{ ...imgFill, opacity: 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)' }} />
-                  <img src={bossImg} alt={bossName} style={{ ...imgFill, zIndex: 10, filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.8))' }} />
+                  <img src={bossImg} alt="" style={{ ...imgFill, opacity: holdScene ? 0 : 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)', ...auraFade }} />
+                  <img src={bossImg} alt={bossName} style={{ ...imgFill, zIndex: 10, filter: holdScene ? 'drop-shadow(0 0 0px rgba(0,0,0,0))' : 'drop-shadow(0 0 8px rgba(0,0,0,0.8))', ...auraFade }} />
                 </>
               )}
 
@@ -591,6 +615,13 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
           .btl-saber { position: absolute; inset: 0; width: 100%; height: 100%; will-change: transform, opacity; }
           .btl-saber.is-back { opacity: 0; animation: btlSaberPath 6.432s infinite, btlSaberBack 6.432s infinite; }
           .btl-saber.is-front { animation: btlSaberPath 6.432s infinite, btlSaberFront 6.432s infinite; }
+          /* 整把劍上下浮動：幅度略大於人物呼吸（scaleY 1.012 ≈ 數 px）；尖／柄微擺仍由 btlSaberIdle 負責 */
+          .btl-saber-float { position: absolute; inset: 0; width: 100%; height: 100%;
+            animation: btlSaberFloat 4.5s ease-in-out infinite; will-change: transform; }
+          @keyframes btlSaberFloat {
+            0%, 100% { transform: translate3d(0, 2px, 0); }
+            50% { transform: translate3d(0, -5px, 0); }
+          }
           .btl-saber-idle { position: absolute; inset: 0; width: 100%; height: 100%;
             animation: btlSaberIdle 3.4s ease-in-out -1.1s infinite; will-change: transform; }
           @keyframes btlSaberIdle {
@@ -598,9 +629,10 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
             50% { transform: translate3d(0, -0.15%, 0) rotate(0.9deg); }
           }
           .btl-saber-stage[data-hidden="1"] .btl-saber,
+          .btl-saber-stage[data-hidden="1"] .btl-saber-float,
           .btl-saber-stage[data-hidden="1"] .btl-saber-idle { animation-play-state: paused; }
           @media (prefers-reduced-motion: reduce) {
-            .btl-saber, .btl-saber-idle { animation: none !important; }
+            .btl-saber, .btl-saber-float, .btl-saber-idle { animation: none !important; }
             .btl-saber.is-back { opacity: 0 !important; }
           }
           @keyframes btlSaberPath {

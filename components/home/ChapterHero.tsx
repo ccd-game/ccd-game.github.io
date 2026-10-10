@@ -267,14 +267,18 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
                     {layered ? (
                       <>
                         <div className={`home-scene-layer home-saber is-back${reduce ? ' is-still' : ''}`} style={{ transformOrigin: layered.pivot }}>
-                          <div className="home-scene-layer home-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
-                            <img src={layered.effect} alt="" className="home-scene-layer" draggable={false} />
+                          <div className="home-scene-layer home-saber-float">
+                            <div className="home-scene-layer home-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
+                              <img src={layered.effect} alt="" className="home-scene-layer" draggable={false} />
+                            </div>
                           </div>
                         </div>
                         <img src={layered.character} alt={level.bossName} className="home-scene-layer" draggable={false} />
                         <div className={`home-scene-layer home-saber is-front${reduce ? ' is-still' : ''}`} style={{ transformOrigin: layered.pivot }}>
-                          <div className="home-scene-layer home-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
-                            <img src={layered.effect} alt="" className="home-scene-layer" draggable={false} />
+                          <div className="home-scene-layer home-saber-float">
+                            <div className="home-scene-layer home-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
+                              <img src={layered.effect} alt="" className="home-scene-layer" draggable={false} />
+                            </div>
                           </div>
                         </div>
                       </>

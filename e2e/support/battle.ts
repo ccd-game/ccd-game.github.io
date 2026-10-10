@@ -77,7 +77,8 @@ export async function openBattle(page: Page, bank: LevelBank) {
   const enter = page.getByRole('button', { name: new RegExp(`入陣.*${bank.title}`) });
   for (let i = 0; i < 12 && !(await enter.isVisible()); i++) await page.getByRole('button', { name: '下一位古人' }).click();
   await enter.click();
-  const go = page.getByRole('button', { name: '深入不毛' });
+  // 按「入陣」後跳出選擇小視窗（深入不毛／驀然回首），選深入不毛才開始無縫入陣
+  const go = page.getByRole('dialog', { name: '選擇入陣方式' }).getByRole('button', { name: '深入不毛' });
   await expect(go).toBeEnabled({ timeout: 20_000 });
   await go.click();
 }

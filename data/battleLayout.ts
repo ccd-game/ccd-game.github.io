@@ -199,6 +199,10 @@ export interface BattleSceneBox {
   left: number; top: number; width: number; height: number; scale: number;
   /** 背景下緣高於戰鬥區底時，於下方接一張上下鏡射的延伸補滿（不縮放背景，岩座比例不變） */
   mirrorBottom?: boolean;
+  /** 沿用主頁預覽背景時：背景未蓋滿戰鬥區的那幾邊，以上下／左右鏡射圖塊補滿（不縮放、不移動，交接時畫面不變） */
+  mirrorTiles?: boolean;
+  /** 沿用主頁背景後，各邊未被背景本體蓋到的寬度（px；0＝無缺口） */
+  gap?: { left: number; top: number; right: number; bottom: number };
 }
 
 /**
@@ -210,6 +214,8 @@ export function computeGroundedBattle(
   scene: BattleScene | undefined,
   rootW: number,
   rootH: number,
+  /** 入陣無縫轉場：沿用主頁預覽的背景與人物幾何（見 src/lib/enterTransition.ts measureHomeScene） */
+  homeBox?: { bg: { left: number; top: number; scale: number }; scene: { left: number; top: number; scale: number }; breatheOrigin?: [number, number] | null } | null,
 ): { layout: BattleLayout; sceneBox: BattleSceneBox } | null {
   if (!anchor || !scene || rootW <= 0 || rootH <= 0) return null;
   const a = anchor, P = BATTLE_LAYOUT, sc = scene;
@@ -331,13 +337,32 @@ export function computeGroundedBattle(
     sceneBox.width = sc.bgW * scale; sceneBox.height = sc.bgH * scale; sceneBox.mirrorBottom = false;
   }
   if (sc.charShiftY) figTop += sc.charShiftY;
+  if (homeBox) {
+    // 戰鬥背景＝主頁預覽背景（同圖、同縮放、同位置）
+    const { left, top, scale } = homeBox.bg;
+    sceneBox.left = left; sceneBox.top = top; sceneBox.scale = scale;
+    sceneBox.width = sc.bgW * scale; sceneBox.height = sc.bgH * scale; sceneBox.mirrorBottom = false;
+    const gap = {
+      left: Math.max(0, left), top: Math.max(0, top),
+      right: Math.max(0, rootW - (left + sceneBox.width)), bottom: Math.max(0, sceneH - (top + sceneBox.height)),
+    };
+    sceneBox.gap = gap;
+    sceneBox.mirrorTiles = gap.left > 0.5 || gap.top > 0.5 || gap.right > 0.5 || gap.bottom > 0.5;
+  }
   let restScale: number | null = null;
   if (sc.restOnBg && sameDpi) {
     const { foot: [rfx, rfy], bg: [rbx, rby], relScale } = sc.restOnBg;
     restScale = sceneBox.scale * relScale;
     figLeft = sceneBox.left + rbx * sceneBox.scale - (rfx - crop.x) * restScale;
     figTop = sceneBox.top + rby * sceneBox.scale - (rfy - crop.y) * restScale;
+  } else if (homeBox) {
+    // 人物＝主頁場景層上的同一個 fig 框（場景座標 × 主頁場景縮放）
+    const s = homeBox.scene.scale;
+    restScale = sameDpi ? s : s * fw / a.w;
+    figLeft = homeBox.scene.left + (sameDpi ? crop.x : fx) * s;
+    figTop = homeBox.scene.top + (sameDpi ? crop.y : fy) * s;
   }
+  // 沿用主頁時，戰鬥待機呼吸改用主頁同一個 homeSceneBreathe（只有 scaleY，沒有 breathY 下移），相位由 syncHeroAnimations 接續
   const figScaleF = restScale ?? figScale;
 
   // 名字／圖示：水平對準實際臉心（cxΔ=0），垂直 nameGap（可玩 Boss 皆 18）

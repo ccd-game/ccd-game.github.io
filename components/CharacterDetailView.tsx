@@ -89,14 +89,18 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
                  <div className="codex-layer codex-breathe" style={{ transformOrigin: layered.seat, animationDelay: animDuration }}>
                    {/* 飛劍兩份：後層（人物之下，繞到背後時顯示）與前層（人物之上）；只在劍位於畫面外時以 opacity 切換 */}
                    <div className="codex-layer codex-saber is-back" style={{ transformOrigin: layered.pivot, animationDelay: animDuration }}>
-                     <div className="codex-layer codex-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
-                       <img className="codex-layer" src={layered.effect} alt="" draggable="false" />
+                     <div className="codex-layer codex-saber-float">
+                       <div className="codex-layer codex-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
+                         <img className="codex-layer" src={layered.effect} alt="" draggable="false" />
+                       </div>
                      </div>
                    </div>
                    <img className="codex-layer" src={layered.character} alt="" draggable="false" />
                    <div className="codex-layer codex-saber is-front" style={{ transformOrigin: layered.pivot, animationDelay: animDuration }}>
-                     <div className="codex-layer codex-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
-                       <img className="codex-layer" src={layered.effect} alt="" draggable="false" />
+                     <div className="codex-layer codex-saber-float">
+                       <div className="codex-layer codex-saber-idle" style={{ transformOrigin: layered.bladeMid }}>
+                         <img className="codex-layer" src={layered.effect} alt="" draggable="false" />
+                       </div>
                      </div>
                    </div>
                  </div>
@@ -213,6 +217,12 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         /* 飛劍自身的「呼吸」：3.4 秒（與人物 4.5 秒非整數倍）、相位提前 1.1 秒；
            以劍身中點為軸 ±0.9° 微轉，加上極小的反向位移，劍尖與劍柄交替起落（劍柄相對手掌 ≤0.7px，劍尖約 1.6px）。
            持續運行、不需在起飛／落回時切換，因此不會跳動；飛行中這點幅度看不出來。 */
+        /* 整把劍上下浮動：幅度略大於人物呼吸；尖／柄微擺仍由 codexSaberIdle 負責 */
+        .codex-saber-float { animation: codexSaberFloat 4.5s ease-in-out infinite; will-change: transform; }
+        @keyframes codexSaberFloat {
+          0%, 100% { transform: translate3d(0, 2px, 0); }
+          50% { transform: translate3d(0, -5px, 0); }
+        }
         .codex-saber-idle { animation: codexSaberIdle 3.4s ease-in-out -1.1s infinite; will-change: transform; }
         @keyframes codexSaberIdle {
           0%, 100% { transform: translate3d(0, 0.15%, 0) rotate(-0.9deg); }
@@ -220,9 +230,10 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         }
         .codex-inner[data-hidden="1"] .codex-breathe,
         .codex-inner[data-hidden="1"] .codex-saber,
+        .codex-inner[data-hidden="1"] .codex-saber-float,
         .codex-inner[data-hidden="1"] .codex-saber-idle { animation-play-state: paused; }
         @media (prefers-reduced-motion: reduce) {
-          .codex-breathe, .codex-saber, .codex-saber-idle { animation: none !important; }
+          .codex-breathe, .codex-saber, .codex-saber-float, .codex-saber-idle { animation: none !important; }
           .codex-saber.is-back { opacity: 0 !important; }
         }
         /* 呼吸：坐姿，原點在臀／膝（原圖 y≈575），只做 scaleY，雙膝與靴子幾乎不動（<0.5px） */

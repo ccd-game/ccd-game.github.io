@@ -6,8 +6,9 @@
  *   除了 perspective 本身的近大遠小，再疊加明確的深度縮放，使「看起來的大小」＝ depthScale(z)
  *   （最遠約 0.4 倍、最近約 2.2 倍靜止大小），遠處同時略為變淡。
  * - 飛行中依速度方向 rotateZ（刀尖朝前）、依轉彎率沿刀身軸 bank、依 z 速度 pitch。
- * - 兩次斬擊時改為「真正的下劈」：握柄沿 X 的對角線前進，刀身先舉起（柄在下、刀尖朝上偏後），
- *   再以握柄為軸往前下方揮落 140°（第一刀順時針、第二刀逆時針），不是整把劍直線平移。
+ * - 四段：飛出畫面再飛回 → 舉刀蓄勢、下劈 → 再飛出畫面、從另一側飛回 → 再舉刀蓄勢、下劈。
+ * - 兩次斬擊為「真正的下劈」：飛回後在 X 的起點懸停，刀身舉起（柄在下、刀尖朝上偏後）並再往後蓄勢 WINDUP°，
+ *   之後以握柄為軸往前下方揮落（第一刀順時針、第二刀逆時針），不是整把劍直線平移。
  * - 刀刃朝向：這把刀的刃在弧形外側（靜止時刀尖朝左、刃朝下＝刀身方向逆時針轉 90°）。
  *   第一刀順時針揮，刃要在順時針前方，所以整段改用水平鏡像（握柄為軸 scaleX(-1)）；第二刀逆時針揮，原圖的刃本來就在前方，不鏡像。
  *   鏡像只在劍位於畫面外的遠點時切換（X_SLASH_TIMING.mirrorOn / mirrorOff），回到手中時一定是原圖方向。
@@ -29,6 +30,8 @@ export const depthScale = (z: number) => z < 0
   : 1 + (DEPTH_SCALE.near - 1) * Math.min(1, z / DEPTH_SCALE.nearZ);
 /** 下劈：刀身絕對角度（0° = 向右，順時針為正）起訖。起手刀尖朝上略偏前，第一刀順時針劈向右下、第二刀逆時針劈向左下，各揮 140° */
 const SLASH_ANGLES = { pass1: [-85, 55], pass2: [-95, -235] } as const;
+/** 蓄勢：懸停時刀身再往後舉的角度（與下劈方向相反） */
+const WINDUP = 18;
 /** 取樣間隔（ms，1x 時間軸） */
 const STEP = 4;
 
@@ -87,12 +90,14 @@ export function buildWeave(root: DOMRect, layer: DOMRect, cfg: WeaponLayerConfig
     [K.rest, P0],
     [K.lift, { x: px + W * 0.02, y: py - H * 0.05, z: -90 }],                     // 離手上提、後退
     [K.exit1, { x: -W * 0.45, y: H * 0.08, z: -380 }],                             // 從人物背後飛出畫面左上（最遠、最小）
-    [K.pass1Start, at(S1, 40)],                                                   // 左上入畫，刀身舉起
+    [K.pass1Start, at(S1, 40)],                                                   // 飛回左上，刀身舉起
+    [K.charge1, at({ x: S1.x - W * 0.02, y: S1.y - H * 0.035 }, 10)],             // 高舉蓄勢（微微後退上提）
     [K.pass1Mid, at({ x: cx, y: cy }, 170)],                                      // 下劈中段，最靠近鏡頭
     [K.pass1End, at(E1, 100)],                                                    // 劈到右下
     [K.exit2, { x: W * 1.45, y: H * 1.02, z: 260 }],                               // 近鏡頭衝出右下
     [K.loop, { x: W * 1.5, y: H * 0.15, z: -380 }],                                // 畫面外繞到右上（遠）
-    [K.pass2Start, at(S2, 40)],                                                   // 右上入畫，刀身舉起
+    [K.pass2Start, at(S2, 40)],                                                   // 從另一側（右上）飛回，刀身舉起
+    [K.charge2, at({ x: S2.x + W * 0.02, y: S2.y - H * 0.035 }, 10)],             // 再次高舉蓄勢
     [K.pass2Mid, at({ x: cx, y: cy }, 170)],
     [K.impact, at(E2, 110)],                                                      // 第二刀劈到左下＝命中
     [K.rise, { x: (E2.x + px) / 2 - W * 0.12, y: Math.min(E2.y, py) - H * 0.06, z: 80 }], // 上揚弧線回程
@@ -125,15 +130,17 @@ export function buildWeave(root: DOMRect, layer: DOMRect, cfg: WeaponLayerConfig
   const startRz0 = Math.round(rzFly[Math.floor(K.lift / STEP)] / 360) * 360;
   // 下劈角度（rotateZ 值）：刀身絕對角度 − 刀尖靜止角度；以 ease-in-out（sine）揮落：起手舉刀、中段最快、收刀減速
   const easeInOut = (u: number) => (1 - Math.cos(Math.PI * u)) / 2;
+  // h0＝飛回舉刀（開始懸停蓄勢），t0＝開始下劈，t1＝劈完
   const passes = [
-    { t0: K.pass1Start, t1: K.pass1End, a: SLASH_ANGLES.pass1 },
-    { t0: K.pass2Start, t1: K.impact, a: SLASH_ANGLES.pass2 },
+    { h0: K.pass1Start, t0: K.charge1, t1: K.pass1End, a: SLASH_ANGLES.pass1 },
+    { h0: K.pass2Start, t0: K.charge2, t1: K.impact, a: SLASH_ANGLES.pass2 },
   ].map(p => {
     // 對齊到與飛行方向最接近的 360° 倍數，混合時不會多轉一圈
     const mid = Math.floor(((p.t0 + p.t1) / 2) / STEP), tip = tipAt(mid);
     const ref = rzFly[mid];
     const r0 = p.a[0] - tip, off = Math.round((ref - r0) / 360) * 360;
-    return { ...p, r0: r0 + off, r1: p.a[1] - tip + off };
+    const dir = Math.sign(p.a[1] - p.a[0]);
+    return { ...p, r0: r0 + off, r1: p.a[1] - tip + off, rw: r0 + off - dir * WINDUP };
   });
   const BLEND_IN = 110, BLEND_OUT = 110;
   for (let i = 0; i < n; i++) {
@@ -143,10 +150,12 @@ export function buildWeave(root: DOMRect, layer: DOMRect, cfg: WeaponLayerConfig
     let rz = base + (rzFly[i] - base) * w;
     let ws = 0;
     for (const ps of passes) {
-      const wIn = smooth(ps.t0 - BLEND_IN, ps.t0, t) * (1 - smooth(ps.t1, ps.t1 + BLEND_OUT, t));
+      const wIn = smooth(ps.h0 - BLEND_IN, ps.h0, t) * (1 - smooth(ps.t1, ps.t1 + BLEND_OUT, t));
       if (wIn <= 0) continue;
-      const u = clamp((t - ps.t0) / (ps.t1 - ps.t0), 0, 1);
-      const rs = ps.r0 + (ps.r1 - ps.r0) * easeInOut(u);
+      // 懸停：舉刀 → 再往後蓄勢；下劈：由蓄勢角揮落（ease-in：起手慢、劈到底最快）
+      let rs: number;
+      if (t < ps.t0) rs = ps.r0 + (ps.rw - ps.r0) * smooth(ps.h0, ps.t0, t);
+      else { const u = clamp((t - ps.t0) / (ps.t1 - ps.t0), 0, 1); rs = ps.rw + (ps.r1 - ps.rw) * easeInOut(u); }
       rz = rz + (rs - rz) * wIn; ws = Math.max(ws, wIn);
     }
     // bank：轉彎率（度/ms）→ 沿刀身軸傾斜（下劈時收掉）；pitch：z 速度 → 俯仰

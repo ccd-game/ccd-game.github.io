@@ -14,6 +14,8 @@ interface HUDProps {
   isAutoPlaying?: boolean;
   speedMultiplier?: number;
   onSpeedToggle?: () => void;
+  /** AUTO 開／關（開啟後才顯示 倍數／WIN／LOSE） */
+  onAutoToggle?: () => void;
   onDebugVictory?: () => void;
   onDebugGameOver?: () => void;
   isDimmed?: boolean;
@@ -31,6 +33,7 @@ const HUD: React.FC<HUDProps> = React.memo(({
   isAutoPlaying = false,
   speedMultiplier = 1,
   onSpeedToggle,
+  onAutoToggle,
   onDebugVictory,
   onDebugGameOver,
   isDimmed = false,
@@ -129,9 +132,9 @@ const HUD: React.FC<HUDProps> = React.memo(({
             willChange: 'backdrop-filter, opacity, transform'
           }}
         >
-          {/* 速度/自動開關 */}
+          {/* 自動開關（每關常駐） */}
           <div 
-            onClick={onSpeedToggle}
+            onClick={onAutoToggle}
             className={`rounded-lg cursor-pointer flex flex-col items-center justify-center border transition-all active:scale-90 touch-manipulation ${isAutoPlaying ? 'bg-amber-500/80 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-black/40 border-white/10'}`}
             style={{ 
               width: '50px', 
@@ -144,16 +147,29 @@ const HUD: React.FC<HUDProps> = React.memo(({
             <span className={`text-[9px] font-bold mb-[1px] ${isAutoPlaying ? 'text-black' : 'text-gray-500'}`}>AUTO</span>
             <div className="flex items-center justify-center">
               {isAutoPlaying ? (
-                 <span className="text-[14px] text-black font-black animate-pulse">{speedMultiplier}X</span>
+                 <span className="text-[13px] text-black font-black animate-pulse">ON</span>
               ) : (
                  <span className="text-[11px] text-[#ffd700] font-black tracking-tighter">OFF</span>
               )}
             </div>
           </div>
 
-          {/* 只在測試模式顯示調試按鈕 */}
-          {isDemoMode && (
+          {/* AUTO 開啟時才顯示：倍數／WIN／LOSE（AUTO 開過的這場不計分、不入排行，見 battleRecorder eligible） */}
+          {isAutoPlaying && (
             <>
+              <button 
+                onClick={onSpeedToggle}
+                aria-label={`倍數 ${speedMultiplier}X`}
+                className="w-[50px] h-[32px] rounded-lg bg-black/40 border border-white/10 text-[#ffd700] text-[12px] font-black tracking-tighter active:scale-90 flex items-center justify-center"
+                style={{ 
+                  backdropFilter: 'blur(4px)', 
+                  WebkitBackdropFilter: 'blur(4px)',
+                  willChange: 'backdrop-filter'
+                }}
+              >
+                {speedMultiplier}X
+              </button>
+
               <button 
                 onClick={onDebugVictory}
                 className="w-[50px] h-[32px] rounded-lg bg-black/40 border border-white/10 text-emerald-400 text-[10px] font-black tracking-widest active:scale-90 flex items-center justify-center"

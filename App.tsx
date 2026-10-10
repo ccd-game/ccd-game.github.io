@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
-import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, isWeaponAttackStyle, weaponAttackTiming } from './types';
+import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, isWeaponAttackStyle, weaponAttackTiming, X_SLASH_TIMING } from './types';
 import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle } from './data/battleLayout';
 import { MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT, BOSS_MAX_HP, CORRECT_ANSWER_DAMAGE, WRONG_ANSWER_DAMAGE, BOSS_HP_SPEECH_THRESHOLDS, QUESTIONS_EXHAUSTED_POLICY } from './constants';
 import { computeDamageDetail, playerHpAfterBossHit } from './src/lib/battleRules';
@@ -34,30 +34,49 @@ import BootLoadingMask from './components/BootLoadingMask';
 import AudioManager, { AudioManagerHandle } from './components/AudioManager';
 import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence, recordLevelClear } from './src/lib/firebase';
 import { useBattleRecorder } from './src/lib/useBattleRecorder';
+import { ENTER_EXIT_MS, ENTER_REDUCED_FADE_MS, HomeSceneBox, measureHomeScene, preloadBattleImages, prefersReducedMotion, setEnterFreeze, syncHeroAnimations } from './src/lib/enterTransition';
+import EnterModeModal from './components/EnterModeModal';
 import type { VictoryClear } from './src/lib/battleRecorder';
 import { ALLOWED_EMAIL_DOMAINS } from './src/config/auth';
 import { loadSettings, updateSettings, subscribeSettings, pushSettingsIfSynced } from './src/lib/settingsStore';
 
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 
+// 入陣轉場：戰鬥 UI 可先預載；預載完成後直接同步渲染（不經 Suspense，避免交接前多等一個 fallback 週期）
+function preloadableLazy<P extends object>(factory: () => Promise<{ default: React.ComponentType<P> }>) {
+  let Loaded: React.ComponentType<P> | null = null;
+  const Lazy = lazy(factory);
+  // 掛載時決定用哪個（之後不切換，避免中途重掛）
+  const Wrapped = (props: P) => {
+    const [C] = useState<React.ComponentType<P>>(() => Loaded ?? (Lazy as unknown as React.ComponentType<P>));
+    return React.createElement(C, props);
+  };
+  Wrapped.preload = () => factory().then(m => { Loaded = m.default; });
+  return Wrapped;
+}
+
 // Heavy screens / battle UI — code-split; LoginGate stays in this module for first paint.
 const MenuScreen = lazy(() => import('./components/MenuScreen'));
-const BattleArea = lazy(() => import('./components/BattleArea'));
-const SkillPanel = lazy(() => import('./components/SkillPanel'));
-const InputPad = lazy(() => import('./components/InputPad'));
-const LoadingScreen = lazy(() => import('./components/LoadingScreen'));
+const BattleArea = preloadableLazy(() => import('./components/BattleArea'));
+const SkillPanel = preloadableLazy(() => import('./components/SkillPanel'));
+const InputPad = preloadableLazy(() => import('./components/InputPad'));
 const GameOverScreen = lazy(() => import('./components/GameOverScreen'));
 const VictoryScreen = lazy(() => import('./components/VictoryScreen'));
-const HUD = lazy(() => import('./components/HUD'));
-const QuestionBox = lazy(() => import('./components/QuestionBox'));
-const SlotsInterface = lazy(() => import('./components/SlotsInterface'));
-const BossSpeech = lazy(() => import('./components/BossSpeech'));
+const HUD = preloadableLazy(() => import('./components/HUD'));
+const QuestionBox = preloadableLazy(() => import('./components/QuestionBox'));
+const SlotsInterface = preloadableLazy(() => import('./components/SlotsInterface'));
+const BossSpeech = preloadableLazy(() => import('./components/BossSpeech'));
 const SurnamePicker = lazy(() => import('./components/SurnamePicker'));
 
 /** Minimal Suspense fallback matching boot ink (dark, no flash). */
 const SoftFallback: React.FC = () => (
-  <div className="absolute inset-0 bg-[#0a0a0a]" aria-hidden="true" />
+  <div className="absolute inset-0 bg-[#0a0a0a]" aria-hidden="true" data-soft-fallback />
 );
+
+/** 入陣：交接前先載入戰鬥畫面用到的程式碼分塊 */
+const preloadBattleChunks = () => Promise.all([
+  BattleArea.preload(), SkillPanel.preload(), InputPad.preload(), HUD.preload(), QuestionBox.preload(), SlotsInterface.preload(), BossSpeech.preload(),
+]).then(() => undefined, () => undefined);
 
 const FlickeringFire: React.FC<{ top: string, left: string, size?: string }> = ({ top, left, size = "40px" }) => {
   const duration = useMemo(() => 1.5 + Math.random() * 2, []);
@@ -435,6 +454,16 @@ const App: React.FC = () => {
   });
 
   const [introStage, setIntroStage] = useState<string>('none');
+  /** 入陣無縫轉場：prep＝預載中；mount＝戰鬥頁已在主頁底下掛好；exit＝頂欄／抽屜／導覽滑出；done＝撤下主頁 */
+  const [enterPhase, setEnterPhase] = useState<'idle' | 'prep' | 'mount' | 'exit' | 'done'>('idle');
+  const [enterReduced, setEnterReduced] = useState(false);
+  /** 主頁預覽場景幾何（戰鬥背景與人物沿用） */
+  const [homeBox, setHomeBox] = useState<HomeSceneBox | null>(null);
+  /** 交接期間背景與人物直接顯示；開場進到 Boss 現身時交回原流程 */
+  const [enterHold, setEnterHold] = useState(false);
+  const [enterAssetsReady, setEnterAssetsReady] = useState(false);
+  const battleClipRef = useRef<HTMLDivElement>(null);
+  const exitDoneRef = useRef<(() => void) | null>(null);
   const [bossSpeechMsg, setBossSpeechMsg] = useState<string | null>(null);
   const [isSpeechDimmed, setIsSpeechDimmed] = useState(false);
   const [bgDimDuration, setBgDimDuration] = useState(400);
@@ -701,11 +730,11 @@ const App: React.FC = () => {
     setGameState(p => ({ ...p, isTurnActive: true }));
   }, [skillPanelShown, timeScale, clearVisualEffects]);
 
-  const fetchQuestionsForLevel = async (level: LevelConfig) => {
+  const fetchQuestionsForLevel = async (level: LevelConfig, delayMs = 400) => {
     setIsQuestionsFetching(true);
     try {
-      // 模擬加載感，讓轉場更自然
-      await new Promise(r => setTimeout(r, 400));
+      // 模擬加載感，讓轉場更自然（入陣無縫轉場不需要：delayMs = 0）
+      if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
 
       const filtered: Question[] = FULL_QUESTION_BANK
         .filter(q => level.sheetIds.includes(Number(q.id)))
@@ -724,7 +753,7 @@ const App: React.FC = () => {
     }
   };
 
-  const startGame = useCallback(async (testMode: boolean = false) => {
+  const startGame = useCallback(async (testMode: boolean = false, waitBeforeIntro?: Promise<void>) => {
     if (!currentLevel || levelQuestions.length === 0 || isQuestionsFetching) return;
 
     const instanceId = ++gameInstanceIdRef.current;
@@ -741,6 +770,12 @@ const App: React.FC = () => {
         ...prev, status: GameStatus.PLAYING, isTurnActive: false, enemyHp: BOSS_MAX_HP, maxEnemyHp: BOSS_MAX_HP,
         playerHp: 0, maxPlayerHp: MAX_HP, currentQuestionIndex: 0
       }));
+      if (waitBeforeIntro) {
+        // 入陣轉場：主頁滑出、交接完成後，才開始原有開場動畫
+        setIntroStage('none');
+        await waitBeforeIntro;
+        if (gameInstanceIdRef.current !== instanceId) return;
+      }
       setIntroStage('starting');
       await new Promise(r => setTimeout(r, 50));
       if (gameInstanceIdRef.current !== instanceId) return;
@@ -880,7 +915,16 @@ const App: React.FC = () => {
       if (isWeaponAttackStyle(attackStyle)) {
         // 分層武器攻擊（飛劍／飛劍穿梭 X 斬）：一段命中；扣血與命中特效同步（時間點與 BattleArea 的動畫共用 types.ts 的時間表）
         const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-        await new Promise(r => setTimeout(r, weaponAttackTiming(attackStyle).impact * timeScale));
+        if (attackStyle === 'xSlash') {
+          // X 斬：第一刀劈完 → 震屏＋紅閃（只有演出，不扣血）；第二刀（impact）照原流程扣血，並再震一次
+          await new Promise(r => setTimeout(r, X_SLASH_TIMING.impact1 * timeScale));
+          if (gameInstanceIdRef.current !== id) return;
+          setIsScreenFlash(true); setTimeout(() => setIsScreenFlash(false), 150 * timeScale);
+          if (!reduceMotion) { setIsScreenShaking(true); setTimeout(() => setIsScreenShaking(false), 320 * timeScale); } // 震完收掉，第二刀才能再觸發
+          await new Promise(r => setTimeout(r, (X_SLASH_TIMING.impact - X_SLASH_TIMING.impact1) * timeScale));
+        } else {
+          await new Promise(r => setTimeout(r, weaponAttackTiming(attackStyle).impact * timeScale));
+        }
         if (gameInstanceIdRef.current !== id) return;
         setIsBossSlashActive(true); setIsScreenFlash(true); setIsPlayerHurt(true);
         if (!reduceMotion) setIsScreenShaking(true);
@@ -988,9 +1032,11 @@ const App: React.FC = () => {
   const battleKey = battleAnchorKey(battleImg);
   const battleAnchor = BATTLE_ANCHORS[battleKey];
   const battleScene = BATTLE_SCENES[battleKey] ?? null;
+  // 入陣無縫轉場：戰鬥背景／人物／呼吸沿用主頁預覽（同關、同尺寸時）
+  const activeHomeBox = homeBox && currentLevel && homeBox.levelId === currentLevel.id && Math.abs(homeBox.W - appSize.w) < 1 && Math.abs(homeBox.H - appSize.h) < 1 ? homeBox : null;
   const grounded = useMemo(
-    () => battleScene ? computeGroundedBattle(battleAnchor, battleScene, appSize.w, appSize.h) : null,
-    [battleAnchor, battleScene, appSize.w, appSize.h]
+    () => battleScene ? computeGroundedBattle(battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox) : null,
+    [battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox]
   );
   const battleLayout = useMemo(
     () => grounded?.layout ?? computeBattleLayout(battleAnchor, appSize.w, appSize.h),
@@ -998,14 +1044,100 @@ const App: React.FC = () => {
   );
   const battleSceneBox = grounded?.sceneBox ?? null;
 
-  const showMenuScreen = isAuthorized && (isLoggedIn || isLoginExiting) && (gameState.status === GameStatus.MENU || gameState.status === GameStatus.CHARACTER_DETAIL);
+  // ── 入陣無縫轉場 ──
+  // 主頁出現時先在背景載入戰鬥程式碼分塊
+  const battleChunksWarmRef = useRef(false);
+  useEffect(() => {
+    if (!(isAuthorized && isLoggedIn && gameState.status === GameStatus.MENU) || battleChunksWarmRef.current) return;
+    battleChunksWarmRef.current = true;
+    const id = setTimeout(() => { preloadBattleChunks(); }, 1200);
+    return () => clearTimeout(id);
+  });
+
+  // 入陣：先跳出「深入不毛／驀然回首」小視窗（狀態 LOADING，與原本載入頁相同：讀題庫、主頁音樂淡出），同時背景預載戰鬥資源
+  const handleEnterLevel = useCallback((l: LevelConfig) => {
+    if (enterPhase !== 'idle') return;
+    setEnterAssetsReady(false);
+    setHomeBox(null);
+    setCurrentLevel(l);
+    setGameState(p => ({ ...p, status: GameStatus.LOADING }));
+    fetchQuestionsForLevel(l);
+    Promise.all([preloadBattleImages(l), preloadBattleChunks()]).then(() => setEnterAssetsReady(true));
+  }, [enterPhase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 深入不毛：凍結主頁視差，開始無縫入陣
+  const handleDeepIn = useCallback(() => {
+    if (enterPhase !== 'idle' || isQuestionsFetching) return;
+    setEnterFreeze(true);
+    setEnterReduced(prefersReducedMotion());
+    setEnterPhase('prep');
+  }, [enterPhase, isQuestionsFetching]);
+
+  // 題目＋圖片＋程式碼就緒 → 量測主頁場景 → 戰鬥頁在主頁底下掛好（背景／人物與主頁同位置），開場等交接完成才播
+  useEffect(() => {
+    if (enterPhase !== 'prep' || !enterAssetsReady || isQuestionsFetching || levelQuestions.length === 0 || !currentLevel) return;
+    const sc = BATTLE_SCENES[battleAnchorKey(currentLevel.battleImg ?? currentLevel.bossImg)];
+    setHomeBox(sc ? measureHomeScene(appRootRef.current, currentLevel.id, sc.bgW) : null);
+    const exitDone = new Promise<void>(res => { exitDoneRef.current = res; });
+    setEnterHold(true);
+    setEnterPhase('mount');
+    startGame(false, exitDone);
+  }, [enterPhase, enterAssetsReady, isQuestionsFetching, levelQuestions, currentLevel, startGame]);
+
+  // 戰鬥頁真正畫好（沒有 Suspense fallback）後，主頁才開始滑出
+  useEffect(() => {
+    if (enterPhase !== 'mount') return;
+    let raf = 0, cancelled = false;
+    const t0 = performance.now();
+    const tick = () => {
+      if (cancelled) return;
+      const el = battleClipRef.current;
+      const pending = !el || !el.querySelector('[data-boss-sprite], .global-scene-bg') || !!el.querySelector('[data-soft-fallback]');
+      if (pending && performance.now() - t0 < 2000) { raf = requestAnimationFrame(tick); return; }
+      raf = requestAnimationFrame(() => {
+        if (cancelled) return;
+        // 主頁動畫進度（呼吸、飛劍路徑／浮動）原樣接到戰鬥頁，之後同一 timeline 同速前進
+        syncHeroAnimations(appRootRef.current?.querySelector('.home-hero') ?? null, battleClipRef.current);
+        setEnterPhase('exit');
+      });
+    };
+    raf = requestAnimationFrame(tick);
+    return () => { cancelled = true; cancelAnimationFrame(raf); };
+  }, [enterPhase]);
+
+  useEffect(() => {
+    if (enterPhase === 'exit') {
+      // 等主頁 UI 的滑出／淡出動畫真正播完才撤下主頁（主執行緒忙時動畫會晚開始，不能只靠計時），最多多等 600ms
+      let cancelled = false;
+      const names = new Set(['eeUp', 'eeDown', 'eeFadeDown', 'eeFade']);
+      const raf = requestAnimationFrame(() => {
+        const anims = document.getAnimations().filter(an => names.has((an as Animation & { animationName?: string }).animationName ?? ''));
+        const all = Promise.all(anims.map(an => an.finished.catch(() => undefined)));
+        const cap = new Promise(r => setTimeout(r, (enterReduced ? ENTER_REDUCED_FADE_MS : ENTER_EXIT_MS) + 600));
+        Promise.race([all, cap]).then(() => { if (!cancelled) setEnterPhase('done'); });
+      });
+      return () => { cancelled = true; cancelAnimationFrame(raf); };
+    }
+    if (enterPhase === 'done') {
+      exitDoneRef.current?.(); exitDoneRef.current = null;
+      const id = setTimeout(() => { setEnterPhase('idle'); setEnterFreeze(false); }, 50);
+      return () => clearTimeout(id);
+    }
+  }, [enterPhase, enterReduced]);
+
+  useEffect(() => {
+    if (!enterHold) return;
+    if (gameState.status !== GameStatus.PLAYING || !['none', 'starting', 'gold_line', 'bg'].includes(introStage)) setEnterHold(false);
+  }, [enterHold, gameState.status, introStage]);
+
+  const enterMenuHeld = enterPhase === 'prep' || enterPhase === 'mount' || enterPhase === 'exit' || gameState.status === GameStatus.LOADING;
+  const showMenuScreen = isAuthorized && (isLoggedIn || isLoginExiting) && (gameState.status === GameStatus.MENU || gameState.status === GameStatus.CHARACTER_DETAIL || enterMenuHeld);
 
   // 底層畫框顏色：顯示不透明深色全屏畫面時，底層改用相同深色，
   // 避免淺色主題的米色底 (--app-bg) 在圓角抗鋸齒邊緣透出
   const frameBg =
     isBooting ? '#0a0a0a' :
     (!isLoggedIn && !isLoginExiting) ? '#0f0f0f' :
-    (isLoggedIn && gameState.status === GameStatus.LOADING) ? '#1a1a1a' :
     (isLoggedIn && gameState.status === GameStatus.GAME_OVER) ? '#1a0000' :
     'var(--app-bg)';
 
@@ -1041,10 +1173,12 @@ const App: React.FC = () => {
       <InkSplash active={isInkActive} />
       <div className={`absolute inset-0 z-[8000] pointer-events-none transition-opacity duration-150 ${isScreenFlash ? 'opacity-50 bg-red-600' : 'opacity-0'}`} />
 
+      {/* 戰鬥頁容器（入陣轉場時用來確認已畫好；不建立堆疊環境） */}
+      <div ref={battleClipRef} className="absolute inset-0">
       {/* 無落地場景資料時，沿用舊式獨立背景；有 BATTLE_SCENES 時改由 BattleArea 與立繪共用容器 */}
       {!battleScene && (
         <div className={`global-scene-bg absolute top-0 left-0 w-full h-[62%] z-[0] ${((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed) ? 'bg-attack-dim' : ''}`}
-          style={{ backgroundImage: currentLevel ? `url("${currentLevel.bgImg}")` : 'none', backgroundSize: 'auto 100%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center bottom', opacity: gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 1 : 0, transition: 'opacity 0.7s, filter var(--bg-dim-duration, 400ms)', '--bg-dim-duration': `${bgDimDuration}ms` } as any} />
+          style={{ backgroundImage: currentLevel ? `url("${currentLevel.bgImg}")` : 'none', backgroundSize: 'auto 100%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center bottom', opacity: gameState.status === GameStatus.PLAYING && (introStage !== 'none' || enterHold) ? 1 : 0, transition: 'opacity 0.7s, filter var(--bg-dim-duration, 400ms)', '--bg-dim-duration': `${bgDimDuration}ms` } as any} />
       )}
 
       <div className={`gold-divider ${gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 'active' : ''}`} style={{ bottom: "40%" }} />
@@ -1052,7 +1186,7 @@ const App: React.FC = () => {
       {isLoggedIn && gameState.status === GameStatus.PLAYING && (
         <Suspense fallback={<SoftFallback />}>
         <>
-          <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} bossName={currentLevel?.bossName || ""} bossImg={battleImg} bgImg={currentLevel?.bgImg} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} weaponLayers={currentLevel?.weaponLayers} layout={battleLayout} scene={battleScene} sceneBox={battleSceneBox} bgDimmed={((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed)} bgDimDuration={bgDimDuration} />
+          <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} bossName={currentLevel?.bossName || ""} bossImg={battleImg} bgImg={currentLevel?.bgImg} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} weaponLayers={currentLevel?.weaponLayers} layout={battleLayout} scene={battleScene} sceneBox={battleSceneBox} bgDimmed={((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed)} bgDimDuration={bgDimDuration} holdScene={enterHold} inheritBreathOrigin={activeHomeBox?.breatheOrigin ?? null} />
           <DamageMultiplierPopup popup={damagePopup} timeScale={timeScale} />
           <div className="absolute bottom-0 left-0 w-full z-[80] h-[40%]" style={{ backgroundColor: 'var(--app-bg)' }}>
             <InputPad options={shuffledOptions} usedIndices={gameState.usedIndices} disabled={!gameState.isTurnActive || gameState.isPaused} onOptionClick={handleOptionClickAction} isEnemyAttacking={isInputErrorDimmed} showUI={showInputPadUI} isExiting={isInputPadExiting} suppressExitAnim={suppressExitAnim} />
@@ -1079,22 +1213,25 @@ const App: React.FC = () => {
           <div className="absolute left-0 w-full z-[110] flex flex-col items-center" style={{ bottom: "calc(40% + 122px)" }}>
              <QuestionBox question={currentQuestion} showUI={showSlotsUI && !isFatalDefeat} noExitAnim={suppressExitAnim} />
           </div>
-          <HUD gameState={gameState} introStage={introStage} onPause={() => setGameState(p => ({...p, isPaused: !p.isPaused}))} isTimerPulse={isTimerPulse} showInputPadUI={showInputPadUI && !isFatalDefeat} questionType={currentQuestion?.type} isDemoMode={isDemoMode} isAutoPlaying={isAutoPlaying} speedMultiplier={speedMultiplier} onSpeedToggle={() => {
+          <HUD gameState={gameState} introStage={introStage} onPause={() => setGameState(p => ({...p, isPaused: !p.isPaused}))} isTimerPulse={isTimerPulse} showInputPadUI={showInputPadUI && !isFatalDefeat} questionType={currentQuestion?.type} isDemoMode={isDemoMode} isAutoPlaying={isAutoPlaying} speedMultiplier={speedMultiplier} onAutoToggle={() => {
               if (!isAutoPlaying) { setIsAutoPlaying(true); setSpeedMultiplier(1); }
-              else if (speedMultiplier === 1) setSpeedMultiplier(3);
-              else if (speedMultiplier === 3) setSpeedMultiplier(5);
               else setIsAutoPlaying(false);
+          }} onSpeedToggle={() => {
+              // 倍數：1X → 3X → 5X → 1X（AUTO 開啟時才可見）
+              setSpeedMultiplier(m => m === 1 ? 3 : m === 3 ? 5 : 1);
           }} onDebugVictory={() => setGameState(p => ({ ...p, status: GameStatus.VICTORY }))} onDebugGameOver={() => triggerEnemyAttack(true, MAX_HP)} isDimmed={introStage === 'none' || introStage === 'starting'} theme={theme} />
         </>
         </Suspense>
       )}
+      </div>
 
       {isAuthorized && (
-      <div className={`absolute inset-0 transition-opacity duration-700 ${showMenuScreen ? 'z-[500] opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'}`}>
+      <div className={`absolute inset-0 transition-opacity ${enterPhase !== 'idle' ? 'duration-0' : 'duration-700'} ${showMenuScreen ? 'z-[500] opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'}${enterPhase !== 'idle' ? ' enter-busy' : ''}${enterPhase === 'exit' ? (enterReduced ? ' enter-exit-reduced' : ' enter-exit') : ''}`}
+        style={enterPhase === 'exit' ? { '--ee-dur': `${enterReduced ? ENTER_REDUCED_FADE_MS : ENTER_EXIT_MS}ms` } as React.CSSProperties : undefined}>
         <Suspense fallback={<SoftFallback />}>
         <MenuScreen
           levels={LEVELS_DATA}
-          onSelect={l => { setCurrentLevel(l); setGameState(p => ({ ...p, status: GameStatus.LOADING })); fetchQuestionsForLevel(l); }}
+          onSelect={handleEnterLevel}
           viewingCharacter={gameState.status === GameStatus.CHARACTER_DETAIL ? viewingCharacter : null}
           onShowCharacterDetail={(char) => {
             setViewingCharacter(char);
@@ -1115,11 +1252,6 @@ const App: React.FC = () => {
       </div>
       )}
 
-      {isLoggedIn && gameState.status === GameStatus.LOADING && (
-        <Suspense fallback={<SoftFallback />}>
-          <LoadingScreen level={currentLevel} isLoading={isQuestionsFetching} onConfirm={m => startGame(m)} onCancel={resetToStart} />
-        </Suspense>
-      )}
 
       {isLoggedIn && gameState.status === GameStatus.GAME_OVER && (
         <Suspense fallback={<SoftFallback />}>
@@ -1133,18 +1265,34 @@ const App: React.FC = () => {
         </Suspense>
       )}
 
+      {isLoggedIn && (gameState.status === GameStatus.LOADING || (enterPhase !== 'idle' && enterPhase !== 'done')) && (
+        // 深入不毛後小視窗留到主頁 UI 開始滑出才淡出：場景由主頁換成（同位置的）戰鬥畫面就在視窗的模糊遮罩底下完成
+        <EnterModeModal level={currentLevel} isLoading={isQuestionsFetching} onConfirm={handleDeepIn} onCancel={resetToStart}
+          closing={enterPhase === 'exit'} busy={enterPhase !== 'idle'} />
+      )}
+
       {isLoggedIn && gameState.isPaused && (
         <div className={`pause-overlay ${isPauseExiting ? 'animate-fadeOut' : 'show-pause'}`}>
           {isQuitConfirmOpen && (
-            <div className={`absolute inset-0 z-[100000] flex items-center justify-center pointer-events-auto ${isQuitConfirmExiting ? 'animate-simpleFadeOut' : 'animate-simpleFadeIn'}`}>
-              <div className={`w-[310px] bg-[#1a1a1a] rounded-[30px] pt-[46px] pb-[46px] px-9 flex flex-col items-center border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] translate-y-[5px] transition-all duration-300 ${isQuitConfirmExiting ? 'scale-95 translate-y-[11px]' : 'scale-100'}`}>
-                <div className="w-20 h-20 rounded-full border-[3px] border-[#d4af37] flex items-center justify-center mb-7 animate-icon-glow">
-                   <span className="text-[#d4af37] text-4xl font-black translate-x-[-1px]">{UI_STATIC_TEXT.PAUSE.resume[0]}</span>
+            /* 驀然回首 → 中止修煉？：版面與暫停內容相同（隱形引文佔位＋同一組 modern-glass-btn／mb-6），兩顆按鈕與「學不可已／驀然回首」同位置同尺寸 */
+            <div className={`absolute inset-0 z-[100000] flex flex-col items-center justify-center pointer-events-auto ${isQuitConfirmExiting ? 'animate-simpleFadeOut' : 'animate-simpleFadeIn'}`}>
+              <div className="w-full flex flex-col items-center relative">
+                    <div className="relative inline-block px-10 mb-12 invisible" aria-hidden="true">
+                  <span className="absolute top-[-26px] left-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>「</span>
+                  <p className="text-white text-[16px] tracking-[4px] leading-[2.4] font-medium text-center whitespace-pre-wrap" style={{ textShadow: '0 0 20px rgba(255,255,255,0.4)', fontFamily: "'LXGW WenKai Mono TC', monospace", transform: 'translate(5px, 5px)' }}>{UI_STATIC_TEXT.PAUSE.quote}</p>
+                  <span className="absolute bottom-[-26px] right-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>」</span>
                 </div>
-                <h3 className="text-white text-xl font-bold tracking-[4px] mb-8">{UI_STATIC_TEXT.QUIT_CONFIRM.title}</h3>
-                <div className="w-full flex flex-col gap-6 items-center">
-                  <button onClick={() => { setIsQuitConfirmExiting(true); setTimeout(() => { setIsQuitConfirmOpen(false); setIsQuitConfirmExiting(false); }, 300); }} className="modern-glass-btn active:scale-95 !bg-[#d4af37] !text-black !border-[#d4af37] shadow-[0_4px_15_rgba(212,175,55,0.3)]">{UI_STATIC_TEXT.QUIT_CONFIRM.keep}</button>
-                  <button onClick={resetToStart} className="modern-glass-btn active:scale-95 !bg-[#521c1c] !text-white !border-white/5 shadow-[0_4px_15_rgba(82,28,28,0.4)]">{UI_STATIC_TEXT.QUIT_CONFIRM.leave}</button>
+                <div className={`relative flex flex-col items-center transition-transform duration-300 ${isQuitConfirmExiting ? 'scale-95' : 'scale-100'}`}>
+                  {/* 卡片底：上緣包住圖示＋標題（46 + 80 + 28 + 28 + 32），下緣在第二顆按鈕下 46px */}
+                  <div className="absolute left-1/2 -translate-x-1/2 w-[310px] bg-[#1a1a1a] rounded-[30px] border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] pointer-events-none" style={{ top: -(46 + 80 + 28 + 28 + 32), bottom: -46 }} />
+                  <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center" style={{ bottom: 'calc(100% + 32px)' }}>
+                    <div className="w-20 h-20 rounded-full border-[3px] border-[#d4af37] flex items-center justify-center mb-7 animate-icon-glow">
+                       <span className="text-[#d4af37] text-4xl font-black translate-x-[-1px]">{UI_STATIC_TEXT.PAUSE.resume[0]}</span>
+                    </div>
+                    <h3 className="text-white text-xl font-bold tracking-[4px] h-7 leading-7 whitespace-nowrap">{UI_STATIC_TEXT.QUIT_CONFIRM.title}</h3>
+                  </div>
+                  <button onClick={() => { setIsQuitConfirmExiting(true); setTimeout(() => { setIsQuitConfirmOpen(false); setIsQuitConfirmExiting(false); }, 300); }} className="modern-glass-btn active:scale-95 !bg-[#d4af37] !text-black !border-[#d4af37] shadow-[0_4px_15_rgba(212,175,55,0.3)] mb-6 relative">{UI_STATIC_TEXT.QUIT_CONFIRM.keep}</button>
+                  <button onClick={resetToStart} className="modern-glass-btn active:scale-95 !bg-[#521c1c] !text-white !border-white/5 shadow-[0_4px_15_rgba(82,28,28,0.4)] relative">{UI_STATIC_TEXT.QUIT_CONFIRM.leave}</button>
                 </div>
               </div>
             </div>

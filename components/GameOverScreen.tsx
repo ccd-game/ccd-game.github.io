@@ -49,7 +49,7 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ onRestart }) => {
             onClick={onRestart}
             className="modern-glass-btn active:scale-95 !bg-white/10 !border-white/20 !text-white"
           >
-            鍥而不舍
+            孰能無惑
           </button>
         </div>
       </div>
