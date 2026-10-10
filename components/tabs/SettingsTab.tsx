@@ -149,10 +149,15 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
                       step="0.01" 
                       value={bgmVolume} 
                       onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onPointerDown={(e) => e.stopPropagation()}
                       className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-[var(--gold-accent)]"
                       style={{ 
                         background: `linear-gradient(to right, var(--gold-accent) ${bgmVolume * 100}%, rgba(128,128,128,0.2) ${bgmVolume * 100}%)`,
-                        WebkitAppearance: 'none'
+                        WebkitAppearance: 'none',
+                        // 父層 main 為 pan-y；讓滑桿可水平拖曳
+                        touchAction: 'none'
                       }}
                    />
                 </div>

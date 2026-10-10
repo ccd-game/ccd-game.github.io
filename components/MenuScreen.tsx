@@ -26,6 +26,14 @@ const IconSettings = () => (
   </svg>
 );
 
+
+const isInteractiveTarget = (target: EventTarget | null) => {
+  if (!(target instanceof Element)) return false;
+  return !!target.closest(
+    'input, button, select, textarea, a, label, [role="slider"], [role="switch"], [role="button"]'
+  );
+};
+
 type MenuTab = 'character' | 'rank' | 'dungeon' | 'gacha' | 'settings';
 const TABS: MenuTab[] = ['character', 'rank', 'dungeon', 'gacha', 'settings'];
 
@@ -98,6 +106,12 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (viewingCharacter || isSummoning) return;
+    // 音量滑桿等互動元件的水平拖曳不可觸發分頁滑動
+    if (isInteractiveTarget(e.target)) {
+      startX.current = null;
+      startY.current = null;
+      return;
+    }
     startX.current = e.targetTouches[0].clientX;
     startY.current = e.targetTouches[0].clientY;
   };
@@ -121,6 +135,11 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (viewingCharacter || isSummoning) return;
+    if (isInteractiveTarget(e.target)) {
+      startX.current = null;
+      startY.current = null;
+      return;
+    }
     startX.current = e.clientX;
     startY.current = e.clientY;
   };

@@ -28,6 +28,14 @@ battleAudio.loop = true;
 menuAudio.preload = "auto";
 battleAudio.preload = "auto";
 
+/** Test hook: Playwright asserts HTMLMediaElement.volume on both tracks. */
+if (typeof window !== "undefined") {
+  (window as unknown as { __bgmAudio?: { menu: HTMLAudioElement; battle: HTMLAudioElement } }).__bgmAudio = {
+    menu: menuAudio,
+    battle: battleAudio,
+  };
+}
+
 const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({ 
   status, 
   bgmEnabled, 
@@ -96,9 +104,11 @@ const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({
           console.warn("Audio files might be missing or unreachable:", { menuOk, battleOk });
         }
 
-        // 強制加載
+        // 強制加載（load 後再套用音量，避免部分瀏覽器還原預設 volume）
         menuAudio.load();
         battleAudio.load();
+        menuAudio.volume = bgmVolume;
+        battleAudio.volume = bgmVolume;
 
         await menuAudio.play();
         isUnlocked.current = true;
