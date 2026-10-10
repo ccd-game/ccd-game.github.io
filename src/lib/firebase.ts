@@ -208,7 +208,9 @@ async function afterSignIn(result: UserCredential | null) {
   await queueProfileSync(result.user, nameProfileFromCredential(result));
 }
 
-// 處理 signInWithRedirect 返回（彈出視窗被封鎖時使用）
+// 處理 signInWithRedirect 返回（popup 失敗時的後備路徑）。
+// 注意：部分 iOS Safari／內建瀏覽器會在 redirect 後丟掉 sessionStorage，
+// 導致 auth/missing-initial-state；此時顯示提示，勿讓應用崩潰。
 getRedirectResult(auth)
   .then(afterSignIn)
   .catch((e) => {
@@ -223,11 +225,22 @@ function createGoogleProvider() {
   return provider;
 }
 
+/** iOS Safari／內建瀏覽器 redirect 後 sessionStorage 遺失時的提示 */
+const REDIRECT_STATE_LOST_MESSAGE =
+  '登入未能完成，請用 Safari／Chrome 開啟本頁後再試，或關閉追蹤防護後重試。';
+
 function describeAuthError(e: unknown): string | null {
   const code = (e as { code?: string } | null)?.code ?? '';
+  const msg = (e as { message?: string } | null)?.message ?? '';
+  // redirect 後備路徑：sessionStorage 遺失（常見於 iOS 內建瀏覽器）
+  if (
+    code === 'auth/missing-initial-state' ||
+    /missing initial state/i.test(msg)
+  ) {
+    return REDIRECT_STATE_LOST_MESSAGE;
+  }
   switch (code) {
     case 'auth/popup-closed-by-user':
-    case 'auth/cancelled-popup-request':
     case 'auth/user-cancelled':
       return null; // 玩家自行取消，不顯示錯誤
     case 'auth/network-request-failed':
@@ -241,19 +254,30 @@ function describeAuthError(e: unknown): string | null {
       return REJECTION_MESSAGE;
     default: {
       // 封鎖函式（beforeUserCreated / beforeUserSignedIn）拒絕時，錯誤訊息含 BLOCKING_FUNCTION
-      const msg = (e as { message?: string } | null)?.message ?? '';
       if (msg.includes('BLOCKING_FUNCTION')) return REJECTION_MESSAGE;
       return '登入失敗，請稍後再試。';
     }
   }
 }
 
-/** 唯一的登入方式：Google 帳戶 */
+/**
+ * popup 失敗時是否改走 signInWithRedirect。
+ * 注意：redirect 依賴 sessionStorage，在部分 iOS Safari／內建瀏覽器仍可能失敗
+ * （見 getRedirectResult → missing-initial-state 處理）。
+ */
+function shouldFallbackToRedirect(code: string | undefined): boolean {
+  return (
+    code === 'auth/popup-blocked' ||
+    code === 'auth/cancelled-popup-request'
+  );
+}
+
+/** 唯一的登入方式：Google 帳戶（優先 popup，失敗才 redirect） */
 export async function signInWithGoogle(): Promise<void> {
   if (authState.status === 'rejected') {
     setAuthState({ status: 'signedOut', user: null, message: null });
   }
-  // 登入前套用 rememberMe → Firebase Auth persistence
+  // 登入前套用 rememberMe → Firebase Auth persistence（必須在任何 signIn 之前）
   try {
     await applyAuthPersistence(loadSettings().rememberMe);
   } catch (e) {
@@ -261,12 +285,14 @@ export async function signInWithGoogle(): Promise<void> {
   }
   const provider = createGoogleProvider();
   try {
+    // 優先 popup：不依賴跨 redirect 的 sessionStorage，較適合 iOS／內建瀏覽器
     const result = await signInWithPopup(auth, provider);
     // 網域檢查於 onAuthStateChanged 統一處理；此處只用 family_name 更新排行榜名稱
     await afterSignIn(result);
   } catch (e) {
     const code = (e as { code?: string } | null)?.code;
-    if (code === 'auth/popup-blocked') {
+    if (shouldFallbackToRedirect(code)) {
+      // 後備：redirect 在部分內建瀏覽器仍可能因 sessionStorage 遺失而失敗
       await signInWithRedirect(auth, provider);
       return;
     }
