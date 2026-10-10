@@ -467,6 +467,7 @@
         @keyframes homeBreathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         .home-breathe { animation: homeBreathe 6s ease-in-out infinite; }
         .home-embers { z-index: 4; }
+        .home-gyro-layer { will-change: transform; } /* 陀螺儀視差只改 transform，獨立合成層 */
         .home-embers span {
             position: absolute; bottom: -6px; border-radius: 50%;
             background: #ffcf6b; box-shadow: 0 0 6px 2px rgba(255,150,40,.55);

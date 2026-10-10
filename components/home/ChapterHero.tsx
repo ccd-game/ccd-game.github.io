@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform, useReducedMotion } from 'motion/react';
+import React, { useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { LevelConfig } from '../../types';
 import { portraitKey } from '../../data/portraits';
 import { anchorStyle, chapterLabel, type Target } from './heroUtils';
+import { useGyroParallax, type GyroLayer } from './useGyroParallax';
 
 /** 英雄區立繪目標：臉約佔畫面高 7.5%，偏右；個別寬幅立繪微調 */
 const HERO_TARGET: Record<string, Target> = {
@@ -12,6 +13,13 @@ const HERO_TARGET: Record<string, Target> = {
   zhu_ge_liang: { faceH: 0.06, eyeY: 0.17, faceX: 0.17 },
 };
 const THUMB_TARGET: Target = { faceH: 0.42, eyeY: 0.46, faceX: 0 };
+
+/** 陀螺儀視差深度（最大位移 px）：背景反向、立繪順向、火星最近 */
+const DEPTH = {
+  bg: { x: -8, y: -5 },
+  fig: { x: 14, y: 6 },
+  embers: { x: 22, y: 10 },
+};
 
 const EMBERS = Array.from({ length: 12 }, (_, i) => ({
   left: `${8 + ((i * 37) % 86)}%`,
@@ -36,15 +44,17 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
   const order = levels.findIndex(l => l.id === level.id);
   const [dir, setDir] = useState(1);
 
-  // 指標視差（桌面）；減少動態時停用
-  const px = useMotionValue(0);
-  const py = useMotionValue(0);
-  const sx = useSpring(px, { stiffness: 60, damping: 18 });
-  const sy = useSpring(py, { stiffness: 60, damping: 18 });
-  const bgX = useTransform(sx, v => v * -8);
-  const bgY = useTransform(sy, v => v * -5);
-  const figX = useTransform(sx, v => v * 14);
-  const figY = useTransform(sy, v => v * 6);
+  // 手機陀螺儀視差：直接寫入各層外框的 transform（不經 React 狀態）
+  const heroRef = useRef<HTMLElement>(null);
+  const bgGyro = useRef<HTMLDivElement>(null);
+  const figGyro = useRef<HTMLDivElement>(null);
+  const emberGyro = useRef<HTMLDivElement>(null);
+  const gyroLayers = useMemo<GyroLayer[]>(() => [
+    { ref: bgGyro, ...DEPTH.bg },
+    { ref: figGyro, ...DEPTH.fig },
+    { ref: emberGyro, ...DEPTH.embers },
+  ], []);
+  useGyroParallax(heroRef, gyroLayers);
 
   const go = (step: number) => {
     setDir(step);
@@ -67,41 +77,30 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
     touch.current = null;
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (reduce || e.pointerType !== 'mouse') return;
-    const r = e.currentTarget.getBoundingClientRect();
-    px.set(((e.clientX - r.left) / r.width - 0.5) * 2);
-    py.set(((e.clientY - r.top) / r.height - 0.5) * 2);
-  };
-  const onPointerLeave = () => { px.set(0); py.set(0); };
-
   const title = level.title.replace(/[《》]/g, '').replace(/（節錄）/, '');
   const titleChars = useMemo(() => Array.from(title), [title]);
   const key = portraitKey(level.bossImg);
   const figTarget = HERO_TARGET[key] || HERO_TARGET.default;
 
-  useEffect(() => { px.set(0); py.set(0); }, [activeId, px, py]);
-
   const d = dir;
 
   return (
     <section
+      ref={heroRef}
       className="home-hero relative w-full overflow-hidden"
       aria-roledescription="篇章展示"
       aria-label={`${chapterLabel(order)} ${level.title} · ${level.bossName}`}
-      onPointerMove={onPointerMove}
-      onPointerLeave={onPointerLeave}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       onMouseDown={e => e.stopPropagation()}
       onMouseUp={e => e.stopPropagation()}
     >
-      {/* 第一層：篇章場景 */}
+      {/* 第一層：篇章場景（外框承載陀螺儀位移） */}
+      <div ref={bgGyro} className="absolute inset-0 home-gyro-layer" data-parallax="bg">
       <AnimatePresence initial={false}>
         <motion.div
           key={`bg-${level.id}`}
           className="absolute inset-[-16px]"
-          style={{ x: bgX, y: bgY }}
           initial={{ opacity: 0, scale: reduce ? 1 : 1.06 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
@@ -110,16 +109,17 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
           <img src={level.bgImg} alt="" className="w-full h-full object-cover home-hero-bg" draggable={false} />
         </motion.div>
       </AnimatePresence>
+      </div>
 
       {/* 墨色收邊：左側讓直書篇名可讀，底部融入列表 */}
       <div className="absolute inset-0 pointer-events-none home-hero-wash" />
 
       {/* 第二層：古人立繪 */}
+      <div ref={figGyro} className="absolute inset-0 pointer-events-none home-gyro-layer" data-parallax="fig">
       <AnimatePresence initial={false} custom={d}>
         <motion.div
           key={`fig-${level.id}`}
           className="absolute inset-0 pointer-events-none"
-          style={{ x: figX, y: figY }}
           initial={{ opacity: 0, x: reduce ? 0 : 40 * d }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: reduce ? 0 : -30 * d }}
@@ -130,10 +130,11 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
           </div>
         </motion.div>
       </AnimatePresence>
+      </div>
 
       {/* 第三層：火星（純裝飾；減少動態時隱藏） */}
       {!reduce && (
-        <div className="absolute inset-0 pointer-events-none home-embers" aria-hidden="true">
+        <div ref={emberGyro} className="absolute inset-0 pointer-events-none home-embers home-gyro-layer" data-parallax="embers" aria-hidden="true">
           {EMBERS.map((e, i) => (
             <span key={i} style={{ left: e.left, width: e.size, height: e.size, animationDelay: e.delay, animationDuration: e.dur, '--drift': e.drift } as React.CSSProperties} />
           ))}
