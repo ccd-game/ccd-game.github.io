@@ -15,13 +15,15 @@ export interface PortraitAnchor {
   faceX: number;  // 臉部中心 X
   eyeY: number;   // 眼線 Y
   faceH: number;  // 臉高
+  /** 臉框（選填，用於小圓頭像）：額頂（髮際線或帽沿下緣）、下巴（不含鬍鬚）、臉部水平中心；單位為原圖像素 */
+  face?: { top: number; chin: number; cx: number };
 }
 
 export const PORTRAIT_ANCHORS: Record<string, PortraitAnchor> = {
-  liu_zong_yuan: { w: 1280, h: 720,  faceX: 820,  eyeY: 125, faceH: 52 },
-  zhu_ge_liang:  { w: 768,  h: 1344, faceX: 392,  eyeY: 144, faceH: 97 },
-  kong_zi:       { w: 1408, h: 768,  faceX: 610,  eyeY: 177, faceH: 45 },
-  li_bai:        { w: 1645, h: 1503, faceX: 1040, eyeY: 205, faceH: 125 },
+  liu_zong_yuan: { w: 1280, h: 720,  faceX: 820,  eyeY: 125, faceH: 52,  face: { top: 108, chin: 176, cx: 836 } },
+  zhu_ge_liang:  { w: 768,  h: 1344, faceX: 392,  eyeY: 144, faceH: 97,  face: { top: 130, chin: 225, cx: 392 } },
+  kong_zi:       { w: 1408, h: 768,  faceX: 610,  eyeY: 177, faceH: 45,  face: { top: 154, chin: 211, cx: 612 } },
+  li_bai:        { w: 1645, h: 1503, faceX: 1040, eyeY: 205, faceH: 125, face: { top: 170, chin: 292, cx: 1045 } },
 };
 
 export type PortraitPage = 'outer' | 'inner';
@@ -44,7 +46,27 @@ export const PORTRAIT_TARGET: Record<PortraitPage, { faceH: number; eyeY: number
  */
 export const PORTRAIT_TARGET_OVERRIDE: Record<string, Partial<Record<PortraitPage, { faceH: number; eyeY: number; faceX: number }>>> = {
   liu_zong_yuan: {
+    // 內頁已改用 LAYERED_PORTRAITS 分層立繪；此值僅在未登錄分層資料時作後備
     inner: { faceH: 0.0609, eyeY: 0.2174, faceX: 0.12 },
+  },
+};
+
+/**
+ * 分層立繪（圖鑑內頁）：背景、人物、特效三層同尺寸（w×h），放在同一容器內逐像素對齊。
+ * faceX：臉部中心 X；tipX：特效（劍尖）最左端 X；pivot：飛劍旋轉中心（劍柄中心）；seat：呼吸縮放原點（臀／膝）。
+ * 背景使用該角色的 bgImg（需與原合成圖同一張、同尺寸）。
+ */
+export interface LayeredPortrait { w: number; h: number; character: string; effect: string; faceX: number; tipX: number; pivot: string; seat: string }
+const AV = `${import.meta.env.BASE_URL}resources/avatar`;
+export const LAYERED_PORTRAITS: Record<string, LayeredPortrait> = {
+  liu_zong_yuan: {
+    w: 1280, h: 720,
+    character: `${AV}/liu_zong_yuan/liu_zong_yuan_character.png`,
+    effect: `${AV}/liu_zong_yuan/liu_zong_yuan_effect.png`,
+    faceX: 820,
+    tipX: 229,                       // 劍尖（火焰尾端在 x≈76，可被裁）
+    pivot: '47.88% 29.81%',          // 612.9, 214.6
+    seat: '64.8% 79.9%',             // 約 829, 575（坐處／雙膝；靴底在 y≈633）
   },
 };
 

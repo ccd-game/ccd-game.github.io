@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { LevelConfig } from '../../types';
 import { portraitKey } from '../../data/portraits';
-import { anchorStyle, chapterLabel, type Target } from './heroUtils';
+import { anchorStyle, chapterLabel, faceCircleStyle, type Target } from './heroUtils';
 import { useGyroParallax, type GyroLayer } from './useGyroParallax';
 
 /** 英雄區立繪目標：臉約佔畫面高 7.5%，偏右；個別寬幅立繪微調 */
@@ -12,7 +12,8 @@ const HERO_TARGET: Record<string, Target> = {
   kong_zi: { faceH: 0.06, eyeY: 0.3, faceX: 0.2 },
   zhu_ge_liang: { faceH: 0.06, eyeY: 0.17, faceX: 0.17 },
 };
-const THUMB_TARGET: Target = { faceH: 0.42, eyeY: 0.46, faceX: 0 };
+/** 輪播頭像：臉（額頂至下巴）佔圓框內徑 50%（含 2px 邊框的外徑約 45%），置中，露出部分頭髮／帽 */
+const THUMB_FACE = 0.5;
 
 /** 陀螺儀視差深度（最大位移 px）：背景反向、立繪順向、火星最近 */
 const DEPTH = {
@@ -193,7 +194,7 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
                   onClick={() => { setDir(featured.indexOf(f) >= idx ? 1 : -1); onActiveChange(f.id); }}
                   className={`home-thumb home-focus ${on ? 'is-on' : ''}`}
                 >
-                  <img src={f.bossImg} alt="" style={anchorStyle(f.bossImg, THUMB_TARGET)} draggable={false} />
+                  <img src={f.bossImg} alt="" style={faceCircleStyle(f.bossImg, THUMB_FACE)} draggable={false} />
                 </button>
               );
             })}
