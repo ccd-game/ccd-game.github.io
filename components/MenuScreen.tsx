@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { LevelConfig } from '../types';
 import CharacterTab from './tabs/CharacterTab';
 import RankTab from './tabs/RankTab';
@@ -175,38 +176,34 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         }
       `}</style>
 
-      {/* 標題欄 */}
-      <header className={`absolute top-0 left-0 right-0 h-[88px] border-b px-4 pt-[7px] pb-[4px] flex flex-col justify-center backdrop-blur-lg z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`} style={{ borderColor: 'var(--panel-border)', backgroundColor: 'var(--hud-bg)' }}>
-        <div className="flex items-center justify-between mb-1.5">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#d4af37] to-[#8a6d1d] border border-white/20 flex items-center justify-center shadow-md">
-              <span className="text-black font-black text-sm leading-none">{playerData.level}</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[14px] font-bold tracking-widest opacity-70 leading-none" style={{ color: 'var(--gold-accent)' }}>等級</span>
-              <span className="font-bold text-[14px] tracking-widest leading-none mt-1" style={{ color: 'var(--text-main)' }}>{playerData.name}</span>
-            </div>
-          </div>
-          <div className="border rounded-full px-3 py-0.5 flex items-center gap-2" style={{ borderColor: 'var(--panel-border)', backgroundColor: 'var(--header-bg)' }}>
-            <span className="text-[11px] font-bold opacity-60" style={{ color: 'var(--gold-accent)' }}>文氣</span>
-            <div className="w-3.5 h-3.5 rounded-full bg-yellow-500 border border-white/20 shadow-sm"></div>
-            <span className="font-bold text-[14px] tabular-nums" style={{ color: 'var(--text-main)' }}>{playerData.gold.toLocaleString()}</span>
-          </div>
+      {/* 標題欄：玩家牌 */}
+      <header className={`home-bar home-bar-top absolute top-0 left-0 right-0 h-[88px] px-4 flex items-center gap-3 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
+        <div className="home-lv" aria-label={`等級 ${playerData.level}`}>
+          <span className="home-lv-label" aria-hidden="true">等級</span>
+          <span className="home-lv-num" aria-hidden="true">{playerData.level}</span>
         </div>
-        <div className="flex flex-col gap-1.5 px-1">
-          <div className="w-full flex items-center gap-2">
-            <span className="text-[14px] font-black w-10 leading-none" style={{ color: 'var(--gold-accent)' }}>經驗</span>
-            <div className="flex-1 h-1.5 rounded-full border overflow-hidden relative" style={{ borderColor: 'var(--panel-border)', backgroundColor: 'var(--header-bg)' }}>
-              <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" style={{ width: `${Math.min(100, (playerData.exp / playerData.maxExp) * 100)}%` }}></div>
+        <div className="flex-1 min-w-0 flex flex-col gap-[7px]">
+          <div className="flex items-center justify-between gap-2">
+            <span className="home-name truncate">{playerData.name}</span>
+            <div className="home-coin" aria-label={`文氣 ${playerData.gold}`}>
+              <span className="home-coin-label" aria-hidden="true">文氣</span>
+              <span className="home-coin-icon" aria-hidden="true"></span>
+              <span className="home-coin-num" aria-hidden="true">{playerData.gold.toLocaleString()}</span>
             </div>
-            <span className="text-[14px] font-black w-12 text-right opacity-90 leading-none" style={{ color: 'var(--text-main)' }}>{Math.floor((playerData.exp / playerData.maxExp) * 100)}%</span>
           </div>
-          <div className="w-full flex items-center gap-2">
-            <span className="text-[14px] text-emerald-600 font-bold w-10 leading-none">體力</span>
-            <div className="flex-1 h-1.5 rounded-full border overflow-hidden relative" style={{ borderColor: 'var(--panel-border)', backgroundColor: 'var(--header-bg)' }}>
-              <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full" style={{ width: `${(playerData.stamina / playerData.maxStamina) * 100}%` }}></div>
+          <div className="home-meter">
+            <span className="home-meter-label">經驗</span>
+            <div className="home-meter-track" role="progressbar" aria-label="經驗" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor((playerData.exp / playerData.maxExp) * 100)}>
+              <div className="home-meter-fill is-exp" style={{ width: `${Math.min(100, (playerData.exp / playerData.maxExp) * 100)}%` }}></div>
             </div>
-            <span className="text-[14px] font-black w-16 text-right leading-none" style={{ color: 'var(--text-main)' }}>{playerData.stamina}/{playerData.maxStamina}</span>
+            <span className="home-meter-val">{Math.floor((playerData.exp / playerData.maxExp) * 100)}%</span>
+          </div>
+          <div className="home-meter">
+            <span className="home-meter-label is-jade">體力</span>
+            <div className="home-meter-track" role="progressbar" aria-label="體力" aria-valuemin={0} aria-valuemax={playerData.maxStamina} aria-valuenow={playerData.stamina}>
+              <div className="home-meter-fill is-stamina" style={{ width: `${(playerData.stamina / playerData.maxStamina) * 100}%` }}></div>
+            </div>
+            <span className="home-meter-val">{playerData.stamina}/{playerData.maxStamina}</span>
           </div>
         </div>
       </header>
@@ -233,11 +230,10 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
       </main>
 
       {/* 底部導航欄 */}
-      <footer 
-        className={`absolute bottom-0 left-0 right-0 border-t flex items-center justify-around px-2 backdrop-blur-lg z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`} 
+      <nav 
+        aria-label="主選單"
+        className={`home-bar home-bar-bottom absolute bottom-0 left-0 right-0 flex items-stretch justify-around px-1 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`} 
         style={{ 
-            borderColor: 'var(--panel-border)', 
-            backgroundColor: 'var(--hud-bg)',
             paddingBottom: 'max(8px, env(safe-area-inset-bottom))', 
             height: 'calc(76px + env(safe-area-inset-bottom))'
         }}
@@ -247,29 +243,26 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         <NavButton label="地城" icon={<IconDungeon />} active={activeTab === 'dungeon'} onClick={() => handleNavClick('dungeon')} />
         <NavButton label="機緣" icon={<IconGacha />} active={activeTab === 'gacha'} onClick={() => handleNavClick('gacha')} />
         <NavButton label="設定" icon={<IconSettings />} active={activeTab === 'settings'} onClick={() => handleNavClick('settings')} />
-      </footer>
+      </nav>
     </div>
   );
 };
 
-const NavButton: React.FC<{ label: string, icon: React.ReactNode, active?: boolean, onClick: () => void }> = ({ label, icon, active = false, onClick }) => (
-  <button onClick={onClick} className="flex flex-col items-center justify-center gap-1 w-16 h-16 transition-all duration-300">
-    <div 
-      className="w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 overflow-hidden"
-      style={{
-        backgroundColor: active ? 'var(--gold-accent)' : 'rgba(128,128,128,0.05)',
-        color: active ? 'var(--app-bg)' : 'var(--text-sub)',
-        boxShadow: active ? '0 4px 15px rgba(184, 134, 11, 0.3), inset 0 1px 1px rgba(255,255,255,0.2)' : 'none',
-        transform: active ? 'translate3d(0, -2px, 0)' : 'none',
-        border: active ? '1px solid rgba(255,255,255,0.1)' : '1px solid transparent'
-      }}
-    >
-      <div className="flex items-center justify-center w-full h-full transform-gpu">
-        {icon}
-      </div>
-    </div>
-    <span className="text-[9px] font-black tracking-widest transition-colors duration-300" style={{ color: active ? 'var(--gold-accent)' : 'var(--text-sub)' }}>{label}</span>
-  </button>
-);
+const NavButton: React.FC<{ label: string, icon: React.ReactNode, active?: boolean, onClick: () => void }> = ({ label, icon, active = false, onClick }) => {
+  const reduce = useReducedMotion();
+  return (
+    <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`home-nav-btn home-focus ${active ? 'is-active' : ''}`}>
+      <span className="home-nav-icon">{icon}</span>
+      <span className="home-nav-label">{label}</span>
+      {active && (
+        <motion.span
+          layoutId="home-nav-brush"
+          className="home-nav-brush"
+          transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
+        />
+      )}
+    </button>
+  );
+};
 
 export default MenuScreen;

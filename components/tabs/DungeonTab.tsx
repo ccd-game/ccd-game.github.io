@@ -1,14 +1,8 @@
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { LevelConfig } from '../../types';
-
-const IconCircledArrowRight = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="m12 8 4 4-4 4"/>
-    <path d="M8 12h8"/>
-  </svg>
-);
+import ChapterHero from '../home/ChapterHero';
+import { anchorStyle, chapterLabel } from '../home/heroUtils';
 
 const IconCircledLock = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -101,83 +95,59 @@ interface DungeonTabProps {
   theme: 'light' | 'dark';
 }
 
-const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect, theme }) => {
+const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
+  const featured = levels.filter(l => !l.locked);
+  const [activeId, setActiveId] = useState<number>(featured[0]?.id ?? levels[0]?.id);
+
   return (
-    <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar tab-slide-active" style={{ backgroundColor: 'var(--app-bg)' }}>
-      {/* 統一標題樣式 */}
-      <div className="flex items-center justify-between mb-6 px-1">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-4 bg-[var(--gold-accent)]"></div>
-          <span className="text-[12px] font-black tracking-[6px] uppercase" style={{ color: 'var(--text-main)' }}>十二篇章入口</span>
+    <div className="flex-1 overflow-y-auto custom-scrollbar tab-slide-active home-surface">
+      {featured.length > 0 && (
+        <ChapterHero levels={levels} featured={featured} activeId={activeId} onActiveChange={setActiveId} onEnter={onSelect} />
+      )}
+
+      <div className="px-5 pt-6 pb-8">
+        <div className="flex items-baseline justify-between mb-4">
+          <h3 className="home-section-title">十二篇章入口</h3>
+          <span className="home-section-meta">已啟 {featured.length}／{levels.length}</span>
         </div>
-        <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--text-sub)' }}>DUNGEON / {levels.length}</span>
+
+        <ol className="flex flex-col gap-2.5">
+          {levels.map((level, index) => {
+            const isActive = level.id === activeId;
+            const open = !level.locked;
+            return (
+              <li key={level.id}>
+                <div
+                  role={open ? 'button' : undefined}
+                  tabIndex={open ? 0 : -1}
+                  aria-disabled={!open || undefined}
+                  aria-label={`${chapterLabel(index)} ${level.title} ${level.subTitle}${open ? '' : '（未開放）'}`}
+                  onClick={() => open && onSelect(level)}
+                  onKeyDown={e => { if (open && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(level); } }}
+                  onPointerEnter={e => { if (open && e.pointerType === 'mouse') setActiveId(level.id); }}
+                  onFocus={() => open && setActiveId(level.id)}
+                  className={`home-slip home-focus ${open ? 'is-open' : 'is-locked'} ${isActive && open ? 'is-active' : ''}`}
+                >
+                  <span className="home-slip-no" aria-hidden="true">{chapterLabel(index).replace('回', '')}</span>
+                  <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
+                    <MarqueeText text={level.title} className="home-slip-title" />
+                    <MarqueeText text={level.subTitle} className="home-slip-sub" />
+                  </div>
+                  <div className="shrink-0 flex items-center pr-1" aria-hidden="true">
+                    {open ? (
+                      <span className="home-slip-face">
+                        <img src={level.bossImg} alt="" style={anchorStyle(level.bossImg, { faceH: 0.42, eyeY: 0.46, faceX: 0 })} draggable={false} />
+                      </span>
+                    ) : (
+                      <span className="home-slip-lock"><IconCircledLock /></span>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
       </div>
-
-      {levels.map((level, index) => (
-        <div 
-          key={level.id}
-          onClick={() => !level.locked && onSelect(level)}
-          className={`
-            relative w-full h-[84px] rounded-xl flex items-center p-4 border-2 transition-all duration-300
-            ${level.locked 
-              ? 'opacity-65' 
-              : 'active:scale-[0.98] shadow-[0_8px_20px_rgba(184,134,11,0.25)]'}
-          `}
-          style={{ 
-            backgroundColor: level.locked ? 'var(--panel-bg)' : 'var(--gold-accent)',
-            borderColor: level.locked ? 'var(--panel-border)' : 'rgba(255, 255, 255, 0.6)',
-            boxShadow: level.locked ? `inset 0 1px 1px var(--reflection-tint)` : `inset 0 1px 2px rgba(255,255,255,0.4), 0 4px 12px rgba(0,0,0,0.1)`
-          }}
-        >
-          {/* 編號圓圈樣式調整：未解鎖時改為灰色（var(--text-sub) 與 var(--panel-border)） */}
-          <div 
-            className="w-10 h-10 rounded-full border-2 flex items-center justify-center shrink-0 mr-4 transition-colors duration-300" 
-            style={{ 
-              borderColor: level.locked ? 'var(--panel-border)' : 'rgba(255, 255, 255, 0.4)',
-              backgroundColor: level.locked ? 'transparent' : 'rgba(0, 0, 0, 0.1)'
-            }}
-          >
-            <span className="font-black text-sm" style={{ color: level.locked ? 'var(--text-sub)' : '#FFFFFF', opacity: level.locked ? 0.6 : 1 }}>
-              {index + 1}
-            </span>
-          </div>
-
-          <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden pr-3 ml-1">
-             <div className="w-full overflow-hidden">
-               <MarqueeText 
-                 text={level.title} 
-                 className={`text-lg font-bold tracking-[1px] ${level.locked ? 'opacity-50' : ''}`}
-                 style={{ color: level.locked ? (theme === 'dark' ? '#FFFFFF' : 'var(--text-main)') : '#FFFFFF' }}
-               />
-             </div>
-             <div className="w-full overflow-hidden mt-0.5">
-               <MarqueeText 
-                 text={level.subTitle} 
-                 className={`text-[11px] tracking-[1px] ${level.locked ? 'opacity-40' : ''}`}
-                 style={{ color: level.locked ? (theme === 'dark' ? 'rgba(255, 255, 255, 0.7)' : 'var(--text-sub)') : 'rgba(255, 255, 255, 0.85)' }}
-               />
-             </div>
-          </div>
-
-          <div className="shrink-0 flex items-center ml-auto">
-            {level.locked ? (
-              <div style={{ color: 'var(--text-sub)', opacity: 0.5 }}>
-                <IconCircledLock />
-              </div>
-            ) : (
-              <div style={{ color: '#FFFFFF' }} className="animate-pulse">
-                <IconCircledArrowRight />
-              </div>
-            )}
-          </div>
-
-          {/* 已解鎖關卡的額外光澤特效 */}
-          {!level.locked && (
-            <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-br from-white/20 via-transparent to-black/10"></div>
-          )}
-        </div>
-      ))}
-      <div className="h-6"></div>
     </div>
   );
 };

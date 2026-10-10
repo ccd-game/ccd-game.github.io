@@ -37,6 +37,8 @@ export interface LevelConfig {
   defeatSpeech?: string;
   hpThresholds?: { [key: number]: string };
   locked?: boolean;
+  /** 主頁英雄區名句：須逐字摘自 DSE 指定篇章原文（教育局《指定文言經典學習材料原文（十二篇）》），不含外層「」；缺省則不顯示 */
+  quote?: string;
 }
 
 export interface GameState {
