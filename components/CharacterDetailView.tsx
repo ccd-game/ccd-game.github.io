@@ -212,8 +212,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         .codex-fig-in { will-change: transform, opacity; }
         .codex-breathe { animation: codexBreathe 4.5s ease-in-out infinite; will-change: transform; }
         .codex-saber { will-change: transform, opacity; }
-        .codex-saber.is-back { opacity: 0; animation: codexSaberPath 6.432s infinite, codexSaberBack 6.432s infinite; }
-        .codex-saber.is-front { animation: codexSaberPath 6.432s infinite, codexSaberFront 6.432s infinite; }
+        .codex-saber.is-back { opacity: 0; animation: codexSaberPath 12.864s infinite, codexSaberBack 12.864s infinite; }
+        .codex-saber.is-front { animation: codexSaberPath 12.864s infinite, codexSaberFront 12.864s infinite; }
         /* 飛劍自身的「呼吸」：3.4 秒（與人物 4.5 秒非整數倍）、相位提前 1.1 秒；
            以劍身中點為軸 ±0.9° 微轉，加上極小的反向位移，劍尖與劍柄交替起落（劍柄相對手掌 ≤0.7px，劍尖約 1.6px）。
            持續運行、不需在起飛／落回時切換，因此不會跳動；飛行中這點幅度看不出來。 */

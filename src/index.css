@@ -450,8 +450,8 @@
 
         /* 首頁飛劍（目前僅柳宗元）：路徑／靜候呼吸與圖鑑內頁相同（6.432s 循環、靜候加倍） */
         .home-saber { will-change: transform, opacity; }
-        .home-saber.is-back { opacity: 0; animation: homeSaberPath 6.432s infinite, homeSaberBack 6.432s infinite; }
-        .home-saber.is-front { animation: homeSaberPath 6.432s infinite, homeSaberFront 6.432s infinite; }
+        .home-saber.is-back { opacity: 0; animation: homeSaberPath 12.864s infinite, homeSaberBack 12.864s infinite; }
+        .home-saber.is-front { animation: homeSaberPath 12.864s infinite, homeSaberFront 12.864s infinite; }
         /* 整把劍上下浮動：幅度略大於人物呼吸（homeSceneBreathe scaleY 1.012）；尖／柄微擺仍由 homeSaberIdle 負責 */
         .home-saber-float { animation: homeSaberFloat 4.5s ease-in-out infinite; will-change: transform; }
         @keyframes homeSaberFloat {
