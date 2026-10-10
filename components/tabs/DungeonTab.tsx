@@ -25,40 +25,55 @@ const IconChevronUp = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
 );
 
+type DrawerState = 'closed' | 'peek' | 'open';
+
+/** 抽屜三段的 translateY（px）：closed＝只露標題列；peek＝露出前四篇（與 CSS --peek-h 同式） */
+const drawerStops = (el: HTMLElement) => {
+  const h = el.clientHeight;
+  const bar = parseFloat(getComputedStyle(el).getPropertyValue('--bar-h')) || 52;
+  const closedY = Math.max(0, h - bar);
+  const peekH = (h + 2 * bar) / 3 - 1;
+  return { closedY, peekY: Math.max(0, Math.min(closedY, h - peekH)) };
+};
+
 const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
   const featured = levels.filter(l => !l.locked);
   const [activeId, setActiveId] = useState<number>(featured[0]?.id ?? levels[0]?.id);
-  // 十二篇章入口抽屜：收合時只露出底部一條；展開時占滿首頁（底部分頁列之上），十二篇一次全見、不需捲動
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // 十二篇章入口抽屜三段：closed（只露標題列）／peek（預設，露出前四篇）／open（占滿首頁，十二篇全見）
+  const [drawerState, setDrawerState] = useState<DrawerState>('peek');
+  const drawerOpen = drawerState === 'open';
   const barRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
-  const openRef = useRef(drawerOpen);
-  useEffect(() => { openRef.current = drawerOpen; }, [drawerOpen]);
+  const stateRef = useRef(drawerState);
+  useEffect(() => { stateRef.current = drawerState; }, [drawerState]);
   // 手指拖曳：以 transform 跟手，松手後依位移／速度決定開或關；與左右滑切分頁互不干擾
   const drag = useRef<{ x: number; y: number; t: number; dragging: boolean; axis: 'x' | 'y' | null } | null>(null);
 
   const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const setOpen = useCallback((open: boolean) => {
+  const setState = useCallback((next: DrawerState) => {
     const el = drawerRef.current;
     if (el) {
       el.classList.remove('is-dragging');
       el.style.transform = '';
     }
-    setDrawerOpen(open);
+    stateRef.current = next;
+    setDrawerState(next);
   }, []);
+  /** 拖曳結束後瀏覽器仍會補一個 click：忽略它，避免剛拖到的段又被切回 */
+  const suppressClick = useRef(false);
 
   useEffect(() => {
     if (!drawerOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); barRef.current?.focus(); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setState('peek'); barRef.current?.focus(); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [drawerOpen, setOpen]);
+  }, [drawerOpen, setState]);
 
-  // 選篇：收合抽屜，預覽切換到該篇（不直接入陣；入陣仍由預覽的「入陣」按鈕）
+  // 選篇：抽屜回到 peek，預覽切換到該篇（不直接入陣；入陣仍由預覽的「入陣」按鈕）
   const pick = (level: LevelConfig) => {
     setActiveId(level.id);
-    setOpen(false);
+    setState('peek');
     barRef.current?.focus({ preventScroll: true });
   };
 
@@ -85,13 +100,10 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
     if (d.axis !== 'y' || !d.dragging) return;
     e.stopPropagation();
     if (reduceMotion()) return; // 減少動態：不跟手，松手再切
-    const h = el.clientHeight;
-    const bar = parseFloat(getComputedStyle(el).getPropertyValue('--bar-h')) || 52;
-    const closedY = Math.max(0, h - bar);
-    const base = openRef.current ? 0 : closedY;
-    // 收合時只接受上滑（dy<0）；展開時只接受下滑（dy>0）
-    const delta = openRef.current ? Math.max(0, dy) : Math.min(0, dy);
-    const y = Math.min(closedY, Math.max(0, base + delta));
+    const { closedY, peekY } = drawerStops(el);
+    const st = stateRef.current;
+    const base = st === 'open' ? 0 : st === 'peek' ? peekY : closedY;
+    const y = Math.min(closedY, Math.max(0, base + dy));
     el.style.transform = `translate3d(0, ${y}px, 0)`;
   };
 
@@ -103,26 +115,21 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
     if (d.axis === 'x' || !d.dragging) return; // 點按由 button onClick 處理；水平滑不動作
     e.stopPropagation();
     e.preventDefault();
+    suppressClick.current = true;
+    window.setTimeout(() => { suppressClick.current = false; }, 400);
     const dy = e.clientY - d.y;
     const dt = Math.max(16, e.timeStamp - d.t);
     const v = dy / dt; // px/ms
     const THRESH = 48;
     const VEL = 0.45;
-    let next = openRef.current;
-    if (openRef.current) {
-      // 展開中：下滑超過門檻或夠快 → 收合
-      if (dy > THRESH || v > VEL) next = false;
-    } else {
-      // 收合中：上滑超過門檻或夠快 → 展開
-      if (dy < -THRESH || v < -VEL) next = true;
-    }
-    if (reduceMotion()) {
-      el.classList.remove('is-dragging');
-      el.style.transform = '';
-      setDrawerOpen(next);
-      return;
-    }
-    setOpen(next);
+    const st = stateRef.current;
+    let next: DrawerState = st;
+    const up = dy < -THRESH || v < -VEL;
+    const down = dy > THRESH || v > VEL;
+    if (st === 'open') { if (down) next = 'peek'; }
+    else if (st === 'peek') { if (up) next = 'open'; else if (down) next = 'closed'; }
+    else if (up) next = 'peek';
+    setState(next);
   };
 
   const onPointerUp = (e: React.PointerEvent) => finishDrag(e);
@@ -131,14 +138,14 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
   return (
     <div className="flex-1 tab-slide-active home-surface home-dungeon">
       {featured.length > 0 && (
-        <div className="home-hero-slot" inert={drawerOpen || undefined}>
+        <div className={`home-hero-slot is-${drawerState}`} inert={drawerOpen || undefined}>
           <ChapterHero levels={levels} featured={featured} activeId={activeId} onActiveChange={setActiveId} onEnter={onSelect} />
         </div>
       )}
 
       <section
         ref={drawerRef}
-        className={`home-drawer ${drawerOpen ? 'is-open' : ''}`}
+        className={`home-drawer is-${drawerState}`}
         aria-label="十二篇章入口"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -151,7 +158,10 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
           className="home-drawer-bar home-focus"
           aria-expanded={drawerOpen}
           aria-controls="home-chapter-list"
-          onClick={() => setOpen(!openRef.current)}
+          onClick={() => {
+            if (suppressClick.current) { suppressClick.current = false; return; }
+            setState(stateRef.current === 'open' ? 'peek' : stateRef.current === 'peek' ? 'open' : 'peek');
+          }}
         >
 <h3 className="home-section-title">十二篇章入口</h3>
           <span className="home-section-meta">已啟 {featured.length}／{levels.length}</span>
@@ -159,7 +169,7 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
           <span className="sr-only">{drawerOpen ? '（收合）' : '（展開）'}</span>
         </button>
 
-        <ol id="home-chapter-list" className="home-drawer-list" inert={!drawerOpen || undefined}>
+        <ol id="home-chapter-list" className="home-drawer-list" inert={drawerState === 'closed' || undefined}>
           {levels.map((level, index) => {
             const isActive = level.id === activeId;
             const open = !level.locked;

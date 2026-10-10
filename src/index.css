@@ -423,19 +423,28 @@
         }
 
         /* 英雄區 */
-        .home-hero { height: 100%; background: var(--ink); color: var(--paper); isolation: isolate; }
-        /* 落地場景：背景＋立繪同一容器；大小取「寬度比例」與「塞進篇名區高度」之較小者；地面線對齊篇名區下緣 */
+        .home-hero { height: 100%; background: var(--ink); color: var(--paper); isolation: isolate; overflow: hidden; }
+        /* 落地場景：cover 填滿篇名線以上預覽區（無上下黑邊）；腳底對齊篇名區下緣；多出的從上方／兩側裁 */
         .home-hero { container-type: size; }
         .home-scene {
-            --s: min(calc(var(--k) * 100cqw / var(--W)), calc((100cqh - var(--ui, 190px) - 20px) / var(--span)));
+            /* V = 篇名線以上高度；s 取寬 cover 與「腳底貼 V 底」之較大者（等同 object-fit: cover + foot anchor） */
+            --V: calc(100cqh - var(--ui, 190px));
+            --s: max(calc(100cqw / var(--W)), calc(var(--V) / var(--foot)));
             position: absolute; width: calc(var(--s) * var(--W)); height: calc(var(--s) * var(--H));
             left: clamp(calc(100cqw - var(--s) * var(--W)), calc(var(--X) * 100cqw - var(--s) * var(--ax)), 0px);
-            top: calc(100cqh - var(--ui, 190px) - var(--s) * var(--foot));
+            top: calc(var(--V) - var(--s) * var(--foot));
         }
+        /* 第 2 關：背景 cover 英雄區並貼底（頂部天空裁掉、底部填滿，無墨黑） */
+        .home-scene.is-cover-bottom {
+            --s: max(calc(100cqw / var(--W)), calc(100cqh / var(--H)));
+            top: calc(100cqh - var(--s) * var(--H));
+        }
+        /* 第 2 關 fit 'headTop'：縮放／位置由 JS 即時算（人物大小同抽屜收合時、頭不出框、無黑邊） */
+        .home-hero .home-scene.is-fit { --s: var(--fit-s, 1px); left: var(--fit-l, 0px); top: var(--fit-t, 0px); }
         .home-scene-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; }
-        .home-scene-fig { position: absolute; }
-        .home-scene-bg { -webkit-mask-image: linear-gradient(180deg, transparent, #000 24%); mask-image: linear-gradient(180deg, transparent, #000 24%); }
-        .home-hero-bg.is-under-scene { filter: blur(8px); }
+        .home-scene-fig { position: absolute; will-change: transform; }
+        .home-scene-bg { /* 無頂部 mask：遠景直通 */ }
+        .home-hero-bg.is-under-scene { display: none !important; }
         @keyframes homeSceneBreathe { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.012); } }
         .home-scene-breathe { animation: homeSceneBreathe 4.5s ease-in-out infinite; will-change: transform; }
 
@@ -475,20 +484,35 @@
         .home-hero[data-hidden="1"] .home-saber-idle { animation-play-state: paused; }
         .home-fig-stage { position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 39 / 47; max-height: 100%; }
         .home-hero-bg { filter: brightness(.62) saturate(.85) contrast(1.05); }
-        .home-hero-wash {
-            background:
-              linear-gradient(90deg, rgba(13,11,9,.82) 0%, rgba(13,11,9,.35) 34%, rgba(13,11,9,0) 60%),
-              linear-gradient(180deg, rgba(13,11,9,.45) 0%, rgba(13,11,9,0) 22%);
-        }
-        /* 場景下方：淡入墨黑（不再用鏡射填滿）；岩石／地面線以上不受影響 */
-        .home-hero-floor {
-            background: linear-gradient(0deg, var(--ink) 0%, var(--ink) 18%, rgba(13,11,9,.92) 42%, rgba(13,11,9,.55) 68%, rgba(13,11,9,0) 100%);
-            z-index: 3;
-        }
+        /* 舊 wash／floor／scene-fade 徹銷；改用輕柔羽化（backdrop blur + 透明漸層） */
+        .home-hero-wash,
+        .home-hero-floor,
         .home-scene-fade {
-            position: absolute; left: 0; right: 0; bottom: 0; height: max(28%, calc(100% - var(--ui, 190px) + 8px));
-            background: linear-gradient(0deg, var(--ink) 0%, rgba(13,11,9,.85) 35%, rgba(13,11,9,0) 100%);
-            pointer-events: none; z-index: 2;
+            display: none !important;
+            background: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        /* 底部羽化：純 backdrop blur，以漸層遮罩讓模糊由上而下逐漸增強；無任何暗色／黑色層 */
+        .home-scene-feather {
+            position: absolute; left: 0; right: 0; bottom: 0;
+            height: calc(var(--ui, 190px) + 100px);
+            pointer-events: none; z-index: 5;
+            background: transparent;
+            -webkit-backdrop-filter: blur(18px);
+            backdrop-filter: blur(18px);
+            -webkit-mask-image: linear-gradient(to top, #000 0%, #000 30%, rgba(0,0,0,.6) 60%, transparent 100%);
+            mask-image: linear-gradient(to top, #000 0%, #000 30%, rgba(0,0,0,.6) 60%, transparent 100%);
+        }
+        /* 第 2 關：羽化只在 UI 區（不模糊岩頂上的靴子） */
+        /* 第 2 關：羽化往上蓋過橫排篇名；篇名上方清晰 → 底部全模糊（仍為純 backdrop blur） */
+        .home-scene-feather.is-l2 {
+            height: calc(var(--ui, 190px) + 36px);
+            -webkit-mask-image: linear-gradient(to top, #000 0%, #000 34%, rgba(0,0,0,.8) 55%, rgba(0,0,0,.5) 72%, rgba(0,0,0,.2) 88%, transparent 100%);
+            mask-image: linear-gradient(to top, #000 0%, #000 34%, rgba(0,0,0,.8) 55%, rgba(0,0,0,.5) 72%, rgba(0,0,0,.2) 88%, transparent 100%);
+        }
+        @media (prefers-reduced-transparency: reduce) {
+            .home-scene-feather { -webkit-backdrop-filter: none; backdrop-filter: none; }
         }
         .home-hero-fig { filter: drop-shadow(0 12px 28px rgba(0,0,0,.6)); }
         @keyframes homeBreathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
@@ -529,6 +553,21 @@
             mask-composite: intersect;
         }
         .home-vtitle-wrap > .home-vtitle { position: relative; }
+        /* 第 2 關：橫排篇名，置中於頭像列上方 */
+        .home-htitle {
+            margin-top: 26px; text-align: center; white-space: nowrap;
+            font-family: var(--font-display); font-weight: 600; font-size: min(clamp(20px, 6.4cqw, 26px), calc((100cqw - 150px) / (var(--n, 7) * 1.12))); letter-spacing: .12em; line-height: 1.2;
+            color: var(--gilt); text-shadow: 0 2px 0 rgba(0,0,0,.55), 0 0 18px rgba(0,0,0,.6), 0 0 22px rgba(212,175,55,.25);
+            font-synthesis: none;
+        }
+        /* 第 2 關：朱印移到右上、人物身旁，不擠篇名 */
+        /* 第 2 關：篇名／頭像列／入陣間距（入陣距抽屜 18px 由 pb 控制） */
+        .l2-title-row { margin-top: 26px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .l2-title-row .home-htitle { margin-top: 0; flex: 1 1 auto; min-width: 0; }
+        .l2-cta { margin-top: 20px; }
+        .home-seal-l2 { position: absolute; right: 18px; top: 38%; z-index: 1; }
+        /* 矮英雄區（抽屜 peek）：朱印移到右上，不壓篇名／頭像列 */
+        @container (max-height: 420px) { .home-seal-l2 { top: 14px; } }
         .home-chapter-no { font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: 4px; color: var(--gilt); text-shadow: 0 1px 2px #000, 0 0 10px rgba(0,0,0,.9); }
         .home-quote { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--paper); text-shadow: 0 1px 6px rgba(0,0,0,.8); }
         .home-seal {
@@ -584,8 +623,16 @@
         .home-cta, .home-section-title, .home-slip-no, .home-slip-title { font-synthesis: none; }
 
         /* 首頁：預覽占滿，十二篇章入口為底部抽屜 */
-        .home-dungeon { --bar-h: 52px; position: relative; height: 100%; overflow: hidden; }
-        .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--bar-h); }
+        .home-dungeon {
+            --bar-h: 52px;
+            /* peek＝標題列＋前四篇（列高＝展開時 12 列等分：(H − bar − 列表上下 12px − 11 個 4px 間距)/12；四列＋上 2px＋四個間距）
+               = bar + 18px + (H − bar − 56px)/3 = H/3 + 2·bar/3 − 0.67px */
+            --peek-h: calc(100% / 3 + var(--bar-h) * 2 / 3 - 1px);
+            position: relative; height: 100%; overflow: hidden;
+        }
+        /* 英雄區下緣＝抽屜上緣（peek／open 時在 peek 線；closed 時在標題列） */
+        .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }
+        .home-hero-slot.is-closed { bottom: var(--bar-h); }
         .home-drawer {
             position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column;
             background: var(--home-surface); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
@@ -594,6 +641,7 @@
             will-change: transform;
             touch-action: pan-y;
         }
+        .home-drawer.is-peek { transform: translate3d(0, calc(100% - var(--peek-h)), 0); }
         .home-drawer.is-open { transform: translate3d(0, 0, 0); }
         .home-drawer.is-dragging { transition: none; }
         .home-drawer-bar {
@@ -609,7 +657,7 @@
             padding: 2px 16px 10px; container-type: size; container-name: drawer;
             transition: opacity .36s cubic-bezier(.22,1,.36,1);
         }
-        .home-drawer:not(.is-open) .home-drawer-list { opacity: 0; pointer-events: none; }
+        .home-drawer.is-closed .home-drawer-list { opacity: 0; pointer-events: none; }
         .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }
         .home-drawer-list .home-slip { flex: 1; min-width: 0; min-height: 0; padding: 0 8px 0 0; }
         .home-drawer-list .home-slip-no { width: 50px; letter-spacing: 0; font-size: clamp(12px, 2.6cqh, 14px); }
@@ -626,7 +674,7 @@
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .home-drawer, .home-drawer-chev { transition: none !important; }
+            .home-drawer, .home-drawer-chev, .home-hero-slot { transition: none !important; }
             .home-drawer-list { transition: opacity .15s linear; }
             .home-breathe, .home-scene-breathe, .home-saber, .home-saber-idle, .home-embers span { animation: none !important; }
             .home-saber.is-back { opacity: 0 !important; }

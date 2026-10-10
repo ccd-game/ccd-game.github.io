@@ -258,6 +258,7 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
       overflow: 'visible',
       '--anim-scale': animScale,
       '--breathing-duration': `${4 * animScale}s`,
+      '--breath-y': `${scene?.breathY ?? 8}px`,
       '--swing-duration': `${1.6 * animScale}s`,
       '--hurt-duration': `${0.4 * animScale}s`,
       '--name-duration': `${0.6 * animScale}s`
@@ -342,6 +343,10 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
           {/* 場景本體：與立繪同一 left/top/scale（cover 縮放後通常蓋滿戰鬥區；多出的從上方／兩側裁切） */}
           <div style={{ position: 'absolute', left: sceneBox.left, top: sceneBox.top, width: sceneBox.width, height: sceneBox.height }}>
             <img src={bgImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', display: 'block' }} draggable={false} />
+            {sceneBox.mirrorBottom && (
+              /* 下方鏡射延伸：背景上移後補滿底部（被題目／答案區覆蓋為主） */
+              <img src={bgImg} alt="" style={{ position: 'absolute', left: 0, top: 'calc(100% - 1px)', width: '100%', height: '100%', maxWidth: 'none', display: 'block', transform: 'scaleY(-1)' }} draggable={false} />
+            )}
           </div>
         </div>
       )}
@@ -380,12 +385,23 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
                 willChange: 'transform'
               }}
             >
+              {layout?.anchor.nameCompact ? (
+                /* 緊湊版：名字 12px 在上、◆ 在下；整組水平置中 */
+                <div className={`flex flex-col items-center justify-center gap-[2px] transition-opacity duration-500 ${isNameVisible ? 'boss-name-anim opacity-100' : 'opacity-0'}`} style={{ transitionDuration: `${500 * animScale}ms`, lineHeight: 1 }}>
+                  <span className="text-white font-black tracking-[2px] mr-[-2px]" style={{ fontSize: 12, lineHeight: 1, WebkitTextStroke: '0.6px rgba(0,0,0,0.85)', paintOrder: 'stroke fill', textShadow: '0 0 2px #000, 0 0 4px rgba(0,0,0,1), 0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)' }}>{bossName}</span>
+                  {/* 窄菱形 ◆：高 8、寬 4.8（0.6 比例）；外框＝可見形狀，名字底→◆頂 恰 2px */}
+                  <span data-boss-dia style={{ display: 'block', filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.8)) drop-shadow(0 0 1.5px rgba(0,0,0,1))' }}>
+                    <span style={{ display: 'block', width: 4.8, height: 8, background: '#fff', clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }} />
+                  </span>
+                </div>
+              ) : (
               <div className={`flex flex-col items-center transition-opacity duration-500 ${isNameVisible ? 'boss-name-anim opacity-100' : 'opacity-0'}`} style={{ transitionDuration: `${500 * animScale}ms` }}>
                 <div className="text-[1.1rem] mb-[-4px] text-white flex justify-center" style={{ lineHeight: 1, transform: 'translate3d(0, -3px, 0) scale(0.325, 0.65)', transformOrigin: 'center bottom', textShadow: '0 0 12px rgba(255,255,255,0.8), 0 0 4px rgba(0,0,0,1), 0 2px 4px rgba(0,0,0,0.8)' }}>◆</div>
                 <div className="flex items-center justify-center mr-[-4px]">
                    <span className="mt-[1px] text-white font-black tracking-[4px] text-shadow-sm">{bossName}</span>
                 </div>
               </div>
+              )}
             </div>
 
             <div data-boss-sprite="" style={{
@@ -434,7 +450,7 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
         <style>{`
 
           @keyframes enemyBreath {
-            0%, 100% { transform: translate3d(0, 8px, 0) scale(1); }
+            0%, 100% { transform: translate3d(0, var(--breath-y, 8px), 0) scale(1); }
             50% { transform: translate3d(0, 0px, 0) scale(1.01); }
           }
           .enemy-breathing { animation: enemyBreath var(--breathing-duration) cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite; }
