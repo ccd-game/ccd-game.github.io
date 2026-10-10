@@ -754,7 +754,7 @@ const App: React.FC = () => {
             <div className="relative inline-block px-10 mb-12">
               <span className="absolute top-[-26px] left-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>「</span>
               <p className="text-white text-[16px] tracking-[4px] leading-[2.4] font-medium text-center whitespace-pre-wrap" style={{ textShadow: '0 0 20px rgba(255,255,255,0.4)', fontFamily: "'LXGW WenKai Mono TC', monospace", transform: 'translate(5px, 5px)' }}>{UI_STATIC_TEXT.PAUSE.quote}</p>
-              <span className="absolute bottom-[-26px] right-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>「</span>
+              <span className="absolute bottom-[-26px] right-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>」</span>
             </div>
             <button className="modern-glass-btn active:scale-95 !bg-[#d4af37] !text-black !border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.3)] mb-6" onClick={() => { setIsPauseExiting(true); setTimeout(() => { setGameState(p => ({ ...p, isPaused: false })); setIsPauseExiting(false); }, 400); }}>{UI_STATIC_TEXT.PAUSE.resume}</button>
             <button className="modern-glass-btn active:scale-95 !bg-white/10 !border-white/20 !text-white" onClick={() => setIsQuitConfirmOpen(true)}>{UI_STATIC_TEXT.PAUSE.quit}</button>

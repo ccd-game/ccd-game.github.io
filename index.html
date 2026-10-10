@@ -96,6 +96,8 @@
             mask-clip: border-box;
             overflow: hidden; 
             box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            /* 以 clip-path 對整個合成結果做一次圓角裁切，避免每一圖層各自抗鋸齒而在圓角處透出底層淺色背景（黃邊） */
+            clip-path: inset(0 round 30px);
             contain: layout paint;
             isolation: isolate;
             transition: background-color var(--theme-transition);
@@ -118,6 +120,7 @@
                 border-radius: 0; 
                 -webkit-mask-image: none;
                 mask-image: none;
+                clip-path: none;
             }
         }
 

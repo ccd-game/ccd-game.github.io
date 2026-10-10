@@ -18,17 +18,21 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ level, onConfirm, onCance
     return chineseNums[n] || n.toString();
   };
 
+  // 副標題字數（含標點），用於按容器寬度計算字級，避免寬字距下超出而被裁切
+  const subtitleText = `篇章${toChineseNumber(level.id)}：${level.title}`;
+  const subtitleLen = Array.from(subtitleText).length;
+
   return (
     <div 
       className="absolute inset-0 z-[1000] flex flex-col items-center justify-between p-4 text-center bg-[#1a1a1a] animate-fadeIn"
       style={{ color: '#d4af37', fontFamily: "'LXGW WenKai Mono TC', monospace" }}
     >
       {/* 標題區域 */}
-      <div className="mt-16 animate-in fade-in slide-in-from-top-10 duration-1000 w-full px-2 flex flex-col items-center">
+      <div className="mt-16 animate-in fade-in slide-in-from-top-10 duration-1000 w-full px-2 flex flex-col items-center" style={{ containerType: 'inline-size' }}>
         <h1 
           className="font-bold tracking-[10px] leading-tight drop-shadow-[0_0_25px_rgba(212,175,55,0.6)] m-0 flex justify-center w-full"
           style={{ 
-            fontSize: 'min(13vw, 4rem)', 
+            fontSize: 'min(13vw, 4rem, calc((100cqw - 40px) / 4))', 
             whiteSpace: 'nowrap',
             marginRight: '-10px' // 抵銷 tracking 的右側餘白
           }}
@@ -39,12 +43,12 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ level, onConfirm, onCance
         <p 
           className="text-[#aaa] tracking-[6px] mt-4 w-full flex justify-center overflow-hidden" 
           style={{ 
-            fontSize: 'min(4.5vw, 1.3rem)',
+            fontSize: `min(4.5vw, 1.3rem, calc((100cqw - ${subtitleLen * 6}px) / ${subtitleLen}))`,
             whiteSpace: 'nowrap',
             marginRight: '-6px' // 抵銷 tracking 的右側餘白
           }}
         >
-          篇章{toChineseNumber(level.id)}：{level.title}
+          {subtitleText}
         </p>
       </div>
       
