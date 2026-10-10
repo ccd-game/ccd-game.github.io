@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, isWeaponAttackStyle, weaponAttackTiming } from './types';
 import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle } from './data/battleLayout';
 import { TEXT_CORPUS, MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT } from './constants';
@@ -23,26 +23,33 @@ LEVELS_DATA.forEach(level => {
     level.hpThresholds = speeches.hpThresholds;
   }
 });
-import BattleArea from './components/BattleArea';
-import SkillPanel from './components/SkillPanel';
-import InputPad from './components/InputPad';
-import LoadingScreen from './components/LoadingScreen';
-import GameOverScreen from './components/GameOverScreen';
-import VictoryScreen from './components/VictoryScreen';
-import HUD from './components/HUD';
-import QuestionBox from './components/QuestionBox';
-import SlotsInterface from './components/SlotsInterface';
-import BossSpeech from './components/BossSpeech';
-import MenuScreen from './components/MenuScreen';
 import InkSplash from './components/InkSplash';
 import BootLoadingMask from './components/BootLoadingMask';
 import AudioManager, { AudioManagerHandle } from './components/AudioManager';
 import { watchAuthState, signInWithGoogle, signOutUser, AuthState, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence } from './src/lib/firebase';
-import SurnamePicker from './components/SurnamePicker';
 import { ALLOWED_EMAIL_DOMAINS } from './src/config/auth';
 import { loadSettings, updateSettings, subscribeSettings, pushSettingsIfSynced } from './src/lib/settingsStore';
 
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
+
+// Heavy screens / battle UI — code-split; LoginGate stays in this module for first paint.
+const MenuScreen = lazy(() => import('./components/MenuScreen'));
+const BattleArea = lazy(() => import('./components/BattleArea'));
+const SkillPanel = lazy(() => import('./components/SkillPanel'));
+const InputPad = lazy(() => import('./components/InputPad'));
+const LoadingScreen = lazy(() => import('./components/LoadingScreen'));
+const GameOverScreen = lazy(() => import('./components/GameOverScreen'));
+const VictoryScreen = lazy(() => import('./components/VictoryScreen'));
+const HUD = lazy(() => import('./components/HUD'));
+const QuestionBox = lazy(() => import('./components/QuestionBox'));
+const SlotsInterface = lazy(() => import('./components/SlotsInterface'));
+const BossSpeech = lazy(() => import('./components/BossSpeech'));
+const SurnamePicker = lazy(() => import('./components/SurnamePicker'));
+
+/** Minimal Suspense fallback matching boot ink (dark, no flash). */
+const SoftFallback: React.FC = () => (
+  <div className="absolute inset-0 bg-[#0a0a0a]" aria-hidden="true" />
+);
 
 const FlickeringFire: React.FC<{ top: string, left: string, size?: string }> = ({ top, left, size = "40px" }) => {
   const duration = useMemo(() => 1.5 + Math.random() * 2, []);
@@ -872,12 +879,14 @@ const App: React.FC = () => {
       )}
 
       {isAuthorized && isLoggedIn && surnameState?.ready && (surnameEditorOpen || surnameState.source === 'pending') && (
-        <SurnamePicker
-          key={`${surnameEditorOpen ? 'settings' : 'first'}-${surnameState.options.join('')}-${surnameState.manual}`}
-          state={surnameState}
-          mode={surnameEditorOpen ? 'settings' : 'first'}
-          onClose={() => setSurnameEditorOpen(false)}
-        />
+        <Suspense fallback={<SoftFallback />}>
+          <SurnamePicker
+            key={`${surnameEditorOpen ? 'settings' : 'first'}-${surnameState.options.join('')}-${surnameState.manual}`}
+            state={surnameState}
+            mode={surnameEditorOpen ? 'settings' : 'first'}
+            onClose={() => setSurnameEditorOpen(false)}
+          />
+        </Suspense>
       )}
 
       <InkSplash active={isInkActive} />
@@ -892,6 +901,7 @@ const App: React.FC = () => {
       <div className={`gold-divider ${gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 'active' : ''}`} style={{ bottom: "40%" }} />
 
       {isLoggedIn && gameState.status === GameStatus.PLAYING && (
+        <Suspense fallback={<SoftFallback />}>
         <>
           <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} bossName={currentLevel?.bossName || ""} bossImg={battleImg} bgImg={currentLevel?.bgImg} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} weaponLayers={currentLevel?.weaponLayers} layout={battleLayout} scene={battleScene} sceneBox={battleSceneBox} bgDimmed={((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed)} bgDimDuration={bgDimDuration} />
           <div className="absolute bottom-0 left-0 w-full z-[80] h-[40%]" style={{ backgroundColor: 'var(--app-bg)' }}>
@@ -926,10 +936,12 @@ const App: React.FC = () => {
               else setIsAutoPlaying(false);
           }} onDebugVictory={() => setGameState(p => ({ ...p, status: GameStatus.VICTORY }))} onDebugGameOver={() => triggerEnemyAttack(true)} isDimmed={introStage === 'none' || introStage === 'starting'} theme={theme} />
         </>
+        </Suspense>
       )}
 
       {isAuthorized && (
       <div className={`absolute inset-0 transition-opacity duration-700 ${showMenuScreen ? 'z-[500] opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'}`}>
+        <Suspense fallback={<SoftFallback />}>
         <MenuScreen
           levels={LEVELS_DATA}
           onSelect={l => { setCurrentLevel(l); setGameState(p => ({ ...p, status: GameStatus.LOADING })); fetchQuestionsForLevel(l); }}
@@ -949,17 +961,26 @@ const App: React.FC = () => {
           bgmVolume={bgmVolume}
           onVolumeChange={handleVolumeChange}
         />
+        </Suspense>
       </div>
       )}
 
-      {isLoggedIn && gameState.status === GameStatus.LOADING && <LoadingScreen level={currentLevel} isLoading={isQuestionsFetching} onConfirm={m => startGame(m)} onCancel={resetToStart} />}
+      {isLoggedIn && gameState.status === GameStatus.LOADING && (
+        <Suspense fallback={<SoftFallback />}>
+          <LoadingScreen level={currentLevel} isLoading={isQuestionsFetching} onConfirm={m => startGame(m)} onCancel={resetToStart} />
+        </Suspense>
+      )}
 
       {isLoggedIn && gameState.status === GameStatus.GAME_OVER && (
-        <GameOverScreen onRestart={resetToStart} />
+        <Suspense fallback={<SoftFallback />}>
+          <GameOverScreen onRestart={resetToStart} />
+        </Suspense>
       )}
 
       {isLoggedIn && gameState.status === GameStatus.VICTORY && (
-        <VictoryScreen onRestart={resetToStart} />
+        <Suspense fallback={<SoftFallback />}>
+          <VictoryScreen onRestart={resetToStart} />
+        </Suspense>
       )}
 
       {isLoggedIn && gameState.isPaused && (

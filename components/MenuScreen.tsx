@@ -1,15 +1,21 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { LevelConfig } from '../types';
-import CharacterTab from './tabs/CharacterTab';
-import RankTab from './tabs/RankTab';
 import DungeonTab from './tabs/DungeonTab';
-import GachaTab from './tabs/GachaTab';
-import SettingsTab from './tabs/SettingsTab';
-import CharacterDetailView from './CharacterDetailView';
 import { subscribeToUser, TEST_USER_ID, UserData } from '../src/lib/firebase';
 import { getRequiredExpForLevel } from '../src/lib/levelSystem';
+
+// Default tab (dungeon) stays eager; other tabs + codex detail are lazy.
+const CharacterTab = lazy(() => import('./tabs/CharacterTab'));
+const RankTab = lazy(() => import('./tabs/RankTab'));
+const GachaTab = lazy(() => import('./tabs/GachaTab'));
+const SettingsTab = lazy(() => import('./tabs/SettingsTab'));
+const CharacterDetailView = lazy(() => import('./CharacterDetailView'));
+
+const TabFallback: React.FC = () => (
+  <div className="w-full h-full home-surface" aria-hidden="true" />
+);
 
 const IconDungeon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -162,6 +168,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
     const style = { '--slide-offset': slideDirection === 'right' ? '40px' : '-40px' } as any;
     return (
       <div key={activeTab} className="w-full h-full tab-slide-dynamic" style={style}>
+        <Suspense fallback={<TabFallback />}>
         {(() => {
           switch (activeTab) {
             case 'character': return <CharacterTab levels={levels} onShowDetail={onShowCharacterDetail} />;
@@ -172,6 +179,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
             default: return null;
           }
         })()}
+        </Suspense>
       </div>
     );
   };
@@ -242,7 +250,9 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         }}
       >
         {viewingCharacter ? (
-          <CharacterDetailView char={viewingCharacter} onBack={onBackFromDetail} />
+          <Suspense fallback={<TabFallback />}>
+            <CharacterDetailView char={viewingCharacter} onBack={onBackFromDetail} />
+          </Suspense>
         ) : (
           renderActiveTabContent()
         )}
