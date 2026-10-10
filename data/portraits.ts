@@ -39,11 +39,11 @@ export const PORTRAIT_TARGET: Record<PortraitPage, { faceH: number; eyeY: number
 /**
  * 個別角色例外（僅在統一目標無法容納必要元素時使用）。
  * 柳宗元：圖鑑立繪須包含飛劍（劍與火焰在臉部左方約 11 個臉高處），
- * 統一目標下劍會被裁掉，故縮小並右移，使整把劍與主要火焰留在框內；眼線高度不變。
+ * 統一目標下劍會被裁掉，故內頁縮小並右移，使整把劍與主要火焰留在框內；眼線高度不變。
+ * 外頁卡片使用統一標準特寫（劍可被裁切）。
  */
 export const PORTRAIT_TARGET_OVERRIDE: Record<string, Partial<Record<PortraitPage, { faceH: number; eyeY: number; faceX: number }>>> = {
   liu_zong_yuan: {
-    outer: { faceH: 0.038, eyeY: 0.2252, faceX: 0.25 },
     inner: { faceH: 0.0609, eyeY: 0.2174, faceX: 0.12 },
   },
 };

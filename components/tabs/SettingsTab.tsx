@@ -168,6 +168,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
       
       <div className="mt-auto pb-8 text-center">
          <p className="text-[10px] opacity-40 tracking-[4px] uppercase" style={{ color: 'var(--text-sub)' }}>HKDSE Classics RPG © 2024</p>
+         <p className="mt-2 text-[10px] opacity-40 tracking-[2px]" style={{ color: 'var(--text-sub)' }}>版本 v{__APP_VERSION__}</p>
       </div>
 
       <style>{`
