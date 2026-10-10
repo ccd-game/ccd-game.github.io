@@ -9,17 +9,47 @@ const IconCrown = () => (
   </svg>
 );
 
+/** 排行榜名稱：「學校 + 姓氏 + 同學」分兩行顯示（學校較小），避免窄欄位截斷 */
+const RankName: React.FC<{ label: string; className: string }> = ({ label, className }) => {
+  const i = label.indexOf(' ');
+  const school = i > 0 ? label.slice(0, i) : '';
+  const who = i > 0 ? label.slice(i + 1) : label;
+  return (
+    <span className={`flex flex-col items-center w-full text-center leading-tight ${className}`} style={{ color: 'var(--text-main)' }} title={label}>
+      {school && <span className="text-[8px] font-bold opacity-60 truncate w-full">{school}</span>}
+      <span className="truncate w-full">{who}</span>
+    </span>
+  );
+};
+
 const RankTab: React.FC = () => {
   const [rankingData, setRankingData] = useState<(UserData & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = subscribeToRanking((data) => {
-      setRankingData(data);
-      setLoading(false);
-    });
+    const unsubscribe = subscribeToRanking(
+      (data) => {
+        setRankingData(data);
+        setLoadError(false);
+        setLoading(false);
+      },
+      50,
+      () => {
+        setLoadError(true);
+        setLoading(false);
+      },
+    );
     return () => unsubscribe();
   }, []);
+
+  if (loadError) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-5" style={{ backgroundColor: 'var(--app-bg)' }}>
+        <p className="text-center text-sm" style={{ color: 'var(--text-sub)' }}>暫時無法載入排位，請稍後再試。</p>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -30,7 +60,8 @@ const RankTab: React.FC = () => {
   }
 
   const top3 = rankingData.slice(0, 3).map((u, i) => ({
-    name: u.name || "無名修煉者",
+    // 只使用 displayLabel（已清理）；絕不顯示 name / displayName 等舊欄位
+    name: u.displayLabel || "同學",
     score: u.level * 100 + u.exp, // 計算虛擬積分
     level: u.level,
     rank: i + 1
@@ -66,7 +97,7 @@ const RankTab: React.FC = () => {
              <span className="text-slate-400 font-black">2</span>
            </div>
            <div className="w-full h-24 bg-gradient-to-t from-black/20 to-transparent border-t border-white/20 rounded-t-lg flex flex-col items-center p-2">
-             <span className="text-[10px] font-bold truncate w-full text-center" style={{ color: 'var(--text-main)' }}>{top3[1].name}</span>
+             <RankName label={top3[1].name} className="text-[10px] font-bold" />
              <div className="flex flex-col items-center">
                <span className="text-[9px] text-[#d4af37] font-bold">{top3[1].score} pt</span>
                <span className="text-[8px] opacity-60 uppercase" style={{ color: 'var(--text-sub)' }}>LV.{top3[1].level}</span>
@@ -81,7 +112,7 @@ const RankTab: React.FC = () => {
              </div>
            </div>
            <div className="w-full h-32 bg-gradient-to-t from-black/20 to-transparent border-t border-[#d4af37]/40 rounded-t-lg flex flex-col items-center p-2">
-             <span className="text-[12px] font-black truncate w-full text-center" style={{ color: 'var(--text-main)' }}>{top3[0].name}</span>
+             <RankName label={top3[0].name} className="text-[12px] font-black" />
              <div className="flex flex-col items-center">
                <span className="text-[10px] text-[#d4af37] font-bold">{top3[0].score} pt</span>
                <span className="text-[9px] opacity-80 uppercase font-bold" style={{ color: 'var(--text-main)' }}>LV.{top3[0].level}</span>
@@ -93,7 +124,7 @@ const RankTab: React.FC = () => {
              <span className="text-[#cd7f32] font-black">3</span>
            </div>
            <div className="w-full h-20 bg-gradient-to-t from-black/20 to-transparent border-t border-white/20 rounded-t-lg flex flex-col items-center p-2">
-             <span className="text-[10px] font-bold truncate w-full text-center" style={{ color: 'var(--text-main)' }}>{top3[2].name}</span>
+             <RankName label={top3[2].name} className="text-[10px] font-bold" />
              <div className="flex flex-col items-center">
                <span className="text-[9px] text-[#d4af37] font-bold">{top3[2].score} pt</span>
                <span className="text-[8px] opacity-60 uppercase" style={{ color: 'var(--text-sub)' }}>LV.{top3[2].level}</span>

@@ -1,5 +1,8 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { watchAuthState, signOutUser, watchSurnameState, setSurnameEditorOpen, SurnameState, applyAuthPersistence } from '../../src/lib/firebase';
+import { labelFor } from '../../src/lib/displayLabel';
+import { loadSettings, updateSettings, pushSettingsIfSynced } from '../../src/lib/settingsStore';
 
 interface SettingsTabProps {
   theme: 'light' | 'dark';
@@ -41,6 +44,39 @@ const IconSpeaker = ({ active }: { active: boolean }) => (
 );
 
 const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnabled, onBgmToggle, bgmVolume, onVolumeChange }) => {
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
+  const [accountUid, setAccountUid] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => loadSettings().rememberMe);
+
+  const [surname, setSurname] = useState<SurnameState | null>(null);
+
+  useEffect(() => watchAuthState((s) => {
+    setAccountEmail(s.status === 'authorized' ? s.user?.email ?? null : null);
+    setAccountUid(s.status === 'authorized' ? s.user?.uid ?? null : null);
+  }), []);
+  useEffect(() => watchSurnameState(setSurname), []);
+
+  const handleRememberMeChange = async (checked: boolean) => {
+    setRememberMe(checked);
+    updateSettings({ rememberMe: checked });
+    void pushSettingsIfSynced(accountUid);
+    try {
+      await applyAuthPersistence(checked);
+    } catch (e) {
+      console.warn('applyAuthPersistence from Settings failed', e);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOutUser();
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col p-5 tab-slide-active overflow-y-auto custom-scrollbar" style={{ backgroundColor: 'var(--app-bg)' }}>
       {/* 統一標題樣式 */}
@@ -53,6 +89,51 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
       </div>
 
       <div className="w-full space-y-6">
+        {/* 帳戶 */}
+        <div className="flex flex-col gap-4 p-5 rounded-2xl border" style={{ backgroundColor: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-sm font-bold tracking-[2px]" style={{ color: 'var(--text-main)' }}>帳戶</span>
+              <span className="text-[10px] opacity-60 font-bold truncate" style={{ color: 'var(--text-sub)' }}>{accountEmail ?? '未登入'}</span>
+            </div>
+            <button
+              onClick={handleSignOut}
+              disabled={isSigningOut || !accountEmail}
+              className="shrink-0 px-4 py-2 rounded-full border text-sm font-bold tracking-[2px] transition-all active:scale-95 disabled:opacity-40"
+              style={{ borderColor: 'var(--gold-accent)', color: 'var(--gold-accent)' }}
+            >
+              登出
+            </button>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-sm font-bold tracking-[2px]" style={{ color: 'var(--text-main)' }}>排行榜名稱</span>
+              <span className="text-[10px] opacity-60 font-bold truncate" style={{ color: 'var(--text-sub)' }} data-testid="settings-display-label">
+                {surname?.ready && surname.school ? labelFor(surname.school, surname.surname) : '—'}
+              </span>
+            </div>
+            <button
+              onClick={() => setSurnameEditorOpen(true)}
+              disabled={!surname?.ready}
+              data-testid="change-surname"
+              className="shrink-0 px-4 py-2 rounded-full border text-sm font-bold tracking-[2px] transition-all active:scale-95 disabled:opacity-40"
+              style={{ borderColor: 'var(--gold-accent)', color: 'var(--gold-accent)' }}
+            >
+              更改姓氏
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: 'var(--text-main)' }}>
+            <input
+              type="checkbox"
+              data-testid="settings-remember-me"
+              checked={rememberMe}
+              onChange={(e) => handleRememberMeChange(e.target.checked)}
+              className="accent-[var(--gold-accent)] w-4 h-4"
+            />
+            記住我（關閉瀏覽器後保持登入）
+          </label>
+        </div>
+
         <div className="flex flex-col gap-4">
            {/* 主題切換 */}
            <div className="flex items-center justify-between p-5 rounded-2xl border transition-all" style={{ backgroundColor: 'var(--panel-bg)', borderColor: 'var(--panel-border)' }}>

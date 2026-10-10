@@ -2,23 +2,75 @@
   "entities": {
     "User": {
       "title": "User",
-      "description": "User profile with game stats.",
+      "description": "Public game profile. Readable by every signed-in school user, so it must never contain a real full name, email or photo.",
       "type": "object",
       "properties": {
-        "name": { "type": "string", "description": "Display name" },
-        "level": { "type": "integer", "description": "Current level" },
-        "gold": { "type": "integer", "description": "Current gold" },
-        "exp": { "type": "integer", "description": "Current experience points" },
-        "stamina": { "type": "integer", "description": "Current stamina" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+        "displayLabel": {
+          "type": "string",
+          "description": "Leaderboard label: school name + surname + 同學, e.g. 救世軍卜維廉中學 林同學"
+        },
+        "schoolDomain": {
+          "type": "string",
+          "description": "Lower-case email domain, e.g. wbss.edu.hk"
+        },
+        "surname": {
+          "type": "string",
+          "description": "Chinese surname only: 1-2 CJK characters, or empty (pending / not shown). Romanised surnames are not allowed."
+        },
+        "surnameSource": {
+          "type": "string",
+          "enum": [
+            "han",
+            "auto",
+            "chosen",
+            "manual",
+            "pending",
+            "none"
+          ],
+          "description": "How the surname was set; chosen/manual/none are user decisions and are never overwritten on sign-in"
+        },
+        "level": {
+          "type": "integer",
+          "description": "Current level"
+        },
+        "gold": {
+          "type": "integer",
+          "description": "Current gold"
+        },
+        "exp": {
+          "type": "integer",
+          "description": "Current experience points"
+        },
+        "stamina": {
+          "type": "integer",
+          "description": "Current stamina"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
       },
-      "required": ["name", "level", "gold", "exp", "stamina", "updatedAt"]
+      "required": [
+        "displayLabel",
+        "schoolDomain",
+        "surname",
+        "surnameSource",
+        "level",
+        "gold",
+        "exp",
+        "stamina",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
       "description": "User documents mapping to their UID."
+    },
+    "/users/{userId}/private/surname": {
+      "description": "Owner-only. Chinese surname candidates for the 更改姓氏 picker (options: string[], manual: boolean). No romanised or full names."
     }
   }
 }

@@ -37,7 +37,10 @@ import MenuScreen from './components/MenuScreen';
 import InkSplash from './components/InkSplash';
 import BootLoadingMask from './components/BootLoadingMask';
 import AudioManager, { AudioManagerHandle } from './components/AudioManager';
-import { initializeTestUser } from './src/lib/firebase';
+import { watchAuthState, signInWithGoogle, signOutUser, AuthState, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence } from './src/lib/firebase';
+import SurnamePicker from './components/SurnamePicker';
+import { ALLOWED_EMAIL_DOMAINS } from './src/config/auth';
+import { loadSettings, updateSettings, subscribeSettings, pushSettingsIfSynced } from './src/lib/settingsStore';
 
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 
@@ -68,15 +71,35 @@ const FlickeringFire: React.FC<{ top: string, left: string, size?: string }> = (
   );
 };
 
-const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLogin, isExiting }) => {
+const GoogleIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true">
+    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+  </svg>
+);
+
+const ALLOWED_DOMAIN_LABEL = ALLOWED_EMAIL_DOMAINS.map(d => `@${d}`).join('、');
+
+const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: AuthState }> = ({ onLogin, isExiting, authState }) => {
   const bgControls = useAnimation();
   const charControls = useAnimation();
-  const uiControls = useAnimation();
   const [isActivating, setIsActivating] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => loadSettings().rememberMe);
+  const enterAfterSignIn = useRef(false);
+  const isAuthorized = authState.status === 'authorized';
+
+  const handleRememberMeChange = async (checked: boolean) => {
+    setRememberMe(checked);
+    updateSettings({ rememberMe: checked });
+    try { await applyAuthPersistence(checked); } catch (e) { console.warn('applyAuthPersistence failed', e); }
+  };
 
   const handleEnter = async (isTest = false) => {
     setIsActivating(true);
-
+    
     // 重置起始狀態 (僅測試模式需要)
     if (isTest) {
       bgControls.set({ scale: 1, y: 0, rotateX: 0 });
@@ -85,7 +108,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
 
     // 同步執行背景與角色的動畫
     const duration = 2.5;
-
+    
     // 第一階段：初始透視形變與緩慢放大
     await Promise.all([
       bgControls.start({
@@ -103,7 +126,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
 
     // 第二階段：Dolly In (推軌鏡頭)
     const dollyDuration = 1.5;
-
+    
     // 角色與背景同步開始放大，並將旋轉度數調整至 -5 度
     await Promise.all([
       charControls.start({
@@ -126,21 +149,43 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
     }
   };
 
+  // 只使用 Google 登入；網域及電郵驗證檢查於 src/lib/firebase.ts 統一處理
+  const handleGoogleSignIn = async () => {
+    setIsSigningIn(true);
+    enterAfterSignIn.current = true;
+    try {
+      await signInWithGoogle();
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  // 新登入並通過檢查後，自動播放進場動畫
+  useEffect(() => {
+    if (authState.status === 'authorized' && enterAfterSignIn.current && !isActivating) {
+      enterAfterSignIn.current = false;
+      handleEnter(false);
+    } else if (authState.status === 'rejected' || authState.status === 'signedOut') {
+      if (!isSigningIn) enterAfterSignIn.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authState.status]);
+
   return (
     <div className={`absolute inset-0 z-[99999] flex flex-col items-center justify-start bg-[#0f0f0f] transition-opacity duration-1000 ${isExiting ? 'opacity-0 pointer-events-none' : 'opacity-100'} overflow-hidden`} style={{ perspective: "500px" }}>
-      <motion.div
+      <motion.div 
         animate={bgControls}
         initial={{ scale: 1, y: "0%", rotateX: 0 }}
         style={{ originY: 1 }} // 第一步保持錨定底部產生梯形
         className="absolute inset-0 w-full h-full"
       >
-        <img
-          src={`${import.meta.env.BASE_URL}resources/background/bg_loginscreen.png`}
-          alt="背景"
+        <img 
+          src={`${import.meta.env.BASE_URL}resources/background/bg_loginscreen.png`} 
+          alt="背景" 
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 z-[5]"></div>
-
+        
         {/* 地城火光閃爍效果 */}
         <FlickeringFire top="13.5%" left="24.5%" size="60px" />  {/* 左上吊燈 */}
         <FlickeringFire top="38.5%" left="13.2%" size="50px" />  {/* 左中吊燈 */}
@@ -152,14 +197,14 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
         <FlickeringFire top="43.5%" left="32.5%" size="30px" />  {/* 右側柱子小火 */}
       </motion.div>
 
-      <motion.div
+      <motion.div 
         animate={charControls}
         initial={{ scale: 1, y: "0%", opacity: 1 }}
         className="absolute inset-0 z-10 flex justify-center items-end pointer-events-none"
       >
-        <img
-          src={`${import.meta.env.BASE_URL}resources/background/character1.png`}
-          alt="角色"
+        <img 
+          src={`${import.meta.env.BASE_URL}resources/background/character1.png`} 
+          alt="角色" 
           className="h-[52%] w-auto object-contain object-bottom mb-[8vh]"
         />
       </motion.div>
@@ -167,56 +212,162 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
       {/* 底部羽化邊緣 */}
       <div className="absolute bottom-0 left-0 right-0 h-[12%] bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/80 to-transparent z-[15] pointer-events-none" />
 
-      <motion.div
-        animate={uiControls}
+      <motion.div 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8, duration: 1.5, ease: "easeOut" }}
         className="relative z-20 mt-[18vh] flex flex-col items-center w-full px-4"
       >
-        <img
-          src={`${import.meta.env.BASE_URL}resources/background/bg_logingamename.png`}
-          alt="遊戲名稱"
+        <img 
+          src={`${import.meta.env.BASE_URL}resources/background/bg_logingamename.png`} 
+          alt="遊戲名稱" 
           className="w-[95%] max-w-[675px] h-auto drop-shadow-[0_0_15px_rgba(212,175,55,0.3)]"
         />
       </motion.div>
 
-      <motion.div
-        animate={uiControls}
+      <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.8, duration: 1.0 }}
         className="absolute bottom-[10%] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center w-full px-8"
       >
-        <div className="relative w-full max-w-[320px] pointer-events-auto">
-          <div className="absolute inset-0 bg-[#d4af37]/10 blur-2xl rounded-full"></div>
-          <button
-            onClick={() => handleEnter(false)}
-            disabled={isActivating}
-            className="w-full py-4 bg-black/70 text-[#d4af37] border-2 border-[#d4af37]/40 rounded-full font-bold text-2xl tracking-[16px] indent-[16px] transition-all duration-300 active:scale-95 active:bg-black/90 shadow-[0_0_30px_rgba(0,0,0,0.6)] hover:border-[#d4af37] relative z-30"
-            style={{ fontFamily: "'LXGW WenKai Mono TC', monospace" }}
+        {authState.message && (
+          <div
+            role="alert"
+            data-testid="login-error"
+            className="pointer-events-auto mb-4 w-full max-w-[360px] rounded-2xl border border-[#e0675a]/70 bg-black/80 px-5 py-4 text-center text-[15px] leading-relaxed text-[#ffd9d2] shadow-[0_0_30px_rgba(0,0,0,0.6)]"
           >
-            進入地城
-          </button>
-        </div>
+            {authState.message}
+          </div>
+        )}
 
-        {/* 跳過動畫按鈕 */}
-        <button
-          onClick={() => onLogin()}
-          disabled={isActivating}
-          className="mt-4 pointer-events-auto text-[#d4af37]/60 text-sm underline hover:text-[#d4af37] transition-colors"
-        >
-          跳過動畫
-        </button>
+        {isAuthorized ? (
+          <>
+            <div className="relative w-full max-w-[320px] pointer-events-auto">
+              <div className="absolute inset-0 bg-[#d4af37]/10 blur-2xl rounded-full"></div>
+              <button 
+                onClick={() => handleEnter(false)}
+                disabled={isActivating}
+                className="w-full py-4 bg-black/70 text-[#d4af37] border-2 border-[#d4af37]/40 rounded-full font-bold text-2xl tracking-[16px] indent-[16px] transition-all duration-300 active:scale-95 active:bg-black/90 shadow-[0_0_30px_rgba(0,0,0,0.6)] hover:border-[#d4af37] relative z-30"
+                style={{ fontFamily: "'LXGW WenKai Mono TC', monospace" }}
+              >
+                進入地城
+              </button>
+            </div>
+
+            {/* 跳過動畫按鈕 */}
+            <button
+              onClick={() => onLogin()}
+              disabled={isActivating}
+              className="mt-4 pointer-events-auto text-[#d4af37]/60 text-sm underline hover:text-[#d4af37] transition-colors"
+            >
+              跳過動畫
+            </button>
+
+            {!isActivating && (
+              <p className="mt-3 pointer-events-auto text-center text-xs text-[#d4af37]/70">
+                已登入：{authState.user?.email}
+                <button onClick={() => signOutUser()} className="ml-2 underline hover:text-[#d4af37]">切換帳戶</button>
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="relative w-full max-w-[320px] pointer-events-auto">
+              <div className="absolute inset-0 bg-[#d4af37]/10 blur-2xl rounded-full"></div>
+              <button
+                onClick={handleGoogleSignIn}
+                disabled={isSigningIn || authState.status === 'loading'}
+                data-testid="google-sign-in"
+                className="w-full py-4 px-4 bg-black/70 text-[#d4af37] border-2 border-[#d4af37]/40 rounded-full font-bold text-base tracking-[1px] whitespace-nowrap transition-all duration-300 active:scale-95 active:bg-black/90 shadow-[0_0_30px_rgba(0,0,0,0.6)] hover:border-[#d4af37] disabled:opacity-60 relative z-30 flex items-center justify-center gap-3"
+                style={{ fontFamily: "'LXGW WenKai Mono TC', monospace" }}
+              >
+                <span className="shrink-0 w-8 h-8 rounded-full bg-white flex items-center justify-center"><GoogleIcon /></span>
+                {authState.status === 'loading' ? '正在確認登入狀態…' : isSigningIn ? '登入中…' : '以學校 Google 帳戶登入'}
+              </button>
+            </div>
+            <label className="mt-4 pointer-events-auto flex items-center gap-2 text-sm text-[#d4af37]/80 cursor-pointer select-none">
+              <input type="checkbox" data-testid="remember-me" checked={rememberMe} onChange={(e) => handleRememberMeChange(e.target.checked)} className="accent-[#d4af37] w-4 h-4" />
+              記住我（關閉瀏覽器後保持登入）
+            </label>
+            <p className="mt-2 text-center text-sm text-[#d4af37]/70">只限 {ALLOWED_DOMAIN_LABEL} 學生帳戶</p>
+          </>
+        )}
       </motion.div>
     </div>
   );
 };
 
 const App: React.FC = () => {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [bgmEnabled, setBgmEnabled] = useState(true);
-  const [bgmVolume, setBgmVolume] = useState(0.08);
+  // Settings prefs: hydrate from localStorage before first paint/audio
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => loadSettings().theme);
+  const [bgmEnabled, setBgmEnabled] = useState(() => loadSettings().bgmEnabled);
+  const [bgmVolume, setBgmVolume] = useState(() => loadSettings().bgmVolume);
+  const volumePersistTimerRef = useRef<number | null>(null);
+  const pendingVolumeRef = useRef<number | null>(null);
+
+  const [authState, setAuthState] = useState<AuthState>({ status: 'loading', user: null, message: null });
+  const authStateRef = useRef(authState);
+  authStateRef.current = authState;
+
+  const pushCloud = () => {
+    const uid = authStateRef.current.status === 'authorized' ? authStateRef.current.user?.uid : null;
+    void pushSettingsIfSynced(uid);
+  };
+
+  const handleThemeToggle = useCallback(() => {
+    setTheme(prev => {
+      const next = prev === 'light' ? 'dark' : 'light';
+      updateSettings({ theme: next });
+      pushCloud();
+      return next;
+    });
+  }, []);
+
+  const handleBgmToggle = useCallback(() => {
+    setBgmEnabled(prev => {
+      const next = !prev;
+      updateSettings({ bgmEnabled: next });
+      pushCloud();
+      return next;
+    });
+  }, []);
+
+  const handleVolumeChange = useCallback((val: number) => {
+    setBgmVolume(val);
+    pendingVolumeRef.current = val;
+    if (volumePersistTimerRef.current != null) {
+      window.clearTimeout(volumePersistTimerRef.current);
+    }
+    volumePersistTimerRef.current = window.setTimeout(() => {
+      if (pendingVolumeRef.current != null) {
+        updateSettings({ bgmVolume: pendingVolumeRef.current });
+        pendingVolumeRef.current = null;
+        pushCloud();
+      }
+      volumePersistTimerRef.current = null;
+    }, 150);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (volumePersistTimerRef.current != null) {
+        window.clearTimeout(volumePersistTimerRef.current);
+        volumePersistTimerRef.current = null;
+      }
+      if (pendingVolumeRef.current != null) {
+        updateSettings({ bgmVolume: pendingVolumeRef.current });
+        pendingVolumeRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => subscribeSettings((prefs) => {
+    setTheme(prefs.theme);
+    setBgmEnabled(prefs.bgmEnabled);
+    setBgmVolume(prefs.bgmVolume);
+  }), []);
+
   const [isAppVisible, setIsAppVisible] = useState(true);
   const [isBooting, setIsBooting] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -282,10 +433,22 @@ const App: React.FC = () => {
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => watchAuthState(setAuthState), []);
+  const isAuthorized = authState.status === 'authorized';
+
+  const [surnameState, setSurnameStateLocal] = useState<SurnameState | null>(null);
+  const [surnameEditorOpen, setSurnameEditorOpenLocal] = useState(false);
+  useEffect(() => watchSurnameState(setSurnameStateLocal), []);
+  useEffect(() => watchSurnameEditor(setSurnameEditorOpenLocal), []);
+
   useEffect(() => {
-    // 預設登入並初始化測試用戶
-    initializeTestUser();
-  }, []);
+    if (!isAuthorized) {
+      setIsLoggedIn(false);
+      setIsLoginExiting(false);
+      setCurrentLevel(null);
+      setGameState(p => ({ ...p, status: GameStatus.MENU, isPaused: false, isTurnActive: false }));
+    }
+  }, [isAuthorized]);
 
   useEffect(() => {
     const handleVisibilityChange = () => setIsAppVisible(document.visibilityState === 'visible');
@@ -663,12 +826,13 @@ const App: React.FC = () => {
   }, [gameState.userInput, gameState.isTurnActive, gameState.isPaused, currentQuestion, onCorrectAnswer, triggerEnemyAttack, bossSpeechMsg]);
 
   const handleLogin = useCallback(() => {
+    if (!isAuthorized) return;
     audioManagerRef.current?.unlockAudio();
     setIsLoginExiting(true);
     setTimeout(() => {
       setIsLoggedIn(true);
     }, 1000);
-  }, []);
+  }, [isAuthorized]);
 
   // Boss 立繪版面＋落地場景（cover 填滿戰鬥區；背景與立繪同一 transform）
   const battleImg = currentLevel ? (currentLevel.battleImg ?? currentLevel.bossImg) : '';
@@ -685,7 +849,7 @@ const App: React.FC = () => {
   );
   const battleSceneBox = grounded?.sceneBox ?? null;
 
-  const showMenuScreen = (isLoggedIn || isLoginExiting) && (gameState.status === GameStatus.MENU || gameState.status === GameStatus.CHARACTER_DETAIL);
+  const showMenuScreen = isAuthorized && (isLoggedIn || isLoginExiting) && (gameState.status === GameStatus.MENU || gameState.status === GameStatus.CHARACTER_DETAIL);
 
   // 底層畫框顏色：顯示不透明深色全屏畫面時，底層改用相同深色，
   // 避免淺色主題的米色底 (--app-bg) 在圓角抗鋸齒邊緣透出
@@ -710,7 +874,16 @@ const App: React.FC = () => {
       {isBooting && <BootLoadingMask assets={preloadAssets} onComplete={() => setIsBooting(false)} />}
 
       {!isLoggedIn && (
-        <LoginGate onLogin={handleLogin} isExiting={isLoginExiting} />
+        <LoginGate onLogin={handleLogin} isExiting={isLoginExiting} authState={authState} />
+      )}
+
+      {isAuthorized && isLoggedIn && surnameState?.ready && (surnameEditorOpen || surnameState.source === 'pending') && (
+        <SurnamePicker
+          key={`${surnameEditorOpen ? 'settings' : 'first'}-${surnameState.options.join('')}-${surnameState.manual}`}
+          state={surnameState}
+          mode={surnameEditorOpen ? 'settings' : 'first'}
+          onClose={() => setSurnameEditorOpen(false)}
+        />
       )}
 
       <InkSplash active={isInkActive} />
@@ -761,6 +934,7 @@ const App: React.FC = () => {
         </>
       )}
 
+      {isAuthorized && (
       <div className={`absolute inset-0 transition-opacity duration-700 ${showMenuScreen ? 'z-[500] opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'}`}>
         <MenuScreen
           levels={LEVELS_DATA}
@@ -775,13 +949,14 @@ const App: React.FC = () => {
             setGameState(p => ({ ...p, status: GameStatus.MENU }));
           }}
           theme={theme}
-          onThemeToggle={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
+          onThemeToggle={handleThemeToggle}
           bgmEnabled={bgmEnabled}
-          onBgmToggle={() => setBgmEnabled(prev => !prev)}
+          onBgmToggle={handleBgmToggle}
           bgmVolume={bgmVolume}
-          onVolumeChange={setBgmVolume}
+          onVolumeChange={handleVolumeChange}
         />
       </div>
+      )}
 
       {isLoggedIn && gameState.status === GameStatus.LOADING && <LoadingScreen level={currentLevel} isLoading={isQuestionsFetching} onConfirm={m => startGame(m)} onCancel={resetToStart} />}
 

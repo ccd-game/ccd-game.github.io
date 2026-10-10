@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GachaItem, pullGacha, Rarity } from '../../src/lib/gachaSystem';
-import { subscribeToUser, TEST_USER_ID, updateUserGold, UserData } from '../../src/lib/firebase';
+import { subscribeToUser, CURRENT_USER, updateUserGold, UserData } from '../../src/lib/firebase';
 
 const RARITY_COLORS = {
   [Rarity.COMMON]: { 
@@ -47,7 +47,7 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
   const [lastCount, setLastCount] = useState<number>(1);
 
   useEffect(() => {
-    const unsubscribe = subscribeToUser(TEST_USER_ID, (data) => {
+    const unsubscribe = subscribeToUser(CURRENT_USER, (data) => {
       setUserData(data);
     });
     return () => unsubscribe();
@@ -67,7 +67,11 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
     setResults(null); 
     
     if (!isTestMode && userData) {
-      await updateUserGold(TEST_USER_ID, userData.gold - cost);
+      try {
+        await updateUserGold(CURRENT_USER, userData.gold - cost);
+      } catch (e) {
+        console.error('扣除文氣失敗', e);
+      }
     }
 
     setTimeout(() => {

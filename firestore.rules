@@ -1,40 +1,112 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    // ───────── 學校名單（真正的登入閘門）─────────
+    // ⚠️ 必須與 src/config/auth.ts 的 SCHOOLS_BY_EMAIL_DOMAIN 完全一致（規則無法匯入 TypeScript）。
+    //    新增學校：在下面的對照表加入一行，例如 'abc.edu.hk': '某某中學'
+    //    比對方式：完全相同的網域、不分大小寫、不接受子網域。
+    function schools() {
+      return {
+        'wbss.edu.hk': '救世軍卜維廉中學'
+      };
     }
 
-    function isValidId(id) { 
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    function emailDomain() { return request.auth.token.email.lower().split('@')[1]; }
+
+    function isSchoolUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && request.auth.token.email.lower().matches('^[^@\\s]+@[^@\\s]+$')
+        && emailDomain() in schools()
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
-    
+
+    function isOwner(userId) { return request.auth.uid == userId; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isSignedIn() { return request.auth != null; }
 
-    function isValidUser(data) {
-      return data.keys().hasAll(['name', 'level', 'gold', 'exp', 'stamina', 'updatedAt']) &&
-             data.name is string && data.name.size() <= 32 &&
-             data.level is int &&
-             data.gold is int &&
-             data.exp is int &&
-             data.stamina is int &&
-             data.updatedAt is timestamp;
+    // 個人檔案（亦即排行榜及文氣 gold 的資料來源）。所有學校用戶都可讀取，
+    // 所以只允許以下欄位：不可存全名、英文拼寫、name、displayName、fullName、email、photoURL 等。
+    // surname 只可為一至兩個中文字或空字串（英文拼寫已不再接受）。
+    // 排行榜名稱 displayLabel 必須等於「學校名稱 + 空格 + 姓氏 + 同學」，學校名稱由電郵網域決定。
+    // surnameSource：han／auto（系統推算）、chosen／manual（學生選擇／輸入）、pending（未選擇）、none（不顯示）。
+    function isValidProfile(d) {
+      return d.keys().hasAll(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'gold', 'exp', 'stamina', 'updatedAt'])
+        && d.keys().hasOnly(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'gold', 'exp', 'stamina', 'updatedAt'])
+        && d.schoolDomain == emailDomain()
+        && d.surname is string
+        && d.surname.matches('^(\\p{Han}{1,2})?$')
+        && d.surnameSource in ['han', 'auto', 'chosen', 'manual', 'pending', 'none']
+        && (d.surnameSource in ['pending', 'none']) == (d.surname == '')
+        && d.displayLabel is string
+        && d.displayLabel.size() <= 40
+        && d.displayLabel == schools()[d.schoolDomain] + ' ' + d.surname + '同學'
+        && d.level is int && d.level >= 1 && d.level <= 999
+        && d.gold is int && d.gold >= 0 && d.gold <= 100000000
+        && d.exp is int && d.exp >= 0 && d.exp <= 100000000
+        && d.stamina is int && d.stamina >= 0 && d.stamina <= 1000
+        && d.updatedAt == request.time;
     }
 
     match /users/{userId} {
-      allow get: if true;
-      allow create: if ((isSignedIn() && request.auth.uid == userId) || userId == 'userid') && isValidUser(incoming());
-      allow update: if ((isSignedIn() && request.auth.uid == userId) || userId == 'userid') && (
-        (isValidUser(incoming()) && (incoming().updatedAt == request.time || incoming().updatedAt is timestamp)) ||
-        (incoming().diff(existing()).affectedKeys().hasOnly(['gold', 'updatedAt']) && 
-         incoming().gold is int && (incoming().updatedAt == request.time || incoming().updatedAt is timestamp))
-      );
+      // 排位（排名）分頁使用 list 查詢：users 依 level 排序，limit 50
+      allow get: if isSchoolUser();
+      allow list: if isSchoolUser() && request.query.limit <= 100;
+
+      // 只可建立自己的檔案，且必須由初始值開始（防止直接刷排行榜）
+      allow create: if isSchoolUser() && isOwner(userId)
+        && isValidProfile(incoming())
+        && incoming().level == 1
+        && incoming().exp == 0
+        && incoming().gold <= 100;
+
+      // 只可修改自己的檔案；等級不可下降，每次最多升一級。
+      // 舊文件若仍有 name 等欄位，只能以完整覆寫（客戶端登入時自動遷移）移除後才可再寫入。
+      allow update: if isSchoolUser() && isOwner(userId)
+        && isValidProfile(incoming())
+        && incoming().level >= existing().level
+        && incoming().level <= existing().level + 1;
+
+      // 任何人都不可從客戶端刪除檔案（如需刪除，由老師於主控台處理）
+      allow delete: if false;
     }
 
-    match /users {
-      allow list: if true;
+    // 只有本人可讀寫：可供選擇的中文姓氏（讓「更改姓氏」顯示相同選項）。只存中文字。
+    match /users/{userId}/private/surname {
+      allow read: if isSchoolUser() && isOwner(userId);
+      allow create, update: if isSchoolUser() && isOwner(userId)
+        && incoming().keys().hasAll(['options', 'manual', 'updatedAt'])
+        && incoming().keys().hasOnly(['options', 'manual', 'updatedAt'])
+        && incoming().options is list && incoming().options.size() <= 10
+        && incoming().manual is bool
+        && incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // 只有本人可讀寫：主題／BGM／音量／rememberMe（不公開；排行榜文件不含這些欄位）
+    // updatedAt 為客戶端 ISO 字串（供 last-write-wins）；serverUpdatedAt 為伺服器時間戳。
+    function isValidSettings(d) {
+      return d.keys().hasAll(['theme', 'bgmEnabled', 'bgmVolume', 'rememberMe', 'updatedAt', 'serverUpdatedAt'])
+        && d.keys().hasOnly(['theme', 'bgmEnabled', 'bgmVolume', 'rememberMe', 'updatedAt', 'serverUpdatedAt'])
+        && d.theme in ['light', 'dark']
+        && d.bgmEnabled is bool
+        && d.bgmVolume is number && d.bgmVolume >= 0 && d.bgmVolume <= 1
+        && d.rememberMe is bool
+        && d.updatedAt is string && d.updatedAt.size() >= 10 && d.updatedAt.size() <= 40
+        && d.serverUpdatedAt == request.time;
+    }
+
+    match /users/{userId}/private/settings {
+      allow read: if isSchoolUser() && isOwner(userId);
+      allow create, update: if isSchoolUser() && isOwner(userId) && isValidSettings(incoming());
+      allow delete: if false;
+    }
+
+    // 其他所有路徑一律拒絕（包括其他子集合）
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

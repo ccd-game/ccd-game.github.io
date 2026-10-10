@@ -1,0 +1,1715 @@
+{
+  "chan": {
+    "options": [
+      "陳"
+    ],
+    "mode": "auto"
+  },
+  "wong": {
+    "options": [
+      "黃",
+      "王",
+      "汪"
+    ],
+    "mode": "choose"
+  },
+  "lee": {
+    "options": [
+      "李"
+    ],
+    "mode": "auto"
+  },
+  "cheung": {
+    "options": [
+      "張",
+      "蔣",
+      "章"
+    ],
+    "mode": "choose"
+  },
+  "leung": {
+    "options": [
+      "梁"
+    ],
+    "mode": "auto"
+  },
+  "lam": {
+    "options": [
+      "林"
+    ],
+    "mode": "auto"
+  },
+  "lau": {
+    "options": [
+      "劉"
+    ],
+    "mode": "auto"
+  },
+  "ng": {
+    "options": [
+      "吳",
+      "伍"
+    ],
+    "mode": "choose"
+  },
+  "ho": {
+    "options": [
+      "何"
+    ],
+    "mode": "auto"
+  },
+  "cheng": {
+    "options": [
+      "鄭",
+      "程"
+    ],
+    "mode": "choose"
+  },
+  "yeung": {
+    "options": [
+      "楊"
+    ],
+    "mode": "auto"
+  },
+  "tsang": {
+    "options": [
+      "曾"
+    ],
+    "mode": "auto"
+  },
+  "chow": {
+    "options": [
+      "周",
+      "鄒"
+    ],
+    "mode": "choose"
+  },
+  "chau": {
+    "options": [
+      "周",
+      "鄒"
+    ],
+    "mode": "choose"
+  },
+  "tse": {
+    "options": [
+      "謝"
+    ],
+    "mode": "auto"
+  },
+  "kwok": {
+    "options": [
+      "郭"
+    ],
+    "mode": "auto"
+  },
+  "lo": {
+    "options": [
+      "羅",
+      "盧",
+      "勞"
+    ],
+    "mode": "choose"
+  },
+  "law": {
+    "options": [
+      "羅"
+    ],
+    "mode": "auto"
+  },
+  "loh": {
+    "options": [
+      "羅",
+      "盧"
+    ],
+    "mode": "choose"
+  },
+  "tang": {
+    "options": [
+      "鄧",
+      "唐",
+      "湯"
+    ],
+    "mode": "choose"
+  },
+  "fung": {
+    "options": [
+      "馮"
+    ],
+    "mode": "auto"
+  },
+  "yip": {
+    "options": [
+      "葉"
+    ],
+    "mode": "auto"
+  },
+  "ip": {
+    "options": [
+      "葉"
+    ],
+    "mode": "auto"
+  },
+  "choi": {
+    "options": [
+      "蔡"
+    ],
+    "mode": "auto"
+  },
+  "choy": {
+    "options": [
+      "蔡"
+    ],
+    "mode": "auto"
+  },
+  "tsoi": {
+    "options": [
+      "蔡"
+    ],
+    "mode": "auto"
+  },
+  "mak": {
+    "options": [
+      "麥"
+    ],
+    "mode": "auto"
+  },
+  "chu": {
+    "options": [
+      "朱"
+    ],
+    "mode": "auto"
+  },
+  "siu": {
+    "options": [
+      "蕭",
+      "邵"
+    ],
+    "mode": "choose"
+  },
+  "shiu": {
+    "options": [
+      "蕭",
+      "邵"
+    ],
+    "mode": "choose"
+  },
+  "so": {
+    "options": [
+      "蘇"
+    ],
+    "mode": "auto"
+  },
+  "hui": {
+    "options": [
+      "許"
+    ],
+    "mode": "auto"
+  },
+  "tam": {
+    "options": [
+      "譚",
+      "談"
+    ],
+    "mode": "choose"
+  },
+  "lui": {
+    "options": [
+      "呂",
+      "雷"
+    ],
+    "mode": "choose"
+  },
+  "kwan": {
+    "options": [
+      "關"
+    ],
+    "mode": "auto"
+  },
+  "ma": {
+    "options": [
+      "馬"
+    ],
+    "mode": "auto"
+  },
+  "ko": {
+    "options": [
+      "高"
+    ],
+    "mode": "auto"
+  },
+  "poon": {
+    "options": [
+      "潘"
+    ],
+    "mode": "auto"
+  },
+  "pun": {
+    "options": [
+      "潘"
+    ],
+    "mode": "auto"
+  },
+  "au": {
+    "options": [
+      "區",
+      "歐"
+    ],
+    "mode": "choose"
+  },
+  "yu": {
+    "options": [
+      "余",
+      "于",
+      "俞",
+      "茹"
+    ],
+    "mode": "choose"
+  },
+  "yue": {
+    "options": [
+      "余",
+      "于"
+    ],
+    "mode": "choose"
+  },
+  "yee": {
+    "options": [
+      "余"
+    ],
+    "mode": "auto"
+  },
+  "lai": {
+    "options": [
+      "黎",
+      "賴"
+    ],
+    "mode": "choose"
+  },
+  "liu": {
+    "options": [
+      "廖",
+      "劉",
+      "柳"
+    ],
+    "mode": "choose"
+  },
+  "mok": {
+    "options": [
+      "莫"
+    ],
+    "mode": "auto"
+  },
+  "yuen": {
+    "options": [
+      "袁",
+      "阮",
+      "源"
+    ],
+    "mode": "choose"
+  },
+  "pang": {
+    "options": [
+      "彭"
+    ],
+    "mode": "auto"
+  },
+  "pong": {
+    "options": [
+      "龐"
+    ],
+    "mode": "auto"
+  },
+  "chung": {
+    "options": [
+      "鍾",
+      "鐘"
+    ],
+    "mode": "choose"
+  },
+  "hung": {
+    "options": [
+      "洪",
+      "熊",
+      "孔"
+    ],
+    "mode": "choose"
+  },
+  "yiu": {
+    "options": [
+      "姚"
+    ],
+    "mode": "auto"
+  },
+  "tong": {
+    "options": [
+      "唐",
+      "湯",
+      "童"
+    ],
+    "mode": "choose"
+  },
+  "sin": {
+    "options": [
+      "冼"
+    ],
+    "mode": "auto"
+  },
+  "man": {
+    "options": [
+      "文",
+      "萬"
+    ],
+    "mode": "choose"
+  },
+  "fong": {
+    "options": [
+      "方"
+    ],
+    "mode": "auto"
+  },
+  "kong": {
+    "options": [
+      "江",
+      "孔"
+    ],
+    "mode": "choose"
+  },
+  "kwong": {
+    "options": [
+      "鄺"
+    ],
+    "mode": "auto"
+  },
+  "yau": {
+    "options": [
+      "邱",
+      "丘",
+      "游",
+      "尤"
+    ],
+    "mode": "choose"
+  },
+  "shum": {
+    "options": [
+      "沈",
+      "岑"
+    ],
+    "mode": "choose"
+  },
+  "sham": {
+    "options": [
+      "岑",
+      "沈"
+    ],
+    "mode": "choose"
+  },
+  "sum": {
+    "options": [
+      "岑",
+      "沈"
+    ],
+    "mode": "choose"
+  },
+  "ngai": {
+    "options": [
+      "魏",
+      "倪"
+    ],
+    "mode": "choose"
+  },
+  "wan": {
+    "options": [
+      "溫",
+      "尹",
+      "雲",
+      "萬"
+    ],
+    "mode": "choose"
+  },
+  "fok": {
+    "options": [
+      "霍"
+    ],
+    "mode": "auto"
+  },
+  "kam": {
+    "options": [
+      "金",
+      "甘"
+    ],
+    "mode": "choose"
+  },
+  "ngan": {
+    "options": [
+      "顏"
+    ],
+    "mode": "auto"
+  },
+  "fu": {
+    "options": [
+      "傅",
+      "符"
+    ],
+    "mode": "choose"
+  },
+  "yim": {
+    "options": [
+      "嚴"
+    ],
+    "mode": "auto"
+  },
+  "sit": {
+    "options": [
+      "薛"
+    ],
+    "mode": "auto"
+  },
+  "tsui": {
+    "options": [
+      "徐",
+      "崔"
+    ],
+    "mode": "choose"
+  },
+  "chui": {
+    "options": [
+      "徐",
+      "崔"
+    ],
+    "mode": "choose"
+  },
+  "chiu": {
+    "options": [
+      "趙",
+      "招",
+      "焦"
+    ],
+    "mode": "choose"
+  },
+  "cheuk": {
+    "options": [
+      "卓"
+    ],
+    "mode": "auto"
+  },
+  "fan": {
+    "options": [
+      "范",
+      "樊"
+    ],
+    "mode": "choose"
+  },
+  "wai": {
+    "options": [
+      "韋",
+      "衛",
+      "惠"
+    ],
+    "mode": "choose"
+  },
+  "wu": {
+    "options": [
+      "胡",
+      "吳",
+      "鄔"
+    ],
+    "mode": "choose"
+  },
+  "woo": {
+    "options": [
+      "胡"
+    ],
+    "mode": "auto"
+  },
+  "to": {
+    "options": [
+      "杜",
+      "陶",
+      "涂"
+    ],
+    "mode": "choose"
+  },
+  "shek": {
+    "options": [
+      "石"
+    ],
+    "mode": "auto"
+  },
+  "mui": {
+    "options": [
+      "梅"
+    ],
+    "mode": "auto"
+  },
+  "ling": {
+    "options": [
+      "凌"
+    ],
+    "mode": "auto"
+  },
+  "ching": {
+    "options": [
+      "程"
+    ],
+    "mode": "auto"
+  },
+  "chong": {
+    "options": [
+      "莊"
+    ],
+    "mode": "auto"
+  },
+  "keung": {
+    "options": [
+      "姜"
+    ],
+    "mode": "auto"
+  },
+  "tseung": {
+    "options": [
+      "蔣"
+    ],
+    "mode": "auto"
+  },
+  "hon": {
+    "options": [
+      "韓"
+    ],
+    "mode": "auto"
+  },
+  "cho": {
+    "options": [
+      "曹"
+    ],
+    "mode": "auto"
+  },
+  "tso": {
+    "options": [
+      "曹"
+    ],
+    "mode": "auto"
+  },
+  "sung": {
+    "options": [
+      "宋"
+    ],
+    "mode": "auto"
+  },
+  "suen": {
+    "options": [
+      "孫"
+    ],
+    "mode": "auto"
+  },
+  "sun": {
+    "options": [
+      "孫"
+    ],
+    "mode": "auto"
+  },
+  "tung": {
+    "options": [
+      "董"
+    ],
+    "mode": "auto"
+  },
+  "hau": {
+    "options": [
+      "侯"
+    ],
+    "mode": "auto"
+  },
+  "yam": {
+    "options": [
+      "任"
+    ],
+    "mode": "auto"
+  },
+  "yan": {
+    "options": [
+      "甄",
+      "嚴",
+      "顏",
+      "閻",
+      "殷"
+    ],
+    "mode": "choose"
+  },
+  "yung": {
+    "options": [
+      "翁",
+      "容"
+    ],
+    "mode": "choose"
+  },
+  "lung": {
+    "options": [
+      "龍"
+    ],
+    "mode": "auto"
+  },
+  "tin": {
+    "options": [
+      "田"
+    ],
+    "mode": "auto"
+  },
+  "ting": {
+    "options": [
+      "丁"
+    ],
+    "mode": "auto"
+  },
+  "tai": {
+    "options": [
+      "戴"
+    ],
+    "mode": "auto"
+  },
+  "kan": {
+    "options": [
+      "簡"
+    ],
+    "mode": "auto"
+  },
+  "chik": {
+    "options": [
+      "植",
+      "戚"
+    ],
+    "mode": "choose"
+  },
+  "chuk": {
+    "options": [
+      "祝"
+    ],
+    "mode": "auto"
+  },
+  "miu": {
+    "options": [
+      "繆",
+      "苗"
+    ],
+    "mode": "choose"
+  },
+  "mau": {
+    "options": [
+      "繆"
+    ],
+    "mode": "auto"
+  },
+  "kot": {
+    "options": [
+      "葛"
+    ],
+    "mode": "auto"
+  },
+  "wat": {
+    "options": [
+      "屈"
+    ],
+    "mode": "auto"
+  },
+  "wah": {
+    "options": [
+      "華"
+    ],
+    "mode": "auto"
+  },
+  "pau": {
+    "options": [
+      "鮑",
+      "包"
+    ],
+    "mode": "choose"
+  },
+  "cha": {
+    "options": [
+      "查"
+    ],
+    "mode": "auto"
+  },
+  "chai": {
+    "options": [
+      "柴"
+    ],
+    "mode": "auto"
+  },
+  "chun": {
+    "options": [
+      "秦"
+    ],
+    "mode": "auto"
+  },
+  "chin": {
+    "options": [
+      "錢"
+    ],
+    "mode": "auto"
+  },
+  "chim": {
+    "options": [
+      "詹"
+    ],
+    "mode": "auto"
+  },
+  "cham": {
+    "options": [
+      "湛"
+    ],
+    "mode": "auto"
+  },
+  "chuen": {
+    "options": [
+      "全"
+    ],
+    "mode": "auto"
+  },
+  "kung": {
+    "options": [
+      "龔",
+      "孔"
+    ],
+    "mode": "choose"
+  },
+  "ku": {
+    "options": [
+      "古",
+      "顧"
+    ],
+    "mode": "choose"
+  },
+  "koo": {
+    "options": [
+      "古",
+      "顧"
+    ],
+    "mode": "choose"
+  },
+  "sze": {
+    "options": [
+      "施",
+      "史"
+    ],
+    "mode": "choose"
+  },
+  "sheung": {
+    "options": [
+      "常",
+      "尚",
+      "商"
+    ],
+    "mode": "choose"
+  },
+  "heung": {
+    "options": [
+      "向"
+    ],
+    "mode": "auto"
+  },
+  "hong": {
+    "options": [
+      "康",
+      "洪"
+    ],
+    "mode": "choose"
+  },
+  "shan": {
+    "options": [
+      "單"
+    ],
+    "mode": "auto"
+  },
+  "lin": {
+    "options": [
+      "林",
+      "連",
+      "練"
+    ],
+    "mode": "choose"
+  },
+  "mo": {
+    "options": [
+      "毛",
+      "巫",
+      "莫",
+      "武"
+    ],
+    "mode": "choose"
+  },
+  "or": {
+    "options": [
+      "柯"
+    ],
+    "mode": "auto"
+  },
+  "o": {
+    "options": [
+      "柯"
+    ],
+    "mode": "auto"
+  },
+  "yik": {
+    "options": [
+      "易"
+    ],
+    "mode": "auto"
+  },
+  "luk": {
+    "options": [
+      "陸"
+    ],
+    "mode": "auto"
+  },
+  "lok": {
+    "options": [
+      "駱",
+      "樂",
+      "陸"
+    ],
+    "mode": "choose"
+  },
+  "lun": {
+    "options": [
+      "倫"
+    ],
+    "mode": "auto"
+  },
+  "lei": {
+    "options": [
+      "雷",
+      "李"
+    ],
+    "mode": "choose"
+  },
+  "chen": {
+    "options": [
+      "陳"
+    ],
+    "mode": "auto"
+  },
+  "wang": {
+    "options": [
+      "王"
+    ],
+    "mode": "auto"
+  },
+  "zhang": {
+    "options": [
+      "張"
+    ],
+    "mode": "auto"
+  },
+  "li": {
+    "options": [
+      "李"
+    ],
+    "mode": "auto"
+  },
+  "huang": {
+    "options": [
+      "黃"
+    ],
+    "mode": "auto"
+  },
+  "zhou": {
+    "options": [
+      "周"
+    ],
+    "mode": "auto"
+  },
+  "yang": {
+    "options": [
+      "楊"
+    ],
+    "mode": "auto"
+  },
+  "zhao": {
+    "options": [
+      "趙"
+    ],
+    "mode": "auto"
+  },
+  "xu": {
+    "options": [
+      "徐",
+      "許"
+    ],
+    "mode": "choose"
+  },
+  "zhu": {
+    "options": [
+      "朱"
+    ],
+    "mode": "auto"
+  },
+  "hu": {
+    "options": [
+      "胡"
+    ],
+    "mode": "auto"
+  },
+  "guo": {
+    "options": [
+      "郭"
+    ],
+    "mode": "auto"
+  },
+  "he": {
+    "options": [
+      "何",
+      "賀"
+    ],
+    "mode": "choose"
+  },
+  "gao": {
+    "options": [
+      "高"
+    ],
+    "mode": "auto"
+  },
+  "luo": {
+    "options": [
+      "羅",
+      "駱"
+    ],
+    "mode": "choose"
+  },
+  "zheng": {
+    "options": [
+      "鄭"
+    ],
+    "mode": "auto"
+  },
+  "liang": {
+    "options": [
+      "梁"
+    ],
+    "mode": "auto"
+  },
+  "xie": {
+    "options": [
+      "謝"
+    ],
+    "mode": "auto"
+  },
+  "song": {
+    "options": [
+      "宋"
+    ],
+    "mode": "auto"
+  },
+  "deng": {
+    "options": [
+      "鄧"
+    ],
+    "mode": "auto"
+  },
+  "feng": {
+    "options": [
+      "馮"
+    ],
+    "mode": "auto"
+  },
+  "han": {
+    "options": [
+      "韓"
+    ],
+    "mode": "auto"
+  },
+  "cao": {
+    "options": [
+      "曹"
+    ],
+    "mode": "auto"
+  },
+  "zeng": {
+    "options": [
+      "曾"
+    ],
+    "mode": "auto"
+  },
+  "peng": {
+    "options": [
+      "彭"
+    ],
+    "mode": "auto"
+  },
+  "xiao": {
+    "options": [
+      "蕭"
+    ],
+    "mode": "auto"
+  },
+  "cai": {
+    "options": [
+      "蔡"
+    ],
+    "mode": "auto"
+  },
+  "pan": {
+    "options": [
+      "潘"
+    ],
+    "mode": "auto"
+  },
+  "tian": {
+    "options": [
+      "田"
+    ],
+    "mode": "auto"
+  },
+  "dong": {
+    "options": [
+      "董"
+    ],
+    "mode": "auto"
+  },
+  "yuan": {
+    "options": [
+      "袁"
+    ],
+    "mode": "auto"
+  },
+  "ye": {
+    "options": [
+      "葉"
+    ],
+    "mode": "auto"
+  },
+  "jiang": {
+    "options": [
+      "蔣",
+      "姜",
+      "江"
+    ],
+    "mode": "choose"
+  },
+  "du": {
+    "options": [
+      "杜"
+    ],
+    "mode": "auto"
+  },
+  "su": {
+    "options": [
+      "蘇"
+    ],
+    "mode": "auto"
+  },
+  "wei": {
+    "options": [
+      "魏",
+      "韋",
+      "衛"
+    ],
+    "mode": "choose"
+  },
+  "lu": {
+    "options": [
+      "陸",
+      "盧",
+      "呂",
+      "魯",
+      "路"
+    ],
+    "mode": "choose"
+  },
+  "lv": {
+    "options": [
+      "呂"
+    ],
+    "mode": "auto"
+  },
+  "lyu": {
+    "options": [
+      "呂"
+    ],
+    "mode": "auto"
+  },
+  "ding": {
+    "options": [
+      "丁"
+    ],
+    "mode": "auto"
+  },
+  "shen": {
+    "options": [
+      "沈"
+    ],
+    "mode": "auto"
+  },
+  "ren": {
+    "options": [
+      "任"
+    ],
+    "mode": "auto"
+  },
+  "yao": {
+    "options": [
+      "姚"
+    ],
+    "mode": "auto"
+  },
+  "zhong": {
+    "options": [
+      "鍾",
+      "鐘"
+    ],
+    "mode": "choose"
+  },
+  "cui": {
+    "options": [
+      "崔"
+    ],
+    "mode": "auto"
+  },
+  "tan": {
+    "options": [
+      "譚",
+      "陳",
+      "談"
+    ],
+    "mode": "choose"
+  },
+  "liao": {
+    "options": [
+      "廖"
+    ],
+    "mode": "auto"
+  },
+  "shi": {
+    "options": [
+      "石",
+      "施",
+      "史",
+      "時"
+    ],
+    "mode": "choose"
+  },
+  "jin": {
+    "options": [
+      "金"
+    ],
+    "mode": "auto"
+  },
+  "xia": {
+    "options": [
+      "夏"
+    ],
+    "mode": "auto"
+  },
+  "ha": {
+    "options": [
+      "夏"
+    ],
+    "mode": "auto"
+  },
+  "fang": {
+    "options": [
+      "方",
+      "房"
+    ],
+    "mode": "choose"
+  },
+  "zou": {
+    "options": [
+      "鄒"
+    ],
+    "mode": "auto"
+  },
+  "xiong": {
+    "options": [
+      "熊"
+    ],
+    "mode": "auto"
+  },
+  "bai": {
+    "options": [
+      "白"
+    ],
+    "mode": "auto"
+  },
+  "pak": {
+    "options": [
+      "白",
+      "柏"
+    ],
+    "mode": "choose"
+  },
+  "meng": {
+    "options": [
+      "孟"
+    ],
+    "mode": "auto"
+  },
+  "qin": {
+    "options": [
+      "秦"
+    ],
+    "mode": "auto"
+  },
+  "qiu": {
+    "options": [
+      "邱",
+      "丘"
+    ],
+    "mode": "choose"
+  },
+  "hou": {
+    "options": [
+      "侯"
+    ],
+    "mode": "auto"
+  },
+  "yin": {
+    "options": [
+      "尹",
+      "殷"
+    ],
+    "mode": "choose"
+  },
+  "xue": {
+    "options": [
+      "薛"
+    ],
+    "mode": "auto"
+  },
+  "duan": {
+    "options": [
+      "段"
+    ],
+    "mode": "auto"
+  },
+  "tuen": {
+    "options": [
+      "段"
+    ],
+    "mode": "auto"
+  },
+  "long": {
+    "options": [
+      "龍"
+    ],
+    "mode": "auto"
+  },
+  "gu": {
+    "options": [
+      "顧",
+      "谷",
+      "古"
+    ],
+    "mode": "choose"
+  },
+  "mao": {
+    "options": [
+      "毛"
+    ],
+    "mode": "auto"
+  },
+  "shao": {
+    "options": [
+      "邵"
+    ],
+    "mode": "auto"
+  },
+  "qian": {
+    "options": [
+      "錢"
+    ],
+    "mode": "auto"
+  },
+  "dai": {
+    "options": [
+      "戴"
+    ],
+    "mode": "auto"
+  },
+  "ou": {
+    "options": [
+      "歐",
+      "區"
+    ],
+    "mode": "choose"
+  },
+  "kang": {
+    "options": [
+      "康"
+    ],
+    "mode": "auto"
+  },
+  "wen": {
+    "options": [
+      "溫",
+      "文",
+      "聞"
+    ],
+    "mode": "choose"
+  },
+  "xiang": {
+    "options": [
+      "向",
+      "項"
+    ],
+    "mode": "choose"
+  },
+  "gong": {
+    "options": [
+      "龔"
+    ],
+    "mode": "auto"
+  },
+  "ke": {
+    "options": [
+      "柯"
+    ],
+    "mode": "auto"
+  },
+  "chang": {
+    "options": [
+      "張"
+    ],
+    "mode": "auto"
+  },
+  "hsu": {
+    "options": [
+      "許",
+      "徐"
+    ],
+    "mode": "choose"
+  },
+  "hsieh": {
+    "options": [
+      "謝"
+    ],
+    "mode": "auto"
+  },
+  "kuo": {
+    "options": [
+      "郭"
+    ],
+    "mode": "auto"
+  },
+  "tsai": {
+    "options": [
+      "蔡"
+    ],
+    "mode": "auto"
+  },
+  "tseng": {
+    "options": [
+      "曾"
+    ],
+    "mode": "auto"
+  },
+  "chou": {
+    "options": [
+      "周"
+    ],
+    "mode": "auto"
+  },
+  "tsou": {
+    "options": [
+      "鄒"
+    ],
+    "mode": "auto"
+  },
+  "chao": {
+    "options": [
+      "趙"
+    ],
+    "mode": "auto"
+  },
+  "hsiao": {
+    "options": [
+      "蕭"
+    ],
+    "mode": "auto"
+  },
+  "kao": {
+    "options": [
+      "高"
+    ],
+    "mode": "auto"
+  },
+  "yeh": {
+    "options": [
+      "葉"
+    ],
+    "mode": "auto"
+  },
+  "chiang": {
+    "options": [
+      "蔣",
+      "江",
+      "姜"
+    ],
+    "mode": "choose"
+  },
+  "chien": {
+    "options": [
+      "簡",
+      "錢"
+    ],
+    "mode": "choose"
+  },
+  "shih": {
+    "options": [
+      "施",
+      "石",
+      "史"
+    ],
+    "mode": "choose"
+  },
+  "hsiung": {
+    "options": [
+      "熊"
+    ],
+    "mode": "auto"
+  },
+  "leong": {
+    "options": [
+      "梁"
+    ],
+    "mode": "auto"
+  },
+  "cheong": {
+    "options": [
+      "張"
+    ],
+    "mode": "auto"
+  },
+  "ieong": {
+    "options": [
+      "楊"
+    ],
+    "mode": "auto"
+  },
+  "vong": {
+    "options": [
+      "黃",
+      "王"
+    ],
+    "mode": "choose"
+  },
+  "kuok": {
+    "options": [
+      "郭"
+    ],
+    "mode": "auto"
+  },
+  "lou": {
+    "options": [
+      "盧",
+      "勞"
+    ],
+    "mode": "choose"
+  },
+  "lao": {
+    "options": [
+      "劉"
+    ],
+    "mode": "auto"
+  },
+  "sou": {
+    "options": [
+      "蘇"
+    ],
+    "mode": "auto"
+  },
+  "u": {
+    "options": [
+      "余",
+      "于"
+    ],
+    "mode": "choose"
+  },
+  "lim": {
+    "options": [
+      "林"
+    ],
+    "mode": "auto"
+  },
+  "lum": {
+    "options": [
+      "林"
+    ],
+    "mode": "auto"
+  },
+  "young": {
+    "options": [
+      "楊"
+    ],
+    "mode": "auto"
+  },
+  "bao": {
+    "options": [
+      "包",
+      "鮑"
+    ],
+    "mode": "choose"
+  },
+  "auyeung": {
+    "options": [
+      "歐陽"
+    ],
+    "mode": "auto"
+  },
+  "auyang": {
+    "options": [
+      "歐陽"
+    ],
+    "mode": "auto"
+  },
+  "auyong": {
+    "options": [
+      "歐陽"
+    ],
+    "mode": "auto"
+  },
+  "ouyang": {
+    "options": [
+      "歐陽"
+    ],
+    "mode": "auto"
+  },
+  "owyang": {
+    "options": [
+      "歐陽"
+    ],
+    "mode": "auto"
+  },
+  "szeto": {
+    "options": [
+      "司徒"
+    ],
+    "mode": "auto"
+  },
+  "seto": {
+    "options": [
+      "司徒"
+    ],
+    "mode": "auto"
+  },
+  "situ": {
+    "options": [
+      "司徒"
+    ],
+    "mode": "auto"
+  },
+  "sitou": {
+    "options": [
+      "司徒"
+    ],
+    "mode": "auto"
+  },
+  "szema": {
+    "options": [
+      "司馬"
+    ],
+    "mode": "auto"
+  },
+  "sima": {
+    "options": [
+      "司馬"
+    ],
+    "mode": "auto"
+  },
+  "seungkwun": {
+    "options": [
+      "上官"
+    ],
+    "mode": "auto"
+  },
+  "shangguan": {
+    "options": [
+      "上官"
+    ],
+    "mode": "auto"
+  },
+  "chukot": {
+    "options": [
+      "諸葛"
+    ],
+    "mode": "auto"
+  },
+  "zhuge": {
+    "options": [
+      "諸葛"
+    ],
+    "mode": "auto"
+  },
+  "wongfu": {
+    "options": [
+      "皇甫"
+    ],
+    "mode": "auto"
+  },
+  "huangfu": {
+    "options": [
+      "皇甫"
+    ],
+    "mode": "auto"
+  },
+  "lingwu": {
+    "options": [
+      "令狐"
+    ],
+    "mode": "auto"
+  },
+  "linghu": {
+    "options": [
+      "令狐"
+    ],
+    "mode": "auto"
+  },
+  "tuenmuk": {
+    "options": [
+      "端木"
+    ],
+    "mode": "auto"
+  },
+  "duanmu": {
+    "options": [
+      "端木"
+    ],
+    "mode": "auto"
+  },
+  "hahau": {
+    "options": [
+      "夏侯"
+    ],
+    "mode": "auto"
+  },
+  "xiahou": {
+    "options": [
+      "夏侯"
+    ],
+    "mode": "auto"
+  },
+  "moyung": {
+    "options": [
+      "慕容"
+    ],
+    "mode": "auto"
+  },
+  "murong": {
+    "options": [
+      "慕容"
+    ],
+    "mode": "auto"
+  },
+  "tungfong": {
+    "options": [
+      "東方"
+    ],
+    "mode": "auto"
+  },
+  "dongfang": {
+    "options": [
+      "東方"
+    ],
+    "mode": "auto"
+  }
+}
