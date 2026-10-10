@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { LevelConfig } from '../../types';
 import ChapterHero from '../home/ChapterHero';
 import { anchorStyle, chapterLabel } from '../home/heroUtils';
@@ -12,82 +12,8 @@ const IconCircledLock = () => (
   </svg>
 );
 
-const MarqueeText: React.FC<{ text: string; className: string; style?: React.CSSProperties }> = ({ text, className, style }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLSpanElement>(null);
-  const [offset, setOffset] = useState(0);
-  const [transition, setTransition] = useState('none');
-  const [isOverflow, setIsOverflow] = useState(false);
-
-  const startAnimation = useCallback((diff: number) => {
-    const moveDuration = diff / 12; 
-    const pauseTime = 2500; 
-    let timeoutId: number;
-
-    const runCycle = () => {
-      setTransition('none');
-      setOffset(0);
-      
-      timeoutId = window.setTimeout(() => {
-        setTransition(`transform ${moveDuration}s ease-in-out`);
-        setOffset(-diff);
-        
-        timeoutId = window.setTimeout(() => {
-          timeoutId = window.setTimeout(() => {
-            setTransition(`transform ${moveDuration}s ease-in-out`);
-            setOffset(0);
-            timeoutId = window.setTimeout(() => {
-              runCycle();
-            }, (moveDuration * 1000) + 100);
-          }, pauseTime);
-        }, moveDuration * 1000);
-      }, pauseTime);
-    };
-
-    runCycle();
-    return () => clearTimeout(timeoutId);
-  }, []);
-
-  useEffect(() => {
-    const rafId = requestAnimationFrame(() => {
-      if (containerRef.current && textRef.current) {
-        const containerWidth = containerRef.current.offsetWidth;
-        const textWidth = textRef.current.scrollWidth;
-        
-        if (textWidth > containerWidth) {
-          setIsOverflow(true);
-          const diff = textWidth - containerWidth + 25; 
-          return startAnimation(diff);
-        } else {
-          setIsOverflow(false);
-          setOffset(0);
-          setTransition('none');
-        }
-      }
-    });
-    return () => cancelAnimationFrame(rafId);
-  }, [text, startAnimation]);
-
-  return (
-    <div ref={containerRef} className="marquee-wrapper w-full">
-      <span 
-        ref={textRef} 
-        className={`${className} marquee-content`}
-        style={{ 
-          ...style,
-          transform: `translateX(${offset}px)`,
-          transition: transition,
-          paddingLeft: '25px', 
-          paddingRight: isOverflow ? '50px' : '0',
-          display: 'inline-block',
-          willChange: 'transform'
-        }}
-      >
-        {text}
-      </span>
-    </div>
-  );
-};
+/** 抽屜裡的作者：去掉篇目（《…》），只留作者名，例如「王維、李白、杜甫」；完整篇目仍在 aria-label 與 title 提示中 */
+const shortAuthor = (sub: string) => sub.replace(/《[^》]*》/g, '').trim();
 
 interface DungeonTabProps {
   levels: LevelConfig[];
@@ -95,23 +21,55 @@ interface DungeonTabProps {
   theme: 'light' | 'dark';
 }
 
+const IconChevronUp = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+);
+
 const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
   const featured = levels.filter(l => !l.locked);
   const [activeId, setActiveId] = useState<number>(featured[0]?.id ?? levels[0]?.id);
+  // 十二篇章入口抽屜：收合時只露出底部一條；展開時占滿首頁（底部分頁列之上），十二篇一次全見、不需捲動
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const barRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setDrawerOpen(false); barRef.current?.focus(); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
+
+  // 選篇：收合抽屜，預覽切換到該篇（不直接入陣；入陣仍由預覽的「入陣」按鈕）
+  const pick = (level: LevelConfig) => {
+    setActiveId(level.id);
+    setDrawerOpen(false);
+    barRef.current?.focus({ preventScroll: true });
+  };
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar tab-slide-active home-surface">
+    <div className="flex-1 tab-slide-active home-surface home-dungeon">
       {featured.length > 0 && (
-        <ChapterHero levels={levels} featured={featured} activeId={activeId} onActiveChange={setActiveId} onEnter={onSelect} />
+        <div className="home-hero-slot" inert={drawerOpen || undefined}>
+          <ChapterHero levels={levels} featured={featured} activeId={activeId} onActiveChange={setActiveId} onEnter={onSelect} />
+        </div>
       )}
 
-      <div className="px-5 pt-6 pb-8">
-        <div className="flex items-baseline justify-between mb-4">
+      <section className={`home-drawer ${drawerOpen ? 'is-open' : ''}`} aria-label="十二篇章入口">
+        <button
+          ref={barRef}
+          type="button"
+          className="home-drawer-bar home-focus"
+          aria-expanded={drawerOpen}
+          aria-controls="home-chapter-list"
+          onClick={() => setDrawerOpen(o => !o)}
+        >
           <h3 className="home-section-title">十二篇章入口</h3>
           <span className="home-section-meta">已啟 {featured.length}／{levels.length}</span>
-        </div>
+          <span className="home-drawer-chev" aria-hidden="true"><IconChevronUp /></span>
+          <span className="sr-only">{drawerOpen ? '（收合）' : '（展開）'}</span>
+        </button>
 
-        <ol className="flex flex-col gap-2.5">
+        <ol id="home-chapter-list" className="home-drawer-list" inert={!drawerOpen || undefined}>
           {levels.map((level, index) => {
             const isActive = level.id === activeId;
             const open = !level.locked;
@@ -121,17 +79,17 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
                   role={open ? 'button' : undefined}
                   tabIndex={open ? 0 : -1}
                   aria-disabled={!open || undefined}
+                  aria-current={isActive && open ? 'true' : undefined}
                   aria-label={`${chapterLabel(index)} ${level.title} ${level.subTitle}${open ? '' : '（未開放）'}`}
-                  onClick={() => open && onSelect(level)}
-                  onKeyDown={e => { if (open && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelect(level); } }}
-                  onPointerEnter={e => { if (open && e.pointerType === 'mouse') setActiveId(level.id); }}
-                  onFocus={() => open && setActiveId(level.id)}
+                  onClick={() => open && pick(level)}
+                  onKeyDown={e => { if (open && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(level); } }}
                   className={`home-slip home-focus ${open ? 'is-open' : 'is-locked'} ${isActive && open ? 'is-active' : ''}`}
                 >
                   <span className="home-slip-no" aria-hidden="true">{chapterLabel(index).replace('回', '')}</span>
                   <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
-                    <MarqueeText text={level.title} className="home-slip-title" />
-                    <MarqueeText text={level.subTitle} className="home-slip-sub" />
+                    {/* 篇名一律完整顯示（不跑馬燈、不截斷）：字級隨抽屜高度縮放 */}
+                    <span className="home-slip-title">{level.title}</span>
+                    <span className="home-slip-sub" title={level.subTitle}>{shortAuthor(level.subTitle)}</span>
                   </div>
                   <div className="shrink-0 flex items-center pr-1" aria-hidden="true">
                     {open ? (
@@ -147,7 +105,7 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
             );
           })}
         </ol>
-      </div>
+      </section>
     </div>
   );
 };

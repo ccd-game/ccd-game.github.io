@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, FLYING_SWORD_TIMING } from './types';
+import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, isWeaponAttackStyle, weaponAttackTiming } from './types';
+import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle } from './data/battleLayout';
 import { TEXT_CORPUS, MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT } from './constants';
 import { LEVELS_DATA } from './data/levels';
 import { parseBossSpeeches } from './src/utils/speechParser';
@@ -75,7 +76,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
 
   const handleEnter = async (isTest = false) => {
     setIsActivating(true);
-    
+
     // 重置起始狀態 (僅測試模式需要)
     if (isTest) {
       bgControls.set({ scale: 1, y: 0, rotateX: 0 });
@@ -84,7 +85,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
 
     // 同步執行背景與角色的動畫
     const duration = 2.5;
-    
+
     // 第一階段：初始透視形變與緩慢放大
     await Promise.all([
       bgControls.start({
@@ -102,7 +103,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
 
     // 第二階段：Dolly In (推軌鏡頭)
     const dollyDuration = 1.5;
-    
+
     // 角色與背景同步開始放大，並將旋轉度數調整至 -5 度
     await Promise.all([
       charControls.start({
@@ -127,19 +128,19 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
 
   return (
     <div className={`absolute inset-0 z-[99999] flex flex-col items-center justify-start bg-[#0f0f0f] transition-opacity duration-1000 ${isExiting ? 'opacity-0 pointer-events-none' : 'opacity-100'} overflow-hidden`} style={{ perspective: "500px" }}>
-      <motion.div 
+      <motion.div
         animate={bgControls}
         initial={{ scale: 1, y: "0%", rotateX: 0 }}
         style={{ originY: 1 }} // 第一步保持錨定底部產生梯形
         className="absolute inset-0 w-full h-full"
       >
-        <img 
-          src={`${import.meta.env.BASE_URL}resources/background/bg_loginscreen.png`} 
-          alt="背景" 
+        <img
+          src={`${import.meta.env.BASE_URL}resources/background/bg_loginscreen.png`}
+          alt="背景"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 z-[5]"></div>
-        
+
         {/* 地城火光閃爍效果 */}
         <FlickeringFire top="13.5%" left="24.5%" size="60px" />  {/* 左上吊燈 */}
         <FlickeringFire top="38.5%" left="13.2%" size="50px" />  {/* 左中吊燈 */}
@@ -151,14 +152,14 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
         <FlickeringFire top="43.5%" left="32.5%" size="30px" />  {/* 右側柱子小火 */}
       </motion.div>
 
-      <motion.div 
+      <motion.div
         animate={charControls}
         initial={{ scale: 1, y: "0%", opacity: 1 }}
         className="absolute inset-0 z-10 flex justify-center items-end pointer-events-none"
       >
-        <img 
-          src={`${import.meta.env.BASE_URL}resources/background/character1.png`} 
-          alt="角色" 
+        <img
+          src={`${import.meta.env.BASE_URL}resources/background/character1.png`}
+          alt="角色"
           className="h-[52%] w-auto object-contain object-bottom mb-[8vh]"
         />
       </motion.div>
@@ -166,21 +167,21 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
       {/* 底部羽化邊緣 */}
       <div className="absolute bottom-0 left-0 right-0 h-[12%] bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/80 to-transparent z-[15] pointer-events-none" />
 
-      <motion.div 
+      <motion.div
         animate={uiControls}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8, duration: 1.5, ease: "easeOut" }}
         className="relative z-20 mt-[18vh] flex flex-col items-center w-full px-4"
       >
-        <img 
-          src={`${import.meta.env.BASE_URL}resources/background/bg_logingamename.png`} 
-          alt="遊戲名稱" 
+        <img
+          src={`${import.meta.env.BASE_URL}resources/background/bg_logingamename.png`}
+          alt="遊戲名稱"
           className="w-[95%] max-w-[675px] h-auto drop-shadow-[0_0_15px_rgba(212,175,55,0.3)]"
         />
       </motion.div>
 
-      <motion.div 
+      <motion.div
         animate={uiControls}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -189,7 +190,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
       >
         <div className="relative w-full max-w-[320px] pointer-events-auto">
           <div className="absolute inset-0 bg-[#d4af37]/10 blur-2xl rounded-full"></div>
-          <button 
+          <button
             onClick={() => handleEnter(false)}
             disabled={isActivating}
             className="w-full py-4 bg-black/70 text-[#d4af37] border-2 border-[#d4af37]/40 rounded-full font-bold text-2xl tracking-[16px] indent-[16px] transition-all duration-300 active:scale-95 active:bg-black/90 shadow-[0_0_30px_rgba(0,0,0,0.6)] hover:border-[#d4af37] relative z-30"
@@ -198,7 +199,7 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
             進入地城
           </button>
         </div>
-        
+
         {/* 跳過動畫按鈕 */}
         <button
           onClick={() => onLogin()}
@@ -214,25 +215,25 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean }> = ({ onLo
 
 const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [bgmEnabled, setBgmEnabled] = useState(true); 
+  const [bgmEnabled, setBgmEnabled] = useState(true);
   const [bgmVolume, setBgmVolume] = useState(0.08);
   const [isAppVisible, setIsAppVisible] = useState(true);
   const [isBooting, setIsBooting] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoginExiting, setIsLoginExiting] = useState(false);
-  
+
   const [levelQuestions, setLevelQuestions] = useState<Question[]>([]);
   const [isQuestionsFetching, setIsQuestionsFetching] = useState(false);
   const [currentLevel, setCurrentLevel] = useState<LevelConfig | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
-  const [viewingCharacter, setViewingCharacter] = useState<any | null>(null); 
+  const [viewingCharacter, setViewingCharacter] = useState<any | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
     playerHp: 0, maxPlayerHp: MAX_HP, enemyHp: 1000, maxEnemyHp: 1000,
     currentQuestionIndex: 0, timer: TURN_TIME, isTurnActive: false,
-    status: GameStatus.MENU, userInput: [], usedIndices: new Set(), isPaused: false, totalDamage: 0
+    status: GameStatus.MENU, userInput: [], usedIndices: new Set(), isPaused: false
   });
 
   const [introStage, setIntroStage] = useState<string>('none');
@@ -266,6 +267,20 @@ const App: React.FC = () => {
   const [isScreenFadingOut, setIsScreenFadingOut] = useState(false);
 
   const audioManagerRef = useRef<AudioManagerHandle>(null);
+
+  // 戰鬥區尺寸（ResizeObserver；Boss 版面只由此尺寸與已知的立繪錨點計算，不讀取其他 DOM 版面）
+  const appRootRef = useRef<HTMLDivElement>(null);
+  const [appSize, setAppSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = appRootRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const r = entries[0]?.contentRect;
+      if (r) setAppSize(prev => (prev.w === r.width && prev.h === r.height ? prev : { w: r.width, h: r.height }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     // 預設登入並初始化測試用戶
@@ -316,39 +331,38 @@ const App: React.FC = () => {
     setIsInkActive(false);
     setIsPlayerHurt(false);
     setIsScreenFadingOut(true);
-    
+
     setTimeout(() => {
       gameInstanceIdRef.current++;
       if (timerRef.current) clearInterval(timerRef.current);
-      
+
       clearVisualEffects();
-      setIntroStage('none'); 
-      setIsDemoMode(false); 
-      setIsAutoPlaying(false); 
+      setIntroStage('none');
+      setIsDemoMode(false);
+      setIsAutoPlaying(false);
       setSpeedMultiplier(1);
-      setShowInputPadUI(false); 
-      setShowQuestionUI(false); 
+      setShowInputPadUI(false);
+      setShowQuestionUI(false);
       setShowSlotsUI(false);
-      setSkillPanelShown(false); 
+      setSkillPanelShown(false);
       setShuffledOptions([]);
-      setCurrentLevel(null); 
+      setCurrentLevel(null);
       setLevelQuestions([]);
       setIsQuitConfirmOpen(false);
-      
-      setGameState(p => ({ 
+
+      setGameState(p => ({
         ...p,
-        playerHp: 0, 
+        playerHp: 0,
         enemyHp: 1000,
-        currentQuestionIndex: 0, 
-        timer: TURN_TIME, 
+        currentQuestionIndex: 0,
+        timer: TURN_TIME,
         isTurnActive: false,
-        status: GameStatus.MENU, 
-        userInput: [], 
-        usedIndices: new Set(), 
-        isPaused: false, 
-        totalDamage: 0 
+        status: GameStatus.MENU,
+        userInput: [],
+        usedIndices: new Set(),
+        isPaused: false
       }));
-      
+
       setTimeout(() => {
         setIsScreenFadingOut(false);
       }, 50);
@@ -394,31 +408,31 @@ const App: React.FC = () => {
     if (gameInstanceIdRef.current !== id) return;
     const target = levelQuestions[index];
     if (!target || !target.answers || target.answers.length === 0) return;
-    
+
     clearVisualEffects();
     if (!isRetry) { setShowInputPadUI(false); setShowQuestionUI(false); setShowSlotsUI(false); }
     await new Promise(r => setTimeout(r, (isRetry ? 50 : 100) * timeScale));
     if (gameInstanceIdRef.current !== id) return;
-    
+
     // 格數以最長的正確答案為準
     const maxLen = Math.max(...target.answers.map(a => a.length));
-    
+
     setIsInputPadExiting(false);
-    setGameState(prev => ({ 
+    setGameState(prev => ({
       ...prev, timer: TURN_TIME, isTurnActive: false,
       userInput: Array(maxLen).fill(null).map(() => ({ char: "", originIndex: null })),
       usedIndices: new Set()
     }));
-    
+
     setShuffledOptions(target.options && target.options.length > 0 ? target.options : generateDynamicOptions(target.answer));
-    
+
     if (!skillPanelShown) setSkillPanelShown(true);
     setShowInputPadUI(true);
     await new Promise(r => setTimeout(r, (isRetry ? 50 : 250) * timeScale));
     if (gameInstanceIdRef.current !== id) return;
-    
-    setSuppressExitAnim(isRetry); 
-    setShowQuestionUI(true); 
+
+    setSuppressExitAnim(isRetry);
+    setShowQuestionUI(true);
     setShowSlotsUI(true);
     setGameState(p => ({ ...p, isTurnActive: true }));
   }, [levelQuestions, skillPanelShown, timeScale, clearVisualEffects]);
@@ -428,7 +442,7 @@ const App: React.FC = () => {
     try {
       // 模擬加載感，讓轉場更自然
       await new Promise(r => setTimeout(r, 400));
-      
+
       const filtered: Question[] = FULL_QUESTION_BANK
         .filter(q => level.sheetIds.includes(Number(q.id)))
         .map(q => ({
@@ -436,29 +450,29 @@ const App: React.FC = () => {
           options: generateDynamicOptions(q.answer)
         }))
         .sort((a, b) => a.id - b.id);
-      
+
       setLevelQuestions(filtered);
-    } catch (e) { 
+    } catch (e) {
       console.error("題庫讀取失敗:", e);
-      alert("題庫讀取失敗，請檢查題庫文件格式"); 
-    } finally { 
-      setIsQuestionsFetching(false); 
+      alert("題庫讀取失敗，請檢查題庫文件格式");
+    } finally {
+      setIsQuestionsFetching(false);
     }
   };
 
   const startGame = useCallback(async (testMode: boolean = false) => {
     if (!currentLevel || levelQuestions.length === 0 || isQuestionsFetching) return;
-    
+
     const instanceId = ++gameInstanceIdRef.current;
     audioManagerRef.current?.resetBattleMusic();
     try {
       setIsDemoMode(testMode); setIsAutoPlaying(false); setSpeedMultiplier(1);
-      setGameState(prev => ({ 
-        ...prev, status: GameStatus.PLAYING, isTurnActive: false, enemyHp: 1000, 
-        playerHp: 0, currentQuestionIndex: 0, totalDamage: 0 
+      setGameState(prev => ({
+        ...prev, status: GameStatus.PLAYING, isTurnActive: false, enemyHp: 1000,
+        playerHp: 0, currentQuestionIndex: 0
       }));
       setIntroStage('starting');
-      await new Promise(r => setTimeout(r, 50)); 
+      await new Promise(r => setTimeout(r, 50));
       if (gameInstanceIdRef.current !== instanceId) return;
       setTriggeredHpThresholds(new Set());
       const introSequence = [
@@ -499,10 +513,10 @@ const App: React.FC = () => {
       await new Promise(r => setTimeout(r, 200 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       setIsConverging(false); setEnemyAnimState('hurt'); setIsScreenShaking(true); setIsPlayerSlashActive(true);
-      const damage = gameState.enemyHp <= 0 ? 150 : 100;
+      const damage = 100;
       const newHp = gameState.enemyHp - damage;
       const hpPct = newHp / 1000;
-      setGameState(p => ({ ...p, enemyHp: newHp, totalDamage: p.totalDamage + damage }));
+      setGameState(p => ({ ...p, enemyHp: newHp }));
       const isLast = gameState.currentQuestionIndex >= levelQuestions.length - 1;
       if (isLast) {
         setTimeout(() => { setShowQuestionUI(false); setShowSlotsUI(false); }, 200 * timeScale);
@@ -523,29 +537,29 @@ const App: React.FC = () => {
         if (hpPct <= t / 100 && !triggeredHpThresholds.has(t)) {
           speechToTrigger = currentLevel.hpThresholds ? currentLevel.hpThresholds[t] : null;
           setTriggeredHpThresholds(prev => new Set(prev).add(t));
-          break; 
+          break;
         }
       }
       if (speechToTrigger) { await triggerBossSpeechAction(speechToTrigger, id); }
       setGameState(p => { startLevelSequence(p.currentQuestionIndex + 1, id); return { ...p, currentQuestionIndex: p.currentQuestionIndex + 1 }; });
     } catch (e) {}
-  }, [gameState.enemyHp, gameState.currentQuestionIndex, gameState.totalDamage, currentLevel, levelQuestions, timeScale, triggeredHpThresholds, startLevelSequence, triggerBossSpeechAction, clearVisualEffects]);
+  }, [gameState.enemyHp, gameState.currentQuestionIndex, currentLevel, levelQuestions, timeScale, triggeredHpThresholds, startLevelSequence, triggerBossSpeechAction, clearVisualEffects]);
 
   const triggerEnemyAttack = useCallback(async (isTimeout = false) => {
     if (!currentLevel) return;
     const id = gameInstanceIdRef.current;
     try {
       setGameState(p => ({ ...p, isTurnActive: false }));
-      setIsInputErrorDimmed(true); setSuppressExitAnim(false); 
+      setIsInputErrorDimmed(true); setSuppressExitAnim(false);
       await new Promise(r => setTimeout(r, 500 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       const attackStyle = getBossAttackStyle(currentLevel);
       const newPlayerHp = Math.max(0, gameState.playerHp - 1000);
       setEnemyAnimState('attack');
-      if (attackStyle === 'flyingSword') {
-        // 飛劍：一段命中；扣血與命中特效同步（時間點與 BattleArea 的 CSS 時間軸共用 FLYING_SWORD_TIMING）
+      if (isWeaponAttackStyle(attackStyle)) {
+        // 分層武器攻擊（飛劍／飛劍穿梭 X 斬）：一段命中；扣血與命中特效同步（時間點與 BattleArea 的動畫共用 types.ts 的時間表）
         const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-        await new Promise(r => setTimeout(r, FLYING_SWORD_TIMING.impact * timeScale));
+        await new Promise(r => setTimeout(r, weaponAttackTiming(attackStyle).impact * timeScale));
         if (gameInstanceIdRef.current !== id) return;
         setIsBossSlashActive(true); setIsScreenFlash(true); setIsPlayerHurt(true);
         if (!reduceMotion) setIsScreenShaking(true);
@@ -568,20 +582,20 @@ const App: React.FC = () => {
           setIsScreenShaking(false); setTimeout(() => setIsScreenShaking(true), 10);
           setIsScreenFlash(true); setTimeout(() => setIsScreenFlash(false), 150 * timeScale);
         }
-        setIsSlotsFalling(true); 
+        setIsSlotsFalling(true);
         await new Promise(r => setTimeout(r, 300 * timeScale));
         if (gameInstanceIdRef.current !== id) return;
-        setShowSlotsUI(false); setShowQuestionUI(false); 
+        setShowSlotsUI(false); setShowQuestionUI(false);
         setGameState(p => ({ ...p, playerHp: newPlayerHp }));
       }
       await new Promise(r => setTimeout(r, 1000 * timeScale));
       if (gameInstanceIdRef.current !== id) return;
       if (newPlayerHp <= 0) {
         setIsFatalDefeat(true); setBossSpeechMsg(currentLevel.defeatSpeech || ""); setIsSpeechDimmed(true);
-        await new Promise(r => setTimeout(r, 800)); 
+        await new Promise(r => setTimeout(r, 800));
         if (gameInstanceIdRef.current !== id) return;
-        setIsInkActive(true); 
-        await new Promise(r => setTimeout(r, 1750)); 
+        setIsInkActive(true);
+        await new Promise(r => setTimeout(r, 1750));
         if (gameInstanceIdRef.current !== id) return;
         setGameState(x => ({ ...x, status: GameStatus.GAME_OVER }));
         return;
@@ -634,7 +648,7 @@ const App: React.FC = () => {
 
     const currentInputStr = gameState.userInput.map(s => s.char).join('');
     const isFull = gameState.userInput.every(s => s.char);
-    
+
     // 檢查是否符合任一正確答案
     const isMatch = currentQuestion.answers.some(ans => ans === currentInputStr);
 
@@ -656,6 +670,21 @@ const App: React.FC = () => {
     }, 1000);
   }, []);
 
+  // Boss 立繪版面＋落地場景（cover 填滿戰鬥區；背景與立繪同一 transform）
+  const battleImg = currentLevel ? (currentLevel.battleImg ?? currentLevel.bossImg) : '';
+  const battleKey = battleAnchorKey(battleImg);
+  const battleAnchor = BATTLE_ANCHORS[battleKey];
+  const battleScene = BATTLE_SCENES[battleKey] ?? null;
+  const grounded = useMemo(
+    () => battleScene ? computeGroundedBattle(battleAnchor, battleScene, appSize.w, appSize.h) : null,
+    [battleAnchor, battleScene, appSize.w, appSize.h]
+  );
+  const battleLayout = useMemo(
+    () => grounded?.layout ?? computeBattleLayout(battleAnchor, appSize.w, appSize.h),
+    [grounded, battleAnchor, appSize.w, appSize.h]
+  );
+  const battleSceneBox = grounded?.sceneBox ?? null;
+
   const showMenuScreen = (isLoggedIn || isLoginExiting) && (gameState.status === GameStatus.MENU || gameState.status === GameStatus.CHARACTER_DETAIL);
 
   // 底層畫框顏色：顯示不透明深色全屏畫面時，底層改用相同深色，
@@ -668,33 +697,36 @@ const App: React.FC = () => {
     'var(--app-bg)';
 
   return (
-    <div className={`w-full h-full relative transition-all duration-300 ${isPlayerHurt ? 'bg-red-950/20' : ''} ${isScreenShaking ? 'shake-active' : ''}`} style={{ backgroundColor: frameBg }}>
-      <AudioManager 
+    <div ref={appRootRef} className={`w-full h-full relative transition-all duration-300 ${isPlayerHurt ? 'bg-red-950/20' : ''} ${isScreenShaking ? 'shake-active' : ''}`} style={{ backgroundColor: frameBg }}>
+      <AudioManager
         ref={audioManagerRef}
-        status={gameState.status} 
+        status={gameState.status}
         bgmEnabled={bgmEnabled && isAppVisible}
         bgmVolume={bgmVolume}
-        isBooting={isBooting} 
+        isBooting={isBooting}
         isLoggedIn={isLoggedIn}
       />
-      
+
       {isBooting && <BootLoadingMask assets={preloadAssets} onComplete={() => setIsBooting(false)} />}
-      
+
       {!isLoggedIn && (
         <LoginGate onLogin={handleLogin} isExiting={isLoginExiting} />
       )}
-      
+
       <InkSplash active={isInkActive} />
       <div className={`absolute inset-0 z-[8000] pointer-events-none transition-opacity duration-150 ${isScreenFlash ? 'opacity-50 bg-red-600' : 'opacity-0'}`} />
-      
-      <div className={`global-scene-bg absolute top-0 left-0 w-full h-[62%] z-[0] ${((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed) ? 'bg-attack-dim' : ''}`} 
-        style={{ backgroundImage: currentLevel ? `url("${currentLevel.bgImg}")` : 'none', backgroundSize: 'auto 100%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center bottom', opacity: gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 1 : 0, transition: 'opacity 0.7s, filter var(--bg-dim-duration, 400ms)', '--bg-dim-duration': `${bgDimDuration}ms` } as any} />
-      
+
+      {/* 無落地場景資料時，沿用舊式獨立背景；有 BATTLE_SCENES 時改由 BattleArea 與立繪共用容器 */}
+      {!battleScene && (
+        <div className={`global-scene-bg absolute top-0 left-0 w-full h-[62%] z-[0] ${((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed) ? 'bg-attack-dim' : ''}`}
+          style={{ backgroundImage: currentLevel ? `url("${currentLevel.bgImg}")` : 'none', backgroundSize: 'auto 100%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center bottom', opacity: gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 1 : 0, transition: 'opacity 0.7s, filter var(--bg-dim-duration, 400ms)', '--bg-dim-duration': `${bgDimDuration}ms` } as any} />
+      )}
+
       <div className={`gold-divider ${gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 'active' : ''}`} style={{ bottom: "40%" }} />
-      
+
       {isLoggedIn && gameState.status === GameStatus.PLAYING && (
         <>
-          <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} isFatigue={gameState.enemyHp <= 0} bossName={currentLevel?.bossName || ""} bossImg={currentLevel?.bossImg || ""} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} flyingSword={currentLevel?.flyingSword} />
+          <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} bossName={currentLevel?.bossName || ""} bossImg={battleImg} bgImg={currentLevel?.bgImg} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} weaponLayers={currentLevel?.weaponLayers} layout={battleLayout} scene={battleScene} sceneBox={battleSceneBox} bgDimmed={((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed)} bgDimDuration={bgDimDuration} />
           <div className="absolute bottom-0 left-0 w-full z-[80] h-[40%]" style={{ backgroundColor: 'var(--app-bg)' }}>
             <InputPad options={shuffledOptions} usedIndices={gameState.usedIndices} disabled={!gameState.isTurnActive || gameState.isPaused} onOptionClick={handleOptionClickAction} isEnemyAttacking={isInputErrorDimmed} showUI={showInputPadUI} isExiting={isInputPadExiting} suppressExitAnim={suppressExitAnim} />
             <BossSpeech message={bossSpeechMsg} bossName={currentLevel?.bossName || ""} duration={isFatalDefeat ? 99999 : 2000 * timeScale} isFatal={isFatalDefeat} theme={theme} />
@@ -730,20 +762,20 @@ const App: React.FC = () => {
       )}
 
       <div className={`absolute inset-0 transition-opacity duration-700 ${showMenuScreen ? 'z-[500] opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'}`}>
-        <MenuScreen 
-          levels={LEVELS_DATA} 
-          onSelect={l => { setCurrentLevel(l); setGameState(p => ({ ...p, status: GameStatus.LOADING })); fetchQuestionsForLevel(l); }} 
+        <MenuScreen
+          levels={LEVELS_DATA}
+          onSelect={l => { setCurrentLevel(l); setGameState(p => ({ ...p, status: GameStatus.LOADING })); fetchQuestionsForLevel(l); }}
           viewingCharacter={gameState.status === GameStatus.CHARACTER_DETAIL ? viewingCharacter : null}
-          onShowCharacterDetail={(char) => { 
-            setViewingCharacter(char); 
-            setGameState(p => ({ ...p, status: GameStatus.CHARACTER_DETAIL })); 
-          }} 
+          onShowCharacterDetail={(char) => {
+            setViewingCharacter(char);
+            setGameState(p => ({ ...p, status: GameStatus.CHARACTER_DETAIL }));
+          }}
           onBackFromDetail={() => {
             setViewingCharacter(null);
             setGameState(p => ({ ...p, status: GameStatus.MENU }));
           }}
-          theme={theme} 
-          onThemeToggle={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')} 
+          theme={theme}
+          onThemeToggle={() => setTheme(prev => prev === 'light' ? 'dark' : 'light')}
           bgmEnabled={bgmEnabled}
           onBgmToggle={() => setBgmEnabled(prev => !prev)}
           bgmVolume={bgmVolume}
@@ -752,15 +784,15 @@ const App: React.FC = () => {
       </div>
 
       {isLoggedIn && gameState.status === GameStatus.LOADING && <LoadingScreen level={currentLevel} isLoading={isQuestionsFetching} onConfirm={m => startGame(m)} onCancel={resetToStart} />}
-      
+
       {isLoggedIn && gameState.status === GameStatus.GAME_OVER && (
         <GameOverScreen onRestart={resetToStart} />
       )}
-      
+
       {isLoggedIn && gameState.status === GameStatus.VICTORY && (
         <VictoryScreen onRestart={resetToStart} />
       )}
-      
+
       {isLoggedIn && gameState.isPaused && (
         <div className={`pause-overlay ${isPauseExiting ? 'animate-fadeOut' : 'show-pause'}`}>
           {isQuitConfirmOpen && (

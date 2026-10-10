@@ -15,9 +15,10 @@ export const LEVELS_DATA: LevelConfig[] = [
     bgImg: `${import.meta.env.BASE_URL}resources/background/bg_level_2.png`,
     quote: '心凝形釋，與萬化冥合。',
     locked: false,
-    // 攻擊：手中火焰刀化為飛劍，刺向玩家後飛回手中
-    attackStyle: 'flyingSword',
-    flyingSword: {
+    battleImg: `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan_battle.png`,
+    // 攻擊：手中火焰刀飛到玩家區，X 字連斬兩刀後飛回手中（'flyingSword' 飛劍直刺仍可切換使用）
+    attackStyle: 'xSlash',
+    weaponLayers: {
       characterImg: `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan_character.png`,
       effectImg: `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan_effect.png`,
       frameW: 1280, frameH: 720,

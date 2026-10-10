@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { GameState } from '../types';
 import { TURN_TIME } from '../constants';
 
@@ -36,8 +36,6 @@ const HUD: React.FC<HUDProps> = React.memo(({
   isDimmed = false,
   theme
 }) => {
-  const [popDamage, setPopDamage] = useState(false);
-  
   const timerColor = useMemo(() => {
     const t = gameState.timer;
     if (t > 20) return '#22c55e'; // 綠
@@ -48,16 +46,7 @@ const HUD: React.FC<HUDProps> = React.memo(({
   const showEnemyHpBar = ['enemy_hp', 'player_hp', 'input_pad', 'ready', 'playing'].includes(introStage);
   const enemyHpPercent = Math.max(0, gameState.enemyHp / gameState.maxEnemyHp);
   const isEnemyHpIntro = introStage === 'enemy_hp';
-  const isFatigue = gameState.enemyHp <= 0;
   const timerVisible = showInputPadUI;
-
-  useEffect(() => {
-    if (isFatigue && gameState.totalDamage > 0) {
-      setPopDamage(true);
-      const timer = setTimeout(() => setPopDamage(false), 300);
-      return () => clearTimeout(timer);
-    }
-  }, [gameState.totalDamage, isFatigue]);
 
   const isTimerWarning = gameState.timer <= 10 && !isDimmed;
 
@@ -74,24 +63,14 @@ const HUD: React.FC<HUDProps> = React.memo(({
 
   return (
     <>
-      <div className={`absolute top-0 left-0 w-full h-[12px] z-[100] transition-all duration-500 ${showEnemyHpBar ? 'opacity-100' : 'opacity-0'} ${isFatigue ? 'bg-transparent' : 'bg-black/40'}`}>
-          <div className={`hp-text transition-all duration-300 ${isFatigue ? '!items-start pt-[4px]' : ''}`}>
-            {isFatigue ? (
-              <span className={`text-[15px] text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.8)] font-black origin-top scale-[1.5] ${popDamage ? 'damage-pop-active' : ''}`}>
-                {Math.floor(gameState.totalDamage)}
-              </span>
-            ) : (
-              `${Math.floor(gameState.enemyHp)} / ${gameState.maxEnemyHp}`
-            )}
+      <div className={`absolute top-0 left-0 w-full h-[12px] z-[100] transition-all duration-500 ${showEnemyHpBar ? 'opacity-100' : 'opacity-0'} bg-black/40`}>
+          <div className="hp-text transition-all duration-300">
+            {`${Math.max(0, Math.floor(gameState.enemyHp))} / ${gameState.maxEnemyHp}`}
           </div>
-          {!isFatigue && (
-            <>
               <div className={`absolute inset-0 bg-white opacity-30 z-[1] hp-bar-gpu-layer ${isEnemyHpIntro ? 'hp-buffer-slow' : 'hp-buffer-hit'}`} 
                    style={{ transform: showEnemyHpBar ? (isEnemyHpIntro ? 'scaleX(1)' : `scaleX(${enemyHpPercent})`) : 'scaleX(0)' }} />
               <div className={`absolute inset-0 bg-gradient-to-r from-[#ff0000] to-[#b30000] z-[2] hp-bar-gpu-layer ${isEnemyHpIntro ? 'hp-fill-slow' : 'hp-fill-hit'}`} 
                    style={{ transform: showEnemyHpBar ? (isEnemyHpIntro ? 'scaleX(1)' : `scaleX(${enemyHpPercent})`) : 'scaleX(0)' }} />
-            </>
-          )}
       </div>
 
       {/* 計時器 */}

@@ -1,7 +1,8 @@
 
-// Fix: Added missing React import to resolve namespace error
-import React, { memo, useLayoutEffect, useRef, useState } from 'react';
-import { BossAttackStyle, FlyingSwordAttackConfig, FLYING_SWORD_TIMING } from '../types';
+import React, { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { BossAttackStyle, WeaponLayerConfig, FLYING_SWORD_TIMING, X_SLASH_TIMING } from '../types';
+import { BattleLayout, BattleScene, BattleSceneBox } from '../data/battleLayout';
+import { buildWeave, sampleWeave, WeaveTrack, WEAVE_PERSPECTIVE } from './swordWeave';
 
 interface BattleAreaProps {
   levelId: number;
@@ -9,14 +10,25 @@ interface BattleAreaProps {
   isBossSlashActive: boolean;
   isPlayerSlashActive?: boolean;
   introStage: string;
-  isFatigue: boolean;
   bossName: string;
+  /** 戰鬥立繪（level.battleImg ?? level.bossImg） */
   bossImg: string;
+  /** 篇章背景；與立繪放在同一個場景容器，逐像素對齊（見 BATTLE_SCENES） */
+  bgImg?: string;
   speedMultiplier?: number;
   /** Boss 攻擊演出類型（由 getBossAttackStyle(level) 決定） */
   attackStyle?: BossAttackStyle;
-  /** attackStyle === 'flyingSword' 時的分層素材 */
-  flyingSword?: FlyingSwordAttackConfig;
+  /** attackStyle 為 'flyingSword' / 'xSlash' 時的分層武器素材 */
+  weaponLayers?: WeaponLayerConfig;
+  /** 以人物錨點算出的立繪版面（data/battleLayout.ts）；null 時退回舊的置中＋底部對齊 */
+  layout?: BattleLayout | null;
+  /** 場景落地資料；有則背景 cover 填滿 */
+  scene?: BattleScene | null;
+  /** 由 computeGroundedBattle 算出的背景框（可與立繪不同縮放） */
+  sceneBox?: BattleSceneBox | null;
+  /** 背景攻擊時變暗 */
+  bgDimmed?: boolean;
+  bgDimDuration?: number;
 }
 
 /** 飛劍演出在 BattleArea 根座標系中的幾何（每次攻擊開始時量測） */
@@ -27,7 +39,7 @@ interface FlyGeom {
   vars: Record<string, string>;
 }
 
-/** 玩家側的衝擊點：畫面水平中央、玩家血條（bottom: 40%）上方 */
+/** 飛劍：玩家側的衝擊點（畫面水平中央、玩家血條上方） */
 const IMPACT_X = 0.5;
 const IMPACT_Y = 0.57;
 /** 命中時飛劍放大倍率（飛向鏡頭） */
@@ -37,9 +49,11 @@ const IMPACT_SCALE = 1.6;
 const cssVars = (style: React.CSSProperties & Record<`--${string}`, string | number>) => style as React.CSSProperties;
 const pct = (n: number) => `${(n * 100).toFixed(4)}%`;
 const normDeg = (d: number) => { let r = ((d + 180) % 360 + 360) % 360 - 180; if (r === -180) r = 180; return r; };
+const fpx = (n: number) => `${n.toFixed(2)}px`, fdeg = (n: number) => `${n.toFixed(2)}deg`;
+const prefersReducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /** 依量測結果計算飛劍關鍵影格所需的 CSS 變數 */
-const computeFlyGeom = (root: DOMRect, layer: DOMRect, cfg: FlyingSwordAttackConfig): FlyGeom => {
+const computeFlyGeom = (root: DOMRect, layer: DOMRect, cfg: WeaponLayerConfig): FlyGeom => {
   const s = layer.width / cfg.frameW;
   const left = layer.left - root.left, top = layer.top - root.top;
   const px = left + cfg.pivot.x * s, py = top + cfg.pivot.y * s;
@@ -60,153 +74,201 @@ const computeFlyGeom = (root: DOMRect, layer: DOMRect, cfg: FlyingSwordAttackCon
   // 回程多轉一圈（反向）後回到 0°（以 ±360° 收尾，視覺等同 0°）
   const endRot = rot >= 0 ? 360 : -360;
   const overshoot = rot >= 0 ? -10 : 10;
-  const f = (n: number) => `${n.toFixed(2)}px`, d = (n: number) => `${n.toFixed(2)}deg`;
   return {
     left, top, width: layer.width, height: layer.height, tx, ty,
     vars: {
-      '--fs-pull-x': f(pullX), '--fs-pull-y': f(pullY),
-      '--fs-dx': f(dx), '--fs-dy': f(dy),
-      '--fs-rx': f(dx - ux * dist * 0.03), '--fs-ry': f(dy - uy * dist * 0.03),
-      '--fs-mx': f(mx), '--fs-my': f(my),
-      '--fs-rot': d(rot), '--fs-rot-pre': d(rot + overshoot), '--fs-rot-q1': d(rot - overshoot * 0.35), '--fs-rot-q2': d(rot + overshoot * 0.15),
-      '--fs-rot-mid': d((rot + endRot) / 2), '--fs-rot-end': d(endRot), '--fs-rot-settle': d(endRot + overshoot * 0.3),
+      '--fs-pull-x': fpx(pullX), '--fs-pull-y': fpx(pullY),
+      '--fs-dx': fpx(dx), '--fs-dy': fpx(dy),
+      '--fs-rx': fpx(dx - ux * dist * 0.03), '--fs-ry': fpx(dy - uy * dist * 0.03),
+      '--fs-mx': fpx(mx), '--fs-my': fpx(my),
+      '--fs-rot': fdeg(rot), '--fs-rot-pre': fdeg(rot + overshoot), '--fs-rot-q1': fdeg(rot - overshoot * 0.35), '--fs-rot-q2': fdeg(rot + overshoot * 0.15),
+      '--fs-rot-mid': fdeg((rot + endRot) / 2), '--fs-rot-end': fdeg(endRot), '--fs-rot-settle': fdeg(endRot + overshoot * 0.3),
       '--fs-scale': String(IMPACT_SCALE), '--fs-scale-r': String(IMPACT_SCALE * 0.97), '--fs-scale-mid': String((IMPACT_SCALE + 1) / 2),
     }
   };
 };
 
+/** 李白背影層：原本以 0.62×0.88×畫面高 的立繪為基準位移 (135px, 20px)，改以立繪高度比例表示 */
+const LI_BAI_SHADOW = { w: 1111, h: 1504, dxRatio: 135 / 460.5, dyRatio: 20 / 460.5 };
 
-const BattleArea: React.FC<BattleAreaProps> = memo(({ 
+const BattleArea: React.FC<BattleAreaProps> = memo(({
   levelId,
-  enemyAnim, 
-  isBossSlashActive, 
-  isPlayerSlashActive, 
-  introStage, 
-  isFatigue,
+  enemyAnim,
+  isBossSlashActive,
+  isPlayerSlashActive,
+  introStage,
   bossName,
   bossImg,
+  bgImg,
   speedMultiplier = 1,
   attackStyle = 'swingSlash',
-  flyingSword
+  weaponLayers,
+  layout = null,
+  scene = null,
+  sceneBox: sceneBoxProp = null,
+  bgDimmed = false,
+  bgDimDuration = 400,
 }) => {
   const isCharacterVisible = !['none', 'starting', 'gold_line', 'bg'].includes(introStage);
   const isNameVisible = ['boss_name_show', 'enemy_hp', 'player_hp', 'input_pad', 'ready', 'playing'].includes(introStage);
-
-  const isConfucius = levelId === 6;
-  const isZhugeLiang = levelId === 9;
   const isLiBai = levelId === 11;
-  const isLiuZongyuan = levelId === 2;
-
-  const effectiveBossImg = isLiuZongyuan ? `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan_battle.png` : bossImg;
 
   // 計算動態時間係數，用於縮短動畫時長
   const animScale = speedMultiplier > 1 ? (1 / speedMultiplier) : 1;
 
-  // ---- 飛劍（attackStyle: 'flyingSword'）----
-  const isFlyingSword = attackStyle === 'flyingSword' && !!flyingSword;
-  const isSwordAttack = isFlyingSword && enemyAnim === 'attack';
+  // ---- 分層武器攻擊（'flyingSword' 飛劍直刺／'xSlash' 飛劍穿梭 X 斬）----
+  const isWeaponStyle = (attackStyle === 'flyingSword' || attackStyle === 'xSlash') && !!weaponLayers;
+  const isXSlash = isWeaponStyle && attackStyle === 'xSlash';
+  const isFlyingSword = isWeaponStyle && attackStyle === 'flyingSword';
+  const isSwordAttack = isWeaponStyle && enemyAnim === 'attack';
+  const timing = isXSlash ? X_SLASH_TIMING : FLYING_SWORD_TIMING;
+  const fxTotal = timing.total * animScale;
+  const fxImpact = timing.impact * animScale;
+  const burstDur = 460 * animScale;
   const rootRef = useRef<HTMLDivElement>(null);
   const restFxRef = useRef<HTMLImageElement>(null);
   const [measuredGeom, setMeasuredGeom] = useState<FlyGeom | null>(null);
-  // 攻擊開始的同一影格（繪製前）量測劍在手中的位置，換算成根座標系的飛行路徑
+  const [measuredWeave, setMeasuredWeave] = useState<WeaveTrack | null>(null);
+  // rAF 直接寫入的節點（飛劍、透視容器）
+  const weaveFlyRef = useRef<HTMLDivElement>(null);
+  const weaveStageRef = useRef<HTMLDivElement>(null);
+  /** 本次攻擊的特效是否已播完（播完即卸載所有覆蓋層，不留任何可能擋住點擊的元素） */
+  const [fxDone, setFxDone] = useState(false);
+  // 攻擊開始的同一影格（繪製前）量測劍在手中的位置，換算成根座標系的路徑
   useLayoutEffect(() => {
-    if (!isSwordAttack || !flyingSword) return;
+    if (!isSwordAttack || !weaponLayers) return;
     const root = rootRef.current?.getBoundingClientRect();
     const layer = restFxRef.current?.getBoundingClientRect();
     if (!root || !layer || layer.width === 0) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 量測版面後同步重繪（useLayoutEffect 的標準用途，繪製前完成，不會閃爍）
-    setMeasuredGeom(computeFlyGeom(root, layer, flyingSword));
-  }, [isSwordAttack, flyingSword]);
-  const flyGeom = isSwordAttack ? measuredGeom : null;
-  const fsTotal = FLYING_SWORD_TIMING.total * animScale;
-  const fsImpact = FLYING_SWORD_TIMING.impact * animScale;
+    if (isXSlash) setMeasuredWeave(buildWeave(root, layer, weaponLayers));
+    else setMeasuredGeom(computeFlyGeom(root, layer, weaponLayers));
+    setFxDone(false);
+  }, [isSwordAttack, isXSlash, weaponLayers]);
+  // 演出（含命中爆光）結束後卸載覆蓋層
+  useEffect(() => {
+    if (!isSwordAttack) return;
+    const t = window.setTimeout(() => setFxDone(true), Math.max(fxTotal, fxImpact + burstDur) + 30);
+    return () => window.clearTimeout(t);
+  }, [isSwordAttack, fxTotal, fxImpact, burstDur]);
+  const flyGeom = isSwordAttack && !fxDone && !isXSlash ? measuredGeom : null;
+  const weave = isSwordAttack && !fxDone && isXSlash ? measuredWeave : null;
+  // 飛劍穿梭：rAF 依經過時間查 3D 路徑表，直接寫 transform / opacity（不經 React 重繪）
+  useEffect(() => {
+    if (!weave || prefersReducedMotion()) return;
+    const T = X_SLASH_TIMING;
+    const start = performance.now();
+    let raf = 0;
+
+    const frame = (now: number) => {
+      const t = (now - start) / animScale;              // 換算回 1x 時間軸
+      const v = sampleWeave(weave, t);
+      const fly = weaveFlyRef.current, stage = weaveStageRef.current;
+      if (fly) {
+        // 鏡像時以握柄為軸 scaleX(-1)（最右邊＝最先套用），刀身軸也改用鏡像後的方向
+        const ax = v.m ? weave.axisM : weave.axis, pp = v.m ? weave.perpM : weave.perp;
+        fly.style.transform = `translate3d(${v.tx.toFixed(2)}px, ${v.ty.toFixed(2)}px, ${v.tz.toFixed(1)}px) rotateZ(${v.rz.toFixed(2)}deg) rotate3d(${ax.x.toFixed(4)}, ${ax.y.toFixed(4)}, 0, ${v.bank.toFixed(2)}deg) rotate3d(${pp.x.toFixed(4)}, ${pp.y.toFixed(4)}, 0, ${v.pitch.toFixed(2)}deg) scale(${v.k.toFixed(3)})${v.m ? ' scaleX(-1)' : ''}`;
+        fly.style.opacity = t >= T.total ? '0' : v.op.toFixed(3);
+      }
+      // 遠離鏡頭時改畫在人物後方（穿到他身後），靠近鏡頭時畫在人物與介面之上
+      if (stage) stage.style.zIndex = v.tz < -120 ? '5' : '9002';
+      if (t < T.total + 20) raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, [weave, animScale]);
+
   /** 全幅圖層疊回戰鬥立繪裁切框的定位 */
-  const frameLayerStyle: React.CSSProperties | undefined = flyingSword ? {
+  const frameLayerStyle: React.CSSProperties | undefined = weaponLayers ? {
     position: 'absolute',
-    left: pct(-flyingSword.crop.x / flyingSword.crop.w), top: pct(-flyingSword.crop.y / flyingSword.crop.h),
-    width: pct(flyingSword.frameW / flyingSword.crop.w), height: pct(flyingSword.frameH / flyingSword.crop.h),
+    left: pct(-weaponLayers.crop.x / weaponLayers.crop.w), top: pct(-weaponLayers.crop.y / weaponLayers.crop.h),
+    width: pct(weaponLayers.frameW / weaponLayers.crop.w), height: pct(weaponLayers.frameH / weaponLayers.crop.h),
     maxWidth: 'none', display: 'block', pointerEvents: 'none'
   } : undefined;
   const restFxClass = isSwordAttack ? 'fs-rest-hidden' : '';
-  const restFxAnim: React.CSSProperties = isSwordAttack ? { animationDuration: `${fsTotal}ms` } : {};
-  const renderSwordLayers = (withRef: boolean) => flyingSword && (
+  const restFxAnim: React.CSSProperties = isSwordAttack ? { animationDuration: `${fxTotal}ms` } : {};
+  const renderSwordLayers = (withRef: boolean) => weaponLayers && (
     <>
-      <img ref={withRef ? restFxRef : undefined} src={flyingSword.effectImg} alt="" className={restFxClass} style={{ ...frameLayerStyle, ...restFxAnim }} />
-      <img src={flyingSword.characterImg} alt="" style={frameLayerStyle} />
+      <img ref={withRef ? restFxRef : undefined} src={weaponLayers.effectImg} alt="" className={restFxClass} style={{ ...frameLayerStyle, ...restFxAnim }} />
+      <img src={weaponLayers.characterImg} alt="" style={frameLayerStyle} />
     </>
   );
+  const pivotOrigin = weaponLayers ? `${pct(weaponLayers.pivot.x / weaponLayers.frameW)} ${pct(weaponLayers.pivot.y / weaponLayers.frameH)}` : undefined;
 
-  // 計算立繪的 Transform 樣式
-  const getSpriteTransform = () => {
-    if (isLiuZongyuan) {
-      // 柳宗元：左移 75px (原 65px) + 縮放 0.95x
-      return 'translate3d(-75px, 0, 0) scale(0.95)';
-    }
-    if (isZhugeLiang) {
-      // 諸葛亮：位移（下移 45px，原為 40px） + 縮放微調至 1.15
-      return 'translate3d(-130px, 45px, 0) scale(1.15)';
-    }
-    if (isLiBai) {
-      // 李白：左移 110px + 下移 5px (原上移 0px) + 縮放 1
-      return 'translate3d(-110px, 5px, 0) scale(1)';
-    }
-    if (isConfucius) {
-      // 孔子：縮放 1.2
-      return 'scale(1.2)';
-    }
-    return 'none';
-  };
+  // ---- 立繪版面（人物錨點）＋落地場景（背景與立繪同一 transform）----
+  const imgFill: React.CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', display: 'block', objectFit: 'contain', objectPosition: 'center bottom' };
+  const sceneBox = sceneBoxProp ?? null;
+  const grounded = !!(scene && sceneBox && bgImg);
+  const spriteBoxStyle: React.CSSProperties = layout
+    ? { position: 'absolute', left: layout.left, top: layout.top, width: layout.width, height: layout.height }
+    : { position: 'absolute', left: 0, right: 0, bottom: 3, height: '88%' };
+  const spriteOrigin = layout ? `${layout.centerX}px ${layout.bottomY}px` : 'bottom center';
 
   return (
-    <div ref={rootRef} className="w-full h-full relative" style={{ 
+    <div ref={rootRef} className="w-full h-full relative" style={cssVars({
       overflow: 'visible',
-      ['--anim-scale' as any]: animScale,
-      ['--breathing-duration' as any]: `${4 * animScale}s`,
-      ['--swing-duration' as any]: `${1.6 * animScale}s`,
-      ['--hurt-duration' as any]: `${0.4 * animScale}s`,
-      ['--name-duration' as any]: `${0.6 * animScale}s`
-    }}>
+      '--anim-scale': animScale,
+      '--breathing-duration': `${4 * animScale}s`,
+      '--swing-duration': `${1.6 * animScale}s`,
+      '--hurt-duration': `${0.4 * animScale}s`,
+      '--name-duration': `${0.6 * animScale}s`
+    })}>
       {/* Boss 攻擊特效容器 */}
       {isBossSlashActive && (
-        <div className="absolute inset-0 z-[9000] pointer-events-none overflow-visible">
-          {isFlyingSword ? (
-            flyGeom && (
-              <div className="fs-burst" style={cssVars({ left: flyGeom.tx, top: flyGeom.ty, '--fs-burst-dur': `${460 * animScale}ms` })}>
+        <div className="absolute inset-0 z-[9000] pointer-events-none overflow-visible" aria-hidden="true">
+          {isWeaponStyle ? (
+            weave ? (
+              <div className="fs-burst xs-burst" style={cssVars({ left: weave.cx, top: weave.cy, '--fs-burst-dur': `${burstDur}ms` })}>
+                <div className="fs-burst-core" />
+              </div>
+            ) : flyGeom && (
+              <div className="fs-burst" style={cssVars({ left: flyGeom.tx, top: flyGeom.ty, '--fs-burst-dur': `${burstDur}ms` })}>
                 <div className="fs-burst-core" />
                 <div className="fs-burst-ring" />
                 <div className="fs-burst-streak" />
               </div>
             )
-          ) : !isConfucius ? (
+          ) : attackStyle !== 'chariotCharge' ? (
             <>
-              <div className="slash-line-base boss-slash-line" style={{ '--rot': '-45deg', top: '40%', left: '50%', animationDuration: `${0.5 * animScale}s` } as any} />
-              <div className="slash-line-base boss-slash-line" style={{ '--rot': '45deg', top: '40%', left: '50%', animationDelay: `${0.64 * animScale}s`, animationDuration: `${0.5 * animScale}s` } as any} />
+              <div className="slash-line-base boss-slash-line" style={cssVars({ '--rot': '-45deg', top: '40%', left: '50%', animationDuration: `${0.5 * animScale}s` })} />
+              <div className="slash-line-base boss-slash-line" style={cssVars({ '--rot': '45deg', top: '40%', left: '50%', animationDelay: `${0.64 * animScale}s`, animationDuration: `${0.5 * animScale}s` })} />
             </>
           ) : null}
         </div>
       )}
 
-      {/* 飛劍：在根座標系飛行（不受立繪縮放／位移影響），飛行時畫在角色與介面之上 */}
-      {isSwordAttack && flyGeom && flyingSword && (
-        <div className="absolute inset-0 z-[9001] pointer-events-none overflow-visible" aria-hidden="true">
-          {[{ d: 72, o: 0.16 }, { d: 48, o: 0.28 }, { d: 24, o: 0.45 }].map(g => (
-            <div key={g.d} className="fs-trail" style={cssVars({ '--fs-trail-o': g.o, animationDuration: `${fsTotal}ms` })}>
+      {/* 飛劍穿梭：CSS 3D 透視舞台（透視原點＝X 中心），劍以 translate3d 在 x/y/z 移動 */}
+      {weave && weaponLayers && (
+        <div ref={weaveStageRef} className="absolute inset-0 z-[9002] pointer-events-none overflow-visible" aria-hidden="true"
+          style={{ perspective: `${WEAVE_PERSPECTIVE}px`, perspectiveOrigin: `${weave.ox}px ${weave.oy}px` }}>
+          <div ref={weaveFlyRef} className="xs-fly" style={{
+            left: weave.left, top: weave.top, width: weave.width, height: weave.height,
+            transformOrigin: pivotOrigin, transformStyle: 'preserve-3d', willChange: 'transform, opacity'
+          }}>
+            <img src={weaponLayers.effectImg} alt="" />
+          </div>
+        </div>
+      )}
+
+      {/* 分層武器：在根座標系飛行（不受立繪縮放／位移影響），飛行時畫在角色與介面之上 */}
+      {isSwordAttack && flyGeom && weaponLayers && (
+        <div className="absolute inset-0 z-[9002] pointer-events-none overflow-visible" aria-hidden="true">
+          {isFlyingSword && [{ d: 72, o: 0.16 }, { d: 48, o: 0.28 }, { d: 24, o: 0.45 }].map(g => (
+            <div key={g.d} className="fs-trail" style={cssVars({ '--fs-trail-o': g.o, animationDuration: `${fxTotal}ms` })}>
               <div className="fs-fly fs-ghost" style={{
                 left: flyGeom.left, top: flyGeom.top, width: flyGeom.width, height: flyGeom.height,
-                transformOrigin: `${pct(flyingSword.pivot.x / flyingSword.frameW)} ${pct(flyingSword.pivot.y / flyingSword.frameH)}`,
-                animationDuration: `${fsTotal}ms`, animationDelay: `${g.d * animScale}ms`, ...flyGeom.vars
+                transformOrigin: pivotOrigin, animationDuration: `${fxTotal}ms`, animationDelay: `${g.d * animScale}ms`, ...flyGeom.vars
               } as React.CSSProperties}>
-                <img src={flyingSword.effectImg} alt="" />
+                <img src={weaponLayers.effectImg} alt="" />
               </div>
             </div>
           ))}
           <div className="fs-fly" style={{
             left: flyGeom.left, top: flyGeom.top, width: flyGeom.width, height: flyGeom.height,
-            transformOrigin: `${pct(flyingSword.pivot.x / flyingSword.frameW)} ${pct(flyingSword.pivot.y / flyingSword.frameH)}`,
-            animationDuration: `${fsTotal}ms`, ...flyGeom.vars
+            transformOrigin: pivotOrigin, animationDuration: `${fxTotal}ms`, ...flyGeom.vars
           } as React.CSSProperties}>
-            <img src={flyingSword.effectImg} alt="" />
-            <img src={flyingSword.effectImg} alt="" className="fs-flicker" style={{ transformOrigin: `${pct(flyingSword.pivot.x / flyingSword.frameW)} ${pct(flyingSword.pivot.y / flyingSword.frameH)}` }} />
+            <img src={weaponLayers.effectImg} alt="" />
+            <img src={weaponLayers.effectImg} alt="" className="fs-flicker" style={{ transformOrigin: pivotOrigin }} />
           </div>
         </div>
       )}
@@ -216,40 +278,56 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
           {isPlayerSlashActive && (
             <>
                 <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white opacity-0 animate-[energy-pop_0.4s_cubic-bezier(0.16,1,0.3,1)_forwards]" style={{ boxShadow: '0 0 30px #00f2ff', animationDuration: `${0.4 * animScale}s` }} />
-                <div className="slash-line-base player-slash-line" style={{ '--rot': '-35deg', top: '40%', left: '50%', animationDuration: `${0.5 * animScale}s` } as any} />
+                <div className="slash-line-base player-slash-line" style={cssVars({ '--rot': '-35deg', top: '40%', left: '50%', animationDuration: `${0.5 * animScale}s` })} />
             </>
           )}
       </div>
 
-      {/* 角色層容器 */}
-      <div 
+      {/* 落地場景背景：與立繪共用同一位置／縮放（逐像素對齊岩石／地面）；底層 cover 填滿戰鬥區 */}
+      {grounded && sceneBox && (
+        <div
+          className={`absolute top-0 left-0 w-full h-[62%] z-[0] overflow-hidden pointer-events-none transition-opacity duration-[700ms] ${isCharacterVisible ? 'opacity-100' : 'opacity-0'} ${bgDimmed ? 'bg-attack-dim' : ''}`}
+          style={{ transition: `opacity 0.7s, filter ${bgDimDuration}ms` }}
+          aria-hidden="true"
+        >
+          {/* 場景本體：與立繪同一 left/top/scale（cover 縮放後通常蓋滿戰鬥區；多出的從上方／兩側裁切） */}
+          <div style={{ position: 'absolute', left: sceneBox.left, top: sceneBox.top, width: sceneBox.width, height: sceneBox.height }}>
+            <img src={bgImg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', display: 'block' }} draggable={false} />
+          </div>
+        </div>
+      )}
+
+      {/* 角色層容器（戰鬥區＝畫面上方 62%） */}
+      <div
         className={`absolute top-0 left-0 w-full h-[62%] transition-opacity duration-[1000ms] ${isCharacterVisible ? 'opacity-100' : 'opacity-0'}`}
         style={{ overflow: 'visible', pointerEvents: 'none', transitionDuration: `${1000 * animScale}ms` }}
       >
-        <div 
-          className={`
-            absolute bottom-[3px] left-0 w-full flex flex-col items-center justify-end
-            ${!isFatigue && enemyAnim === 'idle' ? 'enemy-breathing' : 'base-offset'}
-            ${isFatigue ? 'boss-fatigue-anim' : ''}
-          `}
-          style={{ height: '88%', transformOrigin: 'bottom center', willChange: 'transform', zIndex: 10 } as any}
+        <div
+          className={`absolute inset-0 ${enemyAnim === 'idle' ? 'enemy-breathing' : 'base-offset'}`}
+          style={{ transformOrigin: spriteOrigin, willChange: 'transform', zIndex: 10 }}
         >
-          <div 
+          <div
             className={`
-              w-full h-full flex flex-col items-center justify-end
-              ${enemyAnim === 'hurt' ? (isFatigue ? 'fatigue-hurt-anim' : 'hurt-anim-base') : ''}
-              ${enemyAnim === 'attack' ? (isFlyingSword ? 'boss-cast-lean' : attackStyle === 'chariotCharge' ? 'confucius-chariot-charge' : 'enemy-swing-x') : ''}
+              absolute inset-0
+              ${enemyAnim === 'hurt' ? 'hurt-anim-base' : ''}
+              ${enemyAnim === 'attack' ? (isWeaponStyle ? 'boss-cast-lean' : attackStyle === 'chariotCharge' ? 'confucius-chariot-charge' : 'enemy-swing-x') : ''}
             `}
-            style={cssVars({ willChange: 'transform', transformOrigin: 'bottom center', '--cast-duration': `${fsTotal}ms` })}
+            style={cssVars({ willChange: 'transform', transformOrigin: spriteOrigin, '--cast-duration': `${fxTotal}ms` })}
           >
-            {/* 名字標籤 - 保持原位 */}
-            <div 
+            {/* 名字標籤（原樣式；位置改為貼在新版面的頭頂上方，隨立繪一起擺動） */}
+            <div
+              data-boss-name=""
               className="absolute z-[100] pointer-events-none"
-              style={{ 
-                top: '-15%', 
+              style={layout ? {
+                left: layout.headX,
+                top: layout.headY,
+                transform: 'translate3d(-50%, -100%, 0)',
+                willChange: 'transform',
+                zIndex: 100,
+              } : {
+                top: '-15%',
                 left: '50%',
-                transform: `translateX(-50%) translate3d(-50px, ${isFatigue ? '45px' : '35px'}, 0)`,
-                transition: `transform ${0.7 * animScale}s cubic-bezier(0.16, 1, 0.3, 1)`,
+                transform: 'translateX(-50%) translate3d(-50px, 35px, 0)',
                 willChange: 'transform'
               }}
             >
@@ -261,69 +339,63 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
               </div>
             </div>
 
-            <div className="relative h-full flex items-end justify-center" style={{ 
-              width: '100%', 
-              maxWidth: '95%', 
-              filter: isFatigue ? 'grayscale(0.45) brightness(0.6)' : 'none', 
-              transition: `filter ${1.2 * animScale}s ease-in-out`,
-              transform: getSpriteTransform()
+            <div data-boss-sprite="" style={{
+              ...spriteBoxStyle,
             }}>
-              <div className="relative h-full flex items-end justify-center">
-                {/* 李白背影/陰影 */}
-                {isLiBai && (
-                  <div className="absolute inset-0 pointer-events-none flex justify-center items-end" style={{ zIndex: 8, transform: 'translate3d(135px, 20px, 0)' }}>
-                    <img src={`${import.meta.env.BASE_URL}resources/avatar/li_bai/li_bai_shadow.png`} alt="" style={{ height: '100%', width: 'auto', maxWidth: 'none', objectFit: 'contain', opacity: 0.7, filter: 'drop-shadow(0 0 5px rgba(0,0,0,0.5))', display: 'block' }} />
+              {/* 李白背影/陰影 */}
+              {isLiBai && layout && (
+                <img src={`${import.meta.env.BASE_URL}resources/avatar/li_bai/li_bai_shadow.png`} alt="" style={{
+                  position: 'absolute', zIndex: 8, maxWidth: 'none', display: 'block', opacity: 0.7, filter: 'drop-shadow(0 0 5px rgba(0,0,0,0.5))',
+                  height: layout.height * (LI_BAI_SHADOW.h / layout.anchor.h), width: layout.height * (LI_BAI_SHADOW.h / layout.anchor.h) * (LI_BAI_SHADOW.w / LI_BAI_SHADOW.h),
+                  left: layout.width / 2 - layout.height * (LI_BAI_SHADOW.h / layout.anchor.h) * (LI_BAI_SHADOW.w / LI_BAI_SHADOW.h) / 2 + layout.height * LI_BAI_SHADOW.dxRatio,
+                  top: layout.height - layout.height * (LI_BAI_SHADOW.h / layout.anchor.h) + layout.height * LI_BAI_SHADOW.dyRatio,
+                }} />
+              )}
+              {isWeaponStyle ? (
+                <>
+                  {/* 分層立繪：effect（劍＋火焰）在下、character 在上，靜止時與戰鬥立繪相同；攻擊時手中的劍隱藏、改由飛行層演出 */}
+                  <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)' }}>
+                    {renderSwordLayers(false)}
                   </div>
-                )}
-                {isFlyingSword ? (
-                  <>
-                    {/* 分層立繪：effect（劍＋火焰）在下、character 在上，靜止時與戰鬥立繪逐像素相同；攻擊時手中的劍隱藏、改由飛劍層演出 */}
-                    <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)' }}>
-                      {renderSwordLayers(false)}
-                    </div>
-                    {/* 以原戰鬥立繪撐出版面尺寸（不顯示） */}
-                    <img src={effectiveBossImg} alt={bossName} style={{ height: '100%', width: 'auto', maxWidth: 'none', objectFit: 'contain', display: 'block', position: 'relative', visibility: 'hidden' }} />
-                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10, filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.8))' }}>
-                      {renderSwordLayers(true)}
-                      {isSwordAttack && <img src={flyingSword!.effectImg} alt="" className="fs-reduced-flash" style={{ ...frameLayerStyle, animationDuration: `${fsImpact + 200 * animScale}ms` }} />}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="absolute inset-0 pointer-events-none flex justify-center items-end" style={{ opacity: 0.6, zIndex: 5 }}>
-                       <img src={effectiveBossImg} alt="" style={{ height: '100%', width: 'auto', maxWidth: 'none', objectFit: 'contain', filter: 'drop-shadow(0 0 15px #ff0000)', display: 'block' }} />
-                    </div>
-                    <img src={effectiveBossImg} alt={bossName} style={{ height: '100%', width: 'auto', maxWidth: 'none', objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.8))', display: 'block', position: 'relative', zIndex: 10 }} />
-                  </>
-                )}
-                
-                <div className={`absolute inset-0 pointer-events-none flex justify-center items-end ${enemyAnim === 'hurt' ? 'hurt-flash-active' : 'opacity-0'}`} style={{ zIndex: 16 }}>
-                  <div style={{
-                    height: '100%', width: '100%', backgroundColor: '#ff0000', 
-                    maskImage: `url("${effectiveBossImg}")`, maskSize: 'contain', maskRepeat: 'no-repeat', maskPosition: 'center bottom', 
-                    WebkitMaskImage: `url("${effectiveBossImg}")`, WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center bottom'
-                  }} />
-                </div>
+                  <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10, filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.8))' }} role="img" aria-label={bossName}>
+                    {renderSwordLayers(true)}
+                    {isSwordAttack && <img src={weaponLayers!.effectImg} alt="" className="fs-reduced-flash" style={{ ...frameLayerStyle, animationDuration: `${fxImpact + 200 * animScale}ms` }} />}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <img src={bossImg} alt="" style={{ ...imgFill, opacity: 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)' }} />
+                  <img src={bossImg} alt={bossName} style={{ ...imgFill, zIndex: 10, filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.8))' }} />
+                </>
+              )}
+
+              <div className={`absolute inset-0 pointer-events-none ${enemyAnim === 'hurt' ? 'hurt-flash-active' : 'opacity-0'}`} style={{ zIndex: 16 }}>
+                <div style={{
+                  height: '100%', width: '100%', backgroundColor: '#ff0000',
+                  maskImage: `url("${bossImg}")`, maskSize: 'contain', maskRepeat: 'no-repeat', maskPosition: 'center bottom',
+                  WebkitMaskImage: `url("${bossImg}")`, WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center bottom'
+                }} />
               </div>
             </div>
           </div>
         </div>
 
         <style>{`
-          @keyframes enemyBreath { 
-            0%, 100% { transform: translate3d(50px, 8px, 0) scale(1); } 
-            50% { transform: translate3d(50px, 0px, 0) scale(1.01); } 
+
+          @keyframes enemyBreath {
+            0%, 100% { transform: translate3d(0, 8px, 0) scale(1); }
+            50% { transform: translate3d(0, 0px, 0) scale(1.01); }
           }
           .enemy-breathing { animation: enemyBreath var(--breathing-duration) cubic-bezier(0.445, 0.05, 0.55, 0.95) infinite; }
 
-          @keyframes swing-attack-x { 
-            0% { transform: translate3d(0, 0, 0) scale(1) rotate(0); } 
-            25% { transform: translate3d(100px, -128px, 0) scale(0.8) rotate(-14deg); } 
-            40% { transform: translate3d(-110px, 132px, 0) scale(1.4) rotate(22deg); } 
+          @keyframes swing-attack-x {
+            0% { transform: translate3d(0, 0, 0) scale(1) rotate(0); }
+            25% { transform: translate3d(100px, -128px, 0) scale(0.8) rotate(-14deg); }
+            40% { transform: translate3d(-110px, 132px, 0) scale(1.4) rotate(22deg); }
             50% { transform: translate3d(0, 0, 0) scale(1.02) rotate(0); }
-            68% { transform: translate3d(-115px, -133px, 0) scale(0.78) rotate(7deg); } 
+            68% { transform: translate3d(-115px, -133px, 0) scale(0.78) rotate(7deg); }
             80% { transform: translate3d(125px, 147px, 0) scale(1.5) rotate(-12deg); }
-            100% { transform: translate3d(0, 0, 0) scale(1) rotate(0); } 
+            100% { transform: translate3d(0, 0, 0) scale(1) rotate(0); }
           }
           .enemy-swing-x { animation: swing-attack-x var(--swing-duration) cubic-bezier(0.1, 0.8, 0.2, 1) forwards; }
 
@@ -336,13 +408,13 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
           }
           .confucius-chariot-charge { animation: confucius-chariot-charge-anim var(--swing-duration) cubic-bezier(0.15, 0, 0.2, 1) forwards; }
 
-          @keyframes shake-hurt-triple { 
-            0%, 100% { transform: translate3d(0, 0, 0) rotate(0); } 
-            15% { transform: translate3d(-24px, 0, 0) rotate(-2deg); } 
-            30% { transform: translate3d(24px, 0, 0) rotate(2deg); } 
-            45% { transform: translate3d(-18px, 0, 0) rotate(-1.5deg); } 
-            60% { transform: translate3d(18px, 0, 0) rotate(1.5deg); } 
-            75% { transform: translate3d(-8px, 0, 0) rotate(-0.5deg); } 
+          @keyframes shake-hurt-triple {
+            0%, 100% { transform: translate3d(0, 0, 0) rotate(0); }
+            15% { transform: translate3d(-24px, 0, 0) rotate(-2deg); }
+            30% { transform: translate3d(24px, 0, 0) rotate(2deg); }
+            45% { transform: translate3d(-18px, 0, 0) rotate(-1.5deg); }
+            60% { transform: translate3d(18px, 0, 0) rotate(1.5deg); }
+            75% { transform: translate3d(-8px, 0, 0) rotate(-0.5deg); }
           }
           .hurt-anim-base { animation: shake-hurt-triple var(--hurt-duration) cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
 
@@ -407,6 +479,8 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
           /* 玩家側命中：白熱核心＋火環＋橫向光痕 */
           .fs-burst { position: absolute; width: 0; height: 0; }
           .fs-burst > div { position: absolute; left: 0; top: 0; will-change: transform, opacity; }
+          /* 飛劍穿梭：命中只留一個較小的白熱閃光 */
+          .xs-burst .fs-burst-core { width: 130px; height: 130px; margin: -65px 0 0 -65px; }
           .fs-burst-core { width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%;
             background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,230,160,0.95) 18%, rgba(255,140,40,0.7) 40%, rgba(255,60,0,0) 70%);
             animation: fs-burst-core-anim var(--fs-burst-dur) cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -432,6 +506,17 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
             .fs-burst-ring, .fs-burst-streak { display: none; }
           }
           .text-shadow-sm { text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.5); }
+
+          /* ===== 飛劍穿梭 X 斬（attackStyle: 'xSlash'）=====
+             動作由 components/swordWeave.ts 的 3D 曲線＋rAF 驅動（只寫 transform / opacity），這裡只放靜態樣式與減少動態的替代 */
+          .xs-fly { position: absolute; }
+          .xs-fly img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; display: block;
+            /* 只在飛行時：暖色外光＋深橙描邊，飛過白色選字盤時火焰仍清楚（不是斬痕） */
+            filter: drop-shadow(0 0 2px rgba(150, 40, 0, 0.85)) drop-shadow(0 0 7px rgba(255, 120, 20, 0.75)); }
+          /* 減少動態：劍不離手，命中時只有 App 的閃光（不震屏） */
+          @media (prefers-reduced-motion: reduce) {
+            .xs-fly { display: none !important; }
+          }
         `}</style>
       </div>
     </div>

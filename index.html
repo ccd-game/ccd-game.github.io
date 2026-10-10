@@ -257,25 +257,8 @@
             100% { transform: translate3d(120px, 450px, 0) rotate(180deg) scale(0.6); opacity: 0; filter: brightness(0.2); }
         }
 
-        .base-offset { transform: translate3d(50px, 8px, 0); }
-        @keyframes fatigue-loop {
-            0%, 100% { transform: translate3d(50px, 8px, 0) rotate(0deg); }
-            50% { transform: translate3d(50px, 18px, 0) rotate(2.5deg); }
-        }
-        .boss-fatigue-anim { animation: fatigue-loop 5s ease-in-out infinite; }
-        @keyframes fatigue-shake-hurt {
-            0%, 100% { transform: translate3d(0, 0, 0) rotate(0); filter: brightness(1); }
-            15% { transform: translate3d(-15px, -2px, 0) rotate(-4deg); filter: brightness(2); }
-            35% { transform: translate3d(20px, 2px, 0) rotate(6deg); }
-        }
-        .fatigue-hurt-anim { animation: fatigue-shake-hurt 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
-
-        @keyframes damage-number-pop {
-            0% { transform: scale(1.5) translateY(0); filter: brightness(1); }
-            30% { transform: scale(1.75) translateY(2px); filter: brightness(2.5); }
-            100% { transform: scale(1.5) translateY(0); filter: brightness(1); }
-        }
-        .damage-pop-active { animation: damage-number-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        /* Boss 立繪水平位置由 data/battleLayout.ts 依人物錨點計算，這裡只保留垂直呼吸位移 */
+        .base-offset { transform: translate3d(0, 8px, 0); }
 
         .input-pad-grid {
             display: grid;
@@ -455,7 +438,22 @@
         }
 
         /* 英雄區 */
-        .home-hero { height: clamp(350px, 51dvh, 450px); background: var(--ink); color: var(--paper); isolation: isolate; }
+        .home-hero { height: 100%; background: var(--ink); color: var(--paper); isolation: isolate; }
+        /* 落地場景：背景＋立繪同一容器；大小取「寬度比例」與「塞進篇名區高度」之較小者；地面線對齊篇名區下緣 */
+        .home-hero { container-type: size; }
+        .home-scene {
+            --s: min(calc(var(--k) * 100cqw / var(--W)), calc((100cqh - var(--ui, 190px) - 20px) / var(--span)));
+            position: absolute; width: calc(var(--s) * var(--W)); height: calc(var(--s) * var(--H));
+            left: clamp(calc(100cqw - var(--s) * var(--W)), calc(var(--X) * 100cqw - var(--s) * var(--ax)), 0px);
+            top: calc(100cqh - var(--ui, 190px) - var(--s) * var(--foot));
+        }
+        .home-scene-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; }
+        .home-scene-fig { position: absolute; }
+        .home-scene-bg { -webkit-mask-image: linear-gradient(180deg, transparent, #000 24%); mask-image: linear-gradient(180deg, transparent, #000 24%); }
+        .home-hero-bg.is-under-scene { filter: blur(8px); }
+        @keyframes homeSceneBreathe { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.01); } }
+        .home-scene-breathe { animation: homeSceneBreathe 4.5s ease-in-out infinite; }
+        .home-fig-stage { position: absolute; top: 0; left: 0; width: 100%; aspect-ratio: 39 / 47; max-height: 100%; }
         .home-hero-bg { filter: brightness(.62) saturate(.85) contrast(1.05); }
         .home-hero-wash {
             background:
@@ -487,6 +485,21 @@
             text-shadow: 0 2px 0 rgba(0,0,0,.55), 0 0 22px rgba(212,175,55,.28);
             padding: 6px 10px 6px 0; border-right: 1px solid rgba(212,175,55,.45);
         }
+        /* 直排篇名底下的柔焦層：只模糊背後的畫面，背景全透明、無暗色；四邊以遮罩羽化，沒有硬邊。
+           不支援 backdrop-filter 的瀏覽器：此層完全透明、不影響版面，篇名維持原樣（原有文字陰影仍在）。 */
+        .home-vtitle-wrap { position: relative; display: flex; max-height: 100%; }
+        /* 左側不羽化：柔焦一路延伸到螢幕左緣（英雄區 overflow:hidden 會切齊），看不到起始線；右側與上下仍羽化 */
+        .home-vtitle-blur {
+            position: absolute; inset: -32px -90px -32px -20px; pointer-events: none; /* 左緣正好是螢幕左緣（篇名區左內距 20px） */
+            min-height: 220px; /* 短篇名（如「師說」）也有足夠的柔焦範圍，平均掉背後的亮部 */
+            background: transparent;
+            -webkit-backdrop-filter: blur(var(--vt-blur, 40px)); backdrop-filter: blur(var(--vt-blur, 40px));
+            -webkit-mask-image: linear-gradient(90deg, #000, #000 calc(100% - 64px), transparent), linear-gradient(180deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+            -webkit-mask-composite: source-in;
+            mask-image: linear-gradient(90deg, #000, #000 calc(100% - 64px), transparent), linear-gradient(180deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+            mask-composite: intersect;
+        }
+        .home-vtitle-wrap > .home-vtitle { position: relative; }
         .home-chapter-no { font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: 4px; color: var(--gilt); text-shadow: 0 1px 2px #000, 0 0 10px rgba(0,0,0,.9); }
         .home-quote { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--paper); text-shadow: 0 1px 6px rgba(0,0,0,.8); }
         .home-seal {
@@ -541,8 +554,50 @@
         .home-lv-num, .home-lv-label, .home-coin-label, .home-meter-label, .home-vtitle, .home-chapter-no, .home-seal,
         .home-cta, .home-section-title, .home-slip-no, .home-slip-title { font-synthesis: none; }
 
+        /* 首頁：預覽占滿，十二篇章入口為底部抽屜 */
+        .home-dungeon { --bar-h: 52px; position: relative; height: 100%; overflow: hidden; }
+        .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--bar-h); }
+        .home-drawer {
+            position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column;
+            background: var(--home-surface); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
+            transform: translate3d(0, calc(100% - var(--bar-h)), 0);
+            transition: transform .42s cubic-bezier(.22,.8,.24,1);
+            will-change: transform;
+        }
+        .home-drawer.is-open { transform: translate3d(0, 0, 0); }
+        .home-drawer-bar {
+            flex: 0 0 var(--bar-h); display: flex; align-items: center; gap: 10px; padding: 6px 18px 0 20px; position: relative;
+            border-top: 1px solid var(--home-line); color: var(--home-text); text-align: left; cursor: pointer;
+        }
+        .home-drawer-bar::before { content: ''; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--home-muted); opacity: .5; }
+        .home-drawer-bar .home-section-meta { margin-left: auto; }
+        .home-drawer-chev { display: flex; color: var(--home-accent); transition: transform .42s cubic-bezier(.22,.8,.24,1); }
+        .home-drawer.is-open .home-drawer-chev { transform: rotate(180deg); }
+        .home-drawer-list {
+            flex: 1 1 auto; min-height: 0; display: grid; grid-template-rows: repeat(12, minmax(0, 1fr)); grid-template-columns: minmax(0, 1fr); gap: 4px;
+            padding: 2px 16px 10px; container-type: size; container-name: drawer;
+            transition: opacity .3s ease;
+        }
+        .home-drawer:not(.is-open) .home-drawer-list { opacity: 0; }
+        .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }
+        .home-drawer-list .home-slip { flex: 1; min-width: 0; min-height: 0; padding: 0 8px 0 0; }
+        .home-drawer-list .home-slip-no { width: 50px; letter-spacing: 0; font-size: clamp(12px, 2.6cqh, 14px); }
+        .home-drawer-list .home-slip-title, .home-drawer-list .home-slip-sub { display: block; white-space: nowrap; overflow: visible; text-overflow: clip; padding-left: 8px; }
+        .home-drawer-list .home-slip-title { font-size: clamp(12.5px, 3.1cqh, 16px); line-height: 1.25; }
+        .home-drawer-list .home-slip-sub { line-height: 1.25; }
+        .home-drawer-list .home-slip-face, .home-drawer-list .home-slip-lock { width: auto; height: min(40px, calc((100cqh - 56px) / 12 - 8px)); aspect-ratio: 1; }
+        .home-drawer-list .home-slip-lock { transform: none; align-items: center; justify-content: center; }
+        .home-drawer-list .home-slip-lock svg { width: 70%; height: 70%; }
+        /* 矮螢幕（列高 < 約 42px）：篇名與作者仍分兩行，行高收緊、作者縮小 */
+        @container drawer (max-height: 560px) {
+            .home-drawer-list .home-slip-title { line-height: 1.15; letter-spacing: 1px; }
+            .home-drawer-list .home-slip-sub { margin-top: 0; font-size: 10px; line-height: 1.15; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
-            .home-breathe, .home-embers span { animation: none !important; }
+            .home-drawer, .home-drawer-chev { transition: none !important; }
+            .home-drawer-list { transition: opacity .15s linear; }
+            .home-breathe, .home-scene-breathe, .home-embers span { animation: none !important; }
             .home-meter-fill, .home-slip, .home-nav-icon { transition: none !important; }
         }
     </style>

@@ -1,17 +1,46 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { LevelConfig } from '../../types';
 import { portraitKey } from '../../data/portraits';
 import { anchorStyle, chapterLabel, faceCircleStyle, type Target } from './heroUtils';
 import { useGyroParallax, type GyroLayer } from './useGyroParallax';
 
-/** 英雄區立繪目標：臉約佔畫面高 7.5%，偏右；個別寬幅立繪微調 */
+/**
+ * 英雄區立繪目標（相對於立繪框 .home-fig-stage：寬 100%、高寬比 47:39，置頂；
+ * 以寬度決定大小，英雄區變高時立繪不會跟著放大）。臉約佔框高 7%，偏右；個別寬幅立繪微調。
+ */
 const HERO_TARGET: Record<string, Target> = {
   default: { faceH: 0.07, eyeY: 0.2, faceX: 0.17 },
-  liu_zong_yuan: { faceH: 0.056, eyeY: 0.17, faceX: 0.26 }, // 縮小右移，讓左方飛劍完整入框
+  liu_zong_yuan: { faceH: 0.0487, eyeY: 0.168, faceX: 0.074 }, // 人物為主：整個身體入框、靠左置中；伸出的手與飛劍落在篇名下方（可被裁）
   kong_zi: { faceH: 0.06, eyeY: 0.3, faceX: 0.2 },
   zhu_ge_liang: { faceH: 0.06, eyeY: 0.17, faceX: 0.17 },
 };
+/**
+ * 落地場景：背景與立繪放在同一個容器（同一個 transform），人物坐／站在畫中的岩石或地面上，不會浮空。
+ * 單位皆為背景原圖像素。fig＝立繪在背景中的位置框（柳宗元、孔子的立繪與背景同尺寸、逐像素對齊，即整張）；
+ * ax＝要放在英雄區寬度 X 處的水平錨點（身體中線）；head／foot＝畫面需完整露出的上緣與「地面線」，
+ * 地面線對齊篇名區下緣（即「第 N 回」上方），腳下的岩石／地面自然延伸到下方文字區；
+ * k＝場景寬／英雄區寬（以寬度決定大小），英雄區太矮時改以 head–foot 塞進可用高度為準（取較小者）；
+ * 水平位置在不露出場景左右邊的範圍內盡量接近 X（露邊時才以鏡射延伸補滿，上方天空亦同）；
+ * breathe＝呼吸縮放原點（立繪框百分比，坐處／腳底，雙腳不動）。
+ */
+interface HeroScene { bg: string; w: number; h: number; fig: [number, number, number, number]; ax: number; X: number; head: number; foot: number; k: number; breathe: string }
+const BG = `${import.meta.env.BASE_URL}resources/background`;
+const HERO_SCENES: Record<string, HeroScene> = {
+  // 坐於岩上，放大約兩成（場景含背景一起放大，地面線不動）；身體中線 53%，軀幹在篇名右側、右袖在印章之上；飛劍在篇名後方被柔焦或出框（首頁預覽不需顯示飛劍）
+  liu_zong_yuan: { bg: `${BG}/bg_level_2.png`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 844, X: 0.53, head: 19, foot: 650, k: 1.62, breathe: '64.8% 79.9%' },
+  // 坐於車中，放大約一成半；車輪著地，馬匹向右出框
+  kong_zi: { bg: `${BG}/bg_level_6.jpeg`, w: 1408, h: 768, fig: [0, 0, 1408, 768], ax: 616, X: 0.53, head: 17, foot: 705, k: 2.28, breathe: '50% 92%' },
+  // 立於殿前木棧（欄杆右側的地板），雙足踏地
+  zhu_ge_liang: { bg: `${BG}/bg_level_9.jpeg`, w: 1408, h: 768, fig: [860, 140, 320, 560], ax: 1020, X: 0.52, head: 152, foot: 712, k: 2.31, breathe: '50% 99%' },
+  // 立於月下岩台
+  li_bai: { bg: `${BG}/bg_level_11_1.png`, w: 2760, h: 1504, fig: [804, 270, 985, 900], ax: 1380, X: 0.5, head: 329, foot: 1200, k: 2.97, breathe: '50% 100%' },
+};
+// 本體與左、右、下方的鏡像延伸（上方不鏡射，以免倒掛的山峰；改以上緣羽化接到底層柔焦的同一張背景）
+const SCENE_TILES: [number, number][] = [0, 1].flatMap(j => [-1, 0, 1].map(i => [i, j] as [number, number]));
+const sceneVars = (sc: HeroScene) => ({ '--W': sc.w, '--H': sc.h, '--ax': sc.ax, '--X': sc.X, '--head': sc.head, '--foot': sc.foot, '--span': sc.foot - sc.head, '--k': sc.k }) as React.CSSProperties;
+const pct = (v: number, of: number) => `${(v / of) * 100}%`;
+
 /** 輪播頭像：臉（額頂至下巴）佔圓框內徑 50%（含 2px 邊框的外徑約 45%），置中，露出部分頭髮／帽 */
 const THUMB_FACE = 0.5;
 
@@ -57,6 +86,18 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
   ], []);
   useGyroParallax(heroRef, gyroLayers);
 
+  // 地面線＝篇名區下緣：量一次（尺寸改變時再量），寫入 CSS 變數 --ui（英雄區底至篇名區下緣的距離）
+  const titleBoxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const hero = heroRef.current, box = titleBoxRef.current;
+    if (!hero || !box || typeof ResizeObserver === 'undefined') return;
+    const sync = () => { hero.style.setProperty('--ui', `${Math.round(hero.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom)}px`); };
+    const ro = new ResizeObserver(sync);
+    ro.observe(hero); ro.observe(box);
+    sync();
+    return () => ro.disconnect();
+  }, []);
+
   const go = (step: number) => {
     setDir(step);
     const next = featured[(idx + step + featured.length) % featured.length];
@@ -82,6 +123,7 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
   const titleChars = useMemo(() => Array.from(title), [title]);
   const key = portraitKey(level.bossImg);
   const figTarget = HERO_TARGET[key] || HERO_TARGET.default;
+  const scene = HERO_SCENES[key];
 
   const d = dir;
 
@@ -107,7 +149,7 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0.2 : 0.9, ease: [0.2, 0.8, 0.2, 1] }}
         >
-          <img src={level.bgImg} alt="" className="w-full h-full object-cover home-hero-bg" draggable={false} />
+          <img src={level.bgImg} alt="" className={`w-full h-full object-cover home-hero-bg ${scene ? 'is-under-scene' : ''}`} draggable={false} />
         </motion.div>
       </AnimatePresence>
       </div>
@@ -126,9 +168,31 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
           exit={{ opacity: 0, x: reduce ? 0 : -30 * d }}
           transition={{ duration: reduce ? 0.2 : 0.7, ease: [0.2, 0.8, 0.2, 1] }}
         >
-          <div className={`absolute inset-0 ${reduce ? '' : 'home-breathe'}`}>
-            <img src={level.bossImg} alt={level.bossName} style={anchorStyle(level.bossImg, figTarget)} className="home-hero-fig" draggable={false} />
-          </div>
+          {scene ? (
+            <>
+              {/* 場景拆成兩個同幾何的容器（同一個父層、同一個 transform，逐像素對齊）：
+                  背景 → 墨色收邊（篇名可讀）→ 立繪；收邊只壓背景，不壓人物 */}
+              <div className="home-scene" style={sceneVars(scene)}>
+                {/* 背景本體＋左右下鏡像延伸：場景比英雄區小時，以鏡射接續畫面，接縫連續、沒有硬邊 */}
+                {SCENE_TILES.map(([i, j]) => (
+                  <img key={`${i}${j}`} src={scene.bg} alt="" className="home-scene-layer home-scene-bg" draggable={false}
+                    style={i || j ? { left: `${i * 100}%`, top: `${j * 100}%`, transform: `scale(${i ? -1 : 1}, ${j ? -1 : 1})` } : undefined} />
+                ))}
+              </div>
+              <div className="absolute inset-0 home-hero-wash" />
+              <div className="home-scene" style={sceneVars(scene)}>
+                <div className="home-scene-fig" style={{ left: pct(scene.fig[0], scene.w), top: pct(scene.fig[1], scene.h), width: pct(scene.fig[2], scene.w), height: pct(scene.fig[3], scene.h) }}>
+                  <div className={`home-scene-layer ${reduce ? '' : 'home-scene-breathe'}`} style={{ transformOrigin: scene.breathe }}>
+                    <img src={level.bossImg} alt={level.bossName} className="home-scene-layer" draggable={false} />
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className={`home-fig-stage ${reduce ? '' : 'home-breathe'}`}>
+              <img src={level.bossImg} alt={level.bossName} style={anchorStyle(level.bossImg, figTarget)} className="home-hero-fig" draggable={false} />
+            </div>
+          )}
         </motion.div>
       </AnimatePresence>
       </div>
@@ -145,7 +209,10 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
 
       {/* 文字層 */}
       <div className="relative z-10 h-full flex flex-col px-5 pt-5 pb-5">
-        <div className="flex-1 flex items-start gap-3 min-h-0 home-vtitle-box" style={{ '--n': titleChars.length } as React.CSSProperties}>
+        <div ref={titleBoxRef} className="flex-1 flex items-center gap-3 min-h-0 home-vtitle-box" style={{ '--n': titleChars.length } as React.CSSProperties}>
+          <div className="home-vtitle-wrap">
+          {/* 標題底下的柔焦層：只模糊背後的畫面（backdrop-filter），不加任何暗色；邊緣以遮罩淡出 */}
+          <div className="home-vtitle-blur" aria-hidden="true" />
           <AnimatePresence mode="wait" initial={false}>
             <motion.h2
               key={`t-${level.id}`}
@@ -158,6 +225,7 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
               {title}
             </motion.h2>
           </AnimatePresence>
+          </div>
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
