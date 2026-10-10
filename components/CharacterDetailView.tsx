@@ -1,5 +1,6 @@
 import React from 'react';
 import { CHARACTER_DETAILS } from '../data/characters';
+import { portraitStyle } from '../data/portraits';
 
 export interface CharacterDetailProps {
   char: {
@@ -15,37 +16,8 @@ export interface CharacterDetailProps {
 const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) => {
   const detailData = CHARACTER_DETAILS[char.id];
   
-  const isLiuZongyuan = char.id === 2;
-  const isConfucius = char.id === 6;
-  const isZhugeLiang = char.id === 9;
-  const isLiBai = char.id === 12;
-  
-  // 針對 ID 09 諸葛亮進行精確調整
-  // 依照要求，將 baseScale 從 1.0 調整至 1.05
-  const baseScale = isConfucius ? 2.3 : (isLiBai ? 1.35 : (isZhugeLiang ? 1.05 : 1.75)); 
-  const yOffset = isConfucius ? 118 : (isLiBai ? 120 : (isZhugeLiang ? 85 : 95)); 
-  
-  let xOffset = 15;
-  if (isLiuZongyuan) xOffset = -40; 
-  if (isLiBai) xOffset = -35; 
-  if (isConfucius) xOffset = 10; 
-  // 配合 1.05 縮放略微調整水平位移以保持視覺平衡
-  if (isZhugeLiang) xOffset = 22; 
-  
-  const slideAnimName = 'characterSlideIn';
   const animDuration = '2.5s';
   const animTiming = 'cubic-bezier(0.19, 1, 0.22, 1)';
-
-  const finalX = `${xOffset}px`;
-  const finalY = `${yOffset + 24}px`; 
-  const finalScale = baseScale;
-  const finalRotate = "0.001deg";
-  
-  const staticTargetTransform = `scale(${finalScale}) translate3d(${finalX}, ${finalY}, 0)`;
-  
-  // 針對諸葛亮調整遮罩範圍
-  const maskStart = isZhugeLiang ? '80%' : (isLiBai ? '40%' : (isConfucius ? '50%' : '60%'));
-  const maskEnd = isZhugeLiang ? '95%' : (isLiBai ? '70%' : (isConfucius ? '70%' : '75%'));
 
   return (
     <div className="flex-1 flex flex-col animate-[fadeIn_0.5s_ease-out_forwards] overflow-y-auto overflow-x-hidden custom-scrollbar relative" style={{ backgroundColor: 'var(--app-bg)' }}>
@@ -90,29 +62,40 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
            </span>
          </div>
 
-         <img 
-           src={char.img} 
-           alt="" 
-           draggable="false"
-           className="h-[120%] w-auto object-contain filter drop-shadow(0 15px 30px rgba(0,0,0,0.3)) pointer-events-none"
-           style={{ 
-             transformOrigin: 'bottom center',
+         {/* 立繪：以臉部錨點統一定位；淡出遮罩依立繪區高度計算，確保名字下方無人物 */}
+         <div
+           className="absolute inset-0 overflow-hidden pointer-events-none"
+           style={{
              zIndex: 10,
-             willChange: 'transform, opacity, -webkit-mask-image, mask-image',
-             animation: `
-                ${slideAnimName} ${animDuration} ${animTiming} forwards, 
-                maskReveal ${animDuration} linear forwards,
-                floatDetail 6.5s ease-in-out infinite ${animDuration}
-             `
+             WebkitMaskImage: 'linear-gradient(to bottom, black 62%, transparent 96%)',
+             maskImage: 'linear-gradient(to bottom, black 62%, transparent 96%)',
            }}
-         />
+         >
+           <div
+             className="absolute inset-0"
+             style={{ animation: `characterSlideIn ${animDuration} ${animTiming} forwards`, willChange: 'transform, opacity' }}
+           >
+             <div
+               className="absolute inset-0"
+               style={{ transformOrigin: '50% 100%', animation: `floatDetail 6.5s ease-in-out infinite ${animDuration}`, willChange: 'transform' }}
+             >
+               <img
+                 src={char.img}
+                 alt=""
+                 draggable="false"
+                 className="filter drop-shadow(0 15px 30px rgba(0,0,0,0.3)) pointer-events-none"
+                 style={portraitStyle(char.img, 'inner')}
+               />
+             </div>
+           </div>
+         </div>
          
          <div className="absolute inset-0 z-15 bg-gradient-to-b from-transparent via-transparent to-[var(--app-bg)] pointer-events-none"></div>
       </div>
 
       <div className="relative z-20 px-5 flex flex-col gap-0.5 pb-12" style={{ marginTop: '-12px' }}>
         <div className="text-center">
-          <h2 className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', fontFamily: "'LXGW WenKai Mono TC', serif" }}>{char.name}</h2>
+          <h2 className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', fontFamily: "'LXGW WenKai Mono TC', serif", textShadow: '0 0 2px var(--app-bg), 0 0 8px var(--app-bg), 0 0 16px var(--app-bg)' }}>{char.name}</h2>
           <p className="text-[var(--gold-accent)] font-bold tracking-[3px] text-[11px] mb-1">{char.title}</p>
           <div className="w-8 h-[1px] bg-[var(--gold-accent)] mx-auto mb-1 opacity-20"></div>
           <p className="text-[10.5px] leading-snug text-left opacity-75 mb-0" style={{ color: 'var(--text-sub)' }}>
@@ -163,38 +146,15 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
       </div>
 
       <style>{`
-        @keyframes maskReveal {
-          0%, 100% {
-            -webkit-mask-image: linear-gradient(to bottom, black ${maskStart}, transparent ${maskEnd});
-            mask-image: linear-gradient(to bottom, black ${maskStart}, transparent ${maskEnd});
-          }
+        @keyframes characterSlideIn {
+          0% { transform: translate3d(-220px, 0, 0) scale(0.85); opacity: 0; }
+          80% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+          100% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
         }
 
-        @keyframes characterSlideIn {
-          0% { 
-            transform: scale(${finalScale * 0.85}) translate3d(${xOffset - 220}px, ${finalY}, 0) rotate(0deg); 
-            opacity: 0;
-          }
-          80% {
-            transform: scale(${finalScale}) translate3d(${finalX}, ${finalY}, 0) rotate(0deg);
-            opacity: 1;
-          }
-          100% { 
-            transform: ${staticTargetTransform} rotate(${finalRotate}); 
-            opacity: 1;
-          }
-        }
-        
         @keyframes floatDetail {
-          0% { 
-            transform: ${staticTargetTransform} rotate(${finalRotate}); 
-          }
-          50% { 
-            transform: scale(${finalScale + 0.012}) translate3d(${finalX}, ${yOffset + 18}px, 0) rotate(1.2deg); 
-          }
-          100% { 
-            transform: ${staticTargetTransform} rotate(${finalRotate}); 
-          }
+          0%, 100% { transform: translate3d(0, 0, 0) rotate(0.001deg); }
+          50% { transform: translate3d(0, -8px, 0) scale(1.012) rotate(1.2deg); }
         }
       `}</style>
     </div>

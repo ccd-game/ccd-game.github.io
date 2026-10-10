@@ -1,6 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { LevelConfig } from '../../types';
+import { portraitStyle } from '../../data/portraits';
 
 interface CharacterTabProps {
   levels: LevelConfig[];
@@ -35,24 +36,6 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
       if (id === 12 && levels.find(l => l.id === 11)?.locked === false) isUnlocked = true;
       if (id === 11 || id === 13) isUnlocked = false; 
 
-      let charScale = 1.35; 
-      if (id === 2) charScale = 1.5;
-      if (id === 6) charScale = 1.85;
-      if (id === 12) charScale = 1.65;
-      if (id === 9) charScale = 1.45; // 諸葛亮專用比例
-      
-      let yOffset = 32; 
-      if (id === 2) yOffset = 102; 
-      if (id === 6) yOffset = 125; 
-      if (id === 12) yOffset = 125; // 李白：上移 5px (原130)
-      if (id === 9) yOffset = 95; // 諸葛亮：調整腳部貼合
-      
-      let xOffset = 42; 
-      if (id === 2) xOffset = -68; 
-      if (id === 6) xOffset = 52; // 孔子：左移 5px (原57)
-      if (id === 12) xOffset = -30; 
-      if (id === 9) xOffset = 0; // 諸葛亮：左移 5px (原5)
-
       const charInfo = SPECIAL_MAP[id] || {
         name: levelData?.bossName || "未具名聖賢",
         title: levelData?.title ? `《${levelData.title.replace(/[《》]/g, '')}》` : "《秘傳篇章》"
@@ -69,9 +52,6 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
         bgImg: levelData?.bgImg,
         unlocked: isUnlocked,
         title: charInfo.title,
-        scale: charScale,
-        x: xOffset,
-        y: yOffset,
         bgOpacity,
         bgFilter,
         mixBlendMode
@@ -101,7 +81,8 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
                 : 'grayscale-[0.8] opacity-100 shadow-sm'} 
             `}
             style={{ 
-              backgroundColor: '#e8e2d5', 
+              backgroundColor: 'var(--card-bg)', 
+              ['--card-bg' as any]: '#e8e2d5',
               border: char.unlocked ? '1.5px solid #c5a059' : '1px solid #d1d1d1',
             }}
           >
@@ -145,8 +126,8 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
                 <img 
                   src={char.img} 
                   alt="" 
-                  className="h-[90%] w-auto object-contain transition-all duration-[1.5s] origin-bottom filter drop-shadow(0 12px 15px rgba(0,0,0,0.4))"
-                  style={{ transform: `translate3d(${char.x}px, ${char.y}px, 0) scale(${char.scale})`, maxWidth: 'none', objectPosition: 'center bottom' }}
+                  className="filter drop-shadow(0 12px 15px rgba(0,0,0,0.4))"
+                  style={portraitStyle(char.img, 'outer')}
                 />
               ) : (
                 <span 
@@ -178,7 +159,8 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
                   style={{ 
                     color: char.unlocked ? '#3a352a' : '#3a352a77', 
                     fontFamily: "'LXGW WenKai Mono TC', serif",
-                    lineHeight: 1.2
+                    lineHeight: 1.2,
+                    textShadow: '0 0 2px var(--card-bg), 0 0 6px var(--card-bg), 0 0 12px var(--card-bg)'
                   }}
                 >
                   {char.name}
