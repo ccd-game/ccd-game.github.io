@@ -145,13 +145,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
                    <input 
                       type="range" 
                       min="0" 
-                      max="0.5" 
+                      max="1"
                       step="0.01" 
                       value={bgmVolume} 
                       onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
                       className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-[var(--gold-accent)]"
                       style={{ 
-                        background: `linear-gradient(to right, var(--gold-accent) ${bgmVolume * 200}%, rgba(128,128,128,0.2) ${bgmVolume * 200}%)`,
+                        background: `linear-gradient(to right, var(--gold-accent) ${bgmVolume * 100}%, rgba(128,128,128,0.2) ${bgmVolume * 100}%)`,
                         WebkitAppearance: 'none'
                       }}
                    />
