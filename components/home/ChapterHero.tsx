@@ -7,7 +7,7 @@ import { anchorStyle, chapterLabel, type Target } from './heroUtils';
 /** 英雄區立繪目標：臉約佔畫面高 7.5%，偏右；個別寬幅立繪微調 */
 const HERO_TARGET: Record<string, Target> = {
   default: { faceH: 0.07, eyeY: 0.2, faceX: 0.17 },
-  liu_zong_yuan: { faceH: 0.062, eyeY: 0.17, faceX: 0.22 },
+  liu_zong_yuan: { faceH: 0.056, eyeY: 0.17, faceX: 0.26 }, // 縮小右移，讓左方飛劍完整入框
   kong_zi: { faceH: 0.06, eyeY: 0.3, faceX: 0.2 },
   zhu_ge_liang: { faceH: 0.06, eyeY: 0.17, faceX: 0.17 },
 };
