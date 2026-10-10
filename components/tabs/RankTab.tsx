@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { subscribeToRanking, UserData } from '../../src/lib/firebase';
+import { subscribeToRanking, watchAuthState, exitGuestMode, UserData } from '../../src/lib/firebase';
 
 const IconCrown = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -26,8 +26,18 @@ const RankTab: React.FC = () => {
   const [rankingData, setRankingData] = useState<(UserData & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => watchAuthState((s) => {
+    setIsGuest(s.status === 'guest' || s.isGuest === true);
+  }), []);
 
   useEffect(() => {
+    if (isGuest) {
+      setLoading(false);
+      setRankingData([]);
+      return;
+    }
     const unsubscribe = subscribeToRanking(
       (data) => {
         setRankingData(data);
@@ -41,7 +51,29 @@ const RankTab: React.FC = () => {
       },
     );
     return () => unsubscribe();
-  }, []);
+  }, [isGuest]);
+
+  if (isGuest) {
+    return (
+      <div className="flex-1 flex flex-col p-5 tab-slide-active" style={{ backgroundColor: 'var(--app-bg)' }} data-testid="rank-guest-cta">
+        <div className="flex items-center justify-between mb-6 px-1">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-4 bg-[var(--gold-accent)]"></div>
+            <span className="text-[12px] font-black tracking-[6px] uppercase" style={{ color: 'var(--text-main)' }}>全服修煉排位</span>
+          </div>
+          <span className="text-[10px] font-bold opacity-40" style={{ color: 'var(--text-sub)' }}>GLOBAL RANK</span>
+        </div>
+        <div className="rank-guest">
+          <div className="rank-guest-seal" aria-hidden="true"><IconCrown /></div>
+          <h2 className="rank-guest-title">登入學校帳戶即可上榜</h2>
+          <p className="rank-guest-text">排行榜只計算學校帳戶的修煉進度。</p>
+          <button type="button" onClick={() => exitGuestMode()} className="guest-pill-btn" data-testid="rank-guest-login">
+            登入學校帳戶
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loadError) {
     return (

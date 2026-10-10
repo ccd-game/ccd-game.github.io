@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { LevelConfig } from '../types';
 import DungeonTab from './tabs/DungeonTab';
-import { subscribeToUser, TEST_USER_ID, UserData } from '../src/lib/firebase';
+import { subscribeToUser, TEST_USER_ID, UserData, watchAuthState } from '../src/lib/firebase';
 import { getRequiredExpForLevel } from '../src/lib/levelSystem';
 
 // Default tab (dungeon) stays eager; other tabs + codex detail are lazy.
@@ -74,6 +74,11 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
     maxExp: 100,
     updatedAt: null
   });
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => watchAuthState((s) => {
+    setIsGuest(s.status === 'guest' || s.isGuest === true);
+  }), []);
 
   useEffect(() => {
     const unsubscribe = subscribeToUser(TEST_USER_ID, (data) => {
@@ -211,7 +216,12 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         </div>
         <div className="flex-1 min-w-0 flex flex-col gap-[7px]">
           <div className="flex items-center justify-between gap-2">
-            <span className="home-name truncate">{playerData.name}</span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="home-name truncate">{playerData.name}</span>
+              {isGuest && (
+                <span data-testid="guest-badge" className="home-guest-tag">遊客</span>
+              )}
+            </div>
             <div className="home-coin" aria-label={`文氣 ${playerData.gold}`}>
               <span className="home-coin-label" aria-hidden="true">文氣</span>
               <span className="home-coin-icon" aria-hidden="true"></span>

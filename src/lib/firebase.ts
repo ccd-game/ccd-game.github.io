@@ -49,6 +49,14 @@ import {
   syncSettingsAfterAuth,
   resetSettingsCloudPullState,
 } from './settingsStore';
+import {
+  clearGuestSessionStorage,
+  isGuestSessionStored,
+  persistGuestSession,
+  resetGuestUserData,
+  setGuestGold,
+  subscribeGuestUserData,
+} from './guestSession';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -121,7 +129,7 @@ export const TEST_USER_ID = CURRENT_USER;
 
 // ───────────────────────── 登入狀態 ─────────────────────────
 
-export type AuthStatus = 'loading' | 'signedOut' | 'authorized' | 'rejected';
+export type AuthStatus = 'loading' | 'signedOut' | 'authorized' | 'rejected' | 'guest';
 
 export interface AuthState {
   status: AuthStatus;
@@ -129,9 +137,11 @@ export interface AuthState {
   user: User | null;
   /** 顯示給玩家的錯誤訊息（例如網域不符） */
   message: string | null;
+  /** true when status === 'guest' (teacher test; no Firebase Auth) */
+  isGuest: boolean;
 }
 
-let authState: AuthState = { status: 'loading', user: null, message: null };
+let authState: AuthState = { status: 'loading', user: null, message: null, isGuest: false };
 const authListeners = new Set<(s: AuthState) => void>();
 
 function setAuthState(next: AuthState) {
@@ -148,6 +158,36 @@ export function watchAuthState(fn: (s: AuthState) => void): () => void {
   };
 }
 
+export function isGuestAuth(s: AuthState = authState): boolean {
+  return s.status === 'guest' || s.isGuest === true;
+}
+
+/** School Google session OR guest — enough to enter menu / battle UI */
+export function canEnterGame(s: AuthState = authState): boolean {
+  return s.status === 'authorized' || isGuestAuth(s);
+}
+
+/**
+ * Enter guest mode for teacher testing.
+ * Does NOT call Firebase Auth. Persists flag in sessionStorage so refresh mid-test restores guest.
+ * Domain gate (@wbss.edu.hk) does not apply.
+ */
+export function enterGuestMode(): void {
+  persistGuestSession();
+  resetGuestUserData();
+  setAuthState({ status: 'guest', user: null, message: null, isGuest: true });
+}
+
+/**
+ * Clear guest session and return to LoginGate for real Google sign-in.
+ * Does not call Firebase Auth (guest never signed in).
+ */
+export function exitGuestMode(): void {
+  clearGuestSessionStorage();
+  resetGuestUserData();
+  setAuthState({ status: 'signedOut', user: null, message: null, isGuest: false });
+}
+
 /** 只有通過網域及電郵驗證檢查的用戶才會被傳出；其他情況一律為 null */
 function watchAuthorizedUser(fn: (u: User | null) => void): () => void {
   let lastUid: string | null | undefined;
@@ -162,7 +202,7 @@ function watchAuthorizedUser(fn: (u: User | null) => void): () => void {
 
 async function rejectAndSignOut() {
   // 先設定拒絕狀態，確保之後的 signedOut 事件不會覆蓋訊息，亦不會有任何資料讀寫
-  setAuthState({ status: 'rejected', user: null, message: REJECTION_MESSAGE });
+  setAuthState({ status: 'rejected', user: null, message: REJECTION_MESSAGE, isGuest: false });
   try {
     await signOut(auth);
   } catch (e) {
@@ -174,10 +214,18 @@ onAuthStateChanged(auth, async (user) => {
   if (!user) {
     resetSettingsCloudPullState();
     if (authState.status !== 'rejected') {
-      setAuthState({ status: 'signedOut', user: null, message: null });
+      // Restore guest after refresh if sessionStorage flag is set (teacher convenience).
+      if (isGuestSessionStored()) {
+        resetGuestUserData();
+        setAuthState({ status: 'guest', user: null, message: null, isGuest: true });
+      } else {
+        setAuthState({ status: 'signedOut', user: null, message: null, isGuest: false });
+      }
     }
     return;
   }
+  // Real Google user wins over guest; never keep a fake guest identity alongside Auth.
+  clearGuestSessionStorage();
   if (!isAllowedUser(user)) {
     resetSettingsCloudPullState();
     await rejectAndSignOut();
@@ -186,7 +234,7 @@ onAuthStateChanged(auth, async (user) => {
   // 已通過檢查：先確保個人檔案存在（並清除舊有的姓名欄位），再開放遊戲資料存取
   await queueProfileSync(user, null);
   if (auth.currentUser?.uid === user.uid) {
-    setAuthState({ status: 'authorized', user, message: null });
+    setAuthState({ status: 'authorized', user, message: null, isGuest: false });
     // 設定雲端同步：首次 pull 後 last-write-wins；失敗不阻斷登入
     syncSettingsAfterAuth(user.uid).catch((e) => console.warn('settings sync after auth failed', e));
   }
@@ -215,7 +263,7 @@ getRedirectResult(auth)
   .then(afterSignIn)
   .catch((e) => {
     const message = describeAuthError(e);
-    if (message) setAuthState({ status: 'signedOut', user: null, message });
+    if (message) setAuthState({ status: 'signedOut', user: null, message, isGuest: false });
   });
 
 function createGoogleProvider() {
@@ -274,8 +322,10 @@ function shouldFallbackToRedirect(code: string | undefined): boolean {
 
 /** 唯一的登入方式：Google 帳戶（優先 popup，失敗才 redirect） */
 export async function signInWithGoogle(): Promise<void> {
-  if (authState.status === 'rejected') {
-    setAuthState({ status: 'signedOut', user: null, message: null });
+  if (authState.status === 'rejected' || authState.status === 'guest') {
+    // Leaving guest for Google: clear guest flag so Auth can take over.
+    clearGuestSessionStorage();
+    setAuthState({ status: 'signedOut', user: null, message: null, isGuest: false });
   }
   // 登入前套用 rememberMe → Firebase Auth persistence（必須在任何 signIn 之前）
   try {
@@ -297,11 +347,16 @@ export async function signInWithGoogle(): Promise<void> {
       return;
     }
     const message = describeAuthError(e);
-    if (message) setAuthState({ status: 'signedOut', user: null, message });
+    if (message) setAuthState({ status: 'signedOut', user: null, message, isGuest: false });
   }
 }
 
 export async function signOutUser(): Promise<void> {
+  clearGuestSessionStorage();
+  if (authState.status === 'guest') {
+    exitGuestMode();
+    return;
+  }
   await signOut(auth);
 }
 
@@ -598,13 +653,22 @@ export function subscribeToUser(
   onError?: (error: unknown) => void,
 ) {
   let unsubDoc: (() => void) | null = null;
-  const unsubAuth = watchAuthorizedUser((user) => {
+  let unsubGuest: (() => void) | null = null;
+  const unsubAuth = watchAuthState((s) => {
     unsubDoc?.();
     unsubDoc = null;
-    if (!user) {
+    unsubGuest?.();
+    unsubGuest = null;
+    if (isGuestAuth(s)) {
+      // Guest: in-memory / session defaults only — never open Firestore.
+      unsubGuest = subscribeGuestUserData((d) => onUpdate({ ...d } as UserData));
+      return;
+    }
+    if (s.status !== 'authorized' || !s.user) {
       onUpdate(null);
       return;
     }
+    const user = s.user;
     const uid = resolveUid(userId, user);
     unsubDoc = onSnapshot(
       doc(db, 'users', uid),
@@ -618,6 +682,7 @@ export function subscribeToUser(
   return () => {
     unsubAuth();
     unsubDoc?.();
+    unsubGuest?.();
   };
 }
 
@@ -628,10 +693,15 @@ export function subscribeToRanking(
   onError?: (error: unknown) => void,
 ) {
   let unsubQuery: (() => void) | null = null;
-  const unsubAuth = watchAuthorizedUser((user) => {
+  const unsubAuth = watchAuthState((s) => {
     unsubQuery?.();
     unsubQuery = null;
-    if (!user) return;
+    if (isGuestAuth(s)) {
+      // Guest cannot read ranking — UI shows 「需登入學校帳戶」.
+      onUpdate([]);
+      return;
+    }
+    if (s.status !== 'authorized' || !s.user) return;
     const q = query(collection(db, 'users'), orderBy('level', 'desc'), limit(limitCount));
     unsubQuery = onSnapshot(
       q,
@@ -653,6 +723,11 @@ export function subscribeToRanking(
 
 /** 扣除金幣（文氣）：只可修改自己的文件 */
 export async function updateUserGold(userId: string, newGold: number) {
+  if (isGuestAuth()) {
+    // Local-only temp gold — never write Firestore as guest.
+    setGuestGold(newGold);
+    return;
+  }
   const user = authState.status === 'authorized' ? authState.user : null;
   if (!user) throw new Error('尚未登入');
   const uid = resolveUid(userId, user);

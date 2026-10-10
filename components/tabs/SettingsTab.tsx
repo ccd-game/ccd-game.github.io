@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { watchAuthState, signOutUser, watchSurnameState, setSurnameEditorOpen, SurnameState, applyAuthPersistence } from '../../src/lib/firebase';
+import { watchAuthState, signOutUser, exitGuestMode, watchSurnameState, setSurnameEditorOpen, SurnameState, applyAuthPersistence } from '../../src/lib/firebase';
 import { labelFor } from '../../src/lib/displayLabel';
 import { loadSettings, updateSettings, pushSettingsIfSynced } from '../../src/lib/settingsStore';
 
@@ -46,12 +46,14 @@ const IconSpeaker = ({ active }: { active: boolean }) => (
 const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnabled, onBgmToggle, bgmVolume, onVolumeChange }) => {
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [accountUid, setAccountUid] = useState<string | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => loadSettings().rememberMe);
 
   const [surname, setSurname] = useState<SurnameState | null>(null);
 
   useEffect(() => watchAuthState((s) => {
+    setIsGuest(s.status === 'guest' || s.isGuest === true);
     setAccountEmail(s.status === 'authorized' ? s.user?.email ?? null : null);
     setAccountUid(s.status === 'authorized' ? s.user?.uid ?? null : null);
   }), []);
@@ -77,6 +79,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
     }
   };
 
+  /** Clear guest and return to LoginGate for real Google sign-in. */
+  const handleLoginAccount = () => {
+    exitGuestMode();
+  };
+
   return (
     <div className="flex-1 flex flex-col p-5 tab-slide-active overflow-y-auto custom-scrollbar" style={{ backgroundColor: 'var(--app-bg)' }}>
       {/* 統一標題樣式 */}
@@ -94,44 +101,68 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col gap-1 min-w-0">
               <span className="text-sm font-bold tracking-[2px]" style={{ color: 'var(--text-main)' }}>帳戶</span>
-              <span className="text-[10px] opacity-60 font-bold truncate" style={{ color: 'var(--text-sub)' }}>{accountEmail ?? '未登入'}</span>
-            </div>
-            <button
-              onClick={handleSignOut}
-              disabled={isSigningOut || !accountEmail}
-              className="shrink-0 px-4 py-2 rounded-full border text-sm font-bold tracking-[2px] transition-all active:scale-95 disabled:opacity-40"
-              style={{ borderColor: 'var(--gold-accent)', color: 'var(--gold-accent)' }}
-            >
-              登出
-            </button>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col gap-1 min-w-0">
-              <span className="text-sm font-bold tracking-[2px]" style={{ color: 'var(--text-main)' }}>排行榜名稱</span>
-              <span className="text-[10px] opacity-60 font-bold truncate" style={{ color: 'var(--text-sub)' }} data-testid="settings-display-label">
-                {surname?.ready && surname.school ? labelFor(surname.school, surname.surname) : '—'}
+              <span className="text-[10px] opacity-60 font-bold truncate" style={{ color: 'var(--text-sub)' }} data-testid="settings-account-label">
+                {isGuest ? '遊客' : (accountEmail ?? '未登入')}
               </span>
             </div>
-            <button
-              onClick={() => setSurnameEditorOpen(true)}
-              disabled={!surname?.ready}
-              data-testid="change-surname"
-              className="shrink-0 px-4 py-2 rounded-full border text-sm font-bold tracking-[2px] transition-all active:scale-95 disabled:opacity-40"
-              style={{ borderColor: 'var(--gold-accent)', color: 'var(--gold-accent)' }}
-            >
-              更改姓氏
-            </button>
+            {isGuest ? (
+              <button
+                type="button"
+                onClick={handleLoginAccount}
+                data-testid="guest-login-account"
+                className="guest-pill-btn"
+              >
+                登入學校帳戶
+              </button>
+            ) : (
+              <button
+                onClick={handleSignOut}
+                disabled={isSigningOut || !accountEmail}
+                className="shrink-0 px-4 py-2 rounded-full border text-sm font-bold tracking-[2px] transition-all active:scale-95 disabled:opacity-40"
+                style={{ borderColor: 'var(--gold-accent)', color: 'var(--gold-accent)' }}
+              >
+                登出
+              </button>
+            )}
           </div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: 'var(--text-main)' }}>
-            <input
-              type="checkbox"
-              data-testid="settings-remember-me"
-              checked={rememberMe}
-              onChange={(e) => handleRememberMeChange(e.target.checked)}
-              className="accent-[var(--gold-accent)] w-4 h-4"
-            />
-            記住我（關閉瀏覽器後保持登入）
-          </label>
+          {isGuest ? (
+            <div className="flex flex-col gap-1 min-w-0" data-testid="guest-cloud-hint">
+              <span className="text-sm font-bold tracking-[2px]" style={{ color: 'var(--text-main)' }}>進度</span>
+              <span className="text-[12px] leading-relaxed opacity-70" style={{ color: 'var(--text-sub)' }}>
+                遊客模式只在本機暫存，不會保存進度。
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="text-sm font-bold tracking-[2px]" style={{ color: 'var(--text-main)' }}>排行榜名稱</span>
+                  <span className="text-[10px] opacity-60 font-bold truncate" style={{ color: 'var(--text-sub)' }} data-testid="settings-display-label">
+                    {surname?.ready && surname.school ? labelFor(surname.school, surname.surname) : '—'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setSurnameEditorOpen(true)}
+                  disabled={!surname?.ready}
+                  data-testid="change-surname"
+                  className="shrink-0 px-4 py-2 rounded-full border text-sm font-bold tracking-[2px] transition-all active:scale-95 disabled:opacity-40"
+                  style={{ borderColor: 'var(--gold-accent)', color: 'var(--gold-accent)' }}
+                >
+                  更改姓氏
+                </button>
+              </div>
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: 'var(--text-main)' }}>
+                <input
+                  type="checkbox"
+                  data-testid="settings-remember-me"
+                  checked={rememberMe}
+                  onChange={(e) => handleRememberMeChange(e.target.checked)}
+                  className="accent-[var(--gold-accent)] w-4 h-4"
+                />
+                記住我（關閉瀏覽器後保持登入）
+              </label>
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-4">

@@ -26,7 +26,7 @@ LEVELS_DATA.forEach(level => {
 import InkSplash from './components/InkSplash';
 import BootLoadingMask from './components/BootLoadingMask';
 import AudioManager, { AudioManagerHandle } from './components/AudioManager';
-import { watchAuthState, signInWithGoogle, signOutUser, AuthState, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence } from './src/lib/firebase';
+import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence } from './src/lib/firebase';
 import { ALLOWED_EMAIL_DOMAINS } from './src/config/auth';
 import { loadSettings, updateSettings, subscribeSettings, pushSettingsIfSynced } from './src/lib/settingsStore';
 
@@ -96,7 +96,8 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [rememberMe, setRememberMe] = useState(() => loadSettings().rememberMe);
   const enterAfterSignIn = useRef(false);
-  const isAuthorized = authState.status === 'authorized';
+  const isAuthorized = canEnterGame(authState);
+  const isGuest = authState.status === 'guest' || authState.isGuest;
 
   const handleRememberMeChange = async (checked: boolean) => {
     setRememberMe(checked);
@@ -167,9 +168,16 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
     }
   };
 
-  // 新登入並通過檢查後，自動播放進場動畫
+  /** Teacher guest path: no Firebase Auth; domain gate does not apply. */
+  const handleGuestEnter = () => {
+    if (isActivating || isSigningIn) return;
+    enterGuestMode();
+    enterAfterSignIn.current = true;
+  };
+
+  // 新登入／遊客進入後，自動播放進場動畫
   useEffect(() => {
-    if (authState.status === 'authorized' && enterAfterSignIn.current && !isActivating) {
+    if (canEnterGame(authState) && enterAfterSignIn.current && !isActivating) {
       enterAfterSignIn.current = false;
       handleEnter(false);
     } else if (authState.status === 'rejected' || authState.status === 'signedOut') {
@@ -218,6 +226,8 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
 
       {/* 底部羽化邊緣 */}
       <div className="absolute bottom-0 left-0 right-0 h-[12%] bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/80 to-transparent z-[15] pointer-events-none" />
+      {/* 控制區墨色襯底：登入按鈕與說明文字不直接壓在立繪上 */}
+      <div className={`login-scrim transition-opacity duration-700 ${isActivating ? 'opacity-0' : 'opacity-100'}`} aria-hidden="true" />
 
       <motion.div 
         initial={{ opacity: 0, y: 10 }}
@@ -271,12 +281,17 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
               跳過動畫
             </button>
 
-            {!isActivating && (
+            {!isActivating && (isGuest ? (
+              <p className="login-identity pointer-events-auto" data-testid="login-guest-identity">
+                目前身分：遊客
+                <button type="button" onClick={() => exitGuestMode()} className="login-link">改用學校帳戶登入</button>
+              </p>
+            ) : (
               <p className="mt-3 pointer-events-auto text-center text-xs text-[#d4af37]/70">
                 已登入：{authState.user?.email}
                 <button onClick={() => signOutUser()} className="ml-2 underline hover:text-[#d4af37]">切換帳戶</button>
               </p>
-            )}
+            ))}
           </>
         ) : (
           <>
@@ -298,6 +313,20 @@ const LoginGate: React.FC<{ onLogin: () => void, isExiting: boolean, authState: 
               記住我（關閉瀏覽器後保持登入）
             </label>
             <p className="mt-2 text-center text-sm text-[#d4af37]/70">只限 {ALLOWED_DOMAIN_LABEL} 學生帳戶</p>
+
+            {/* 次要入口：遊客（不經 Firebase Auth） */}
+            <div className="login-or" aria-hidden="true">或</div>
+            <button
+              type="button"
+              onClick={handleGuestEnter}
+              disabled={isSigningIn || isActivating || authState.status === 'loading'}
+              data-testid="guest-enter"
+              aria-describedby="guest-enter-caption"
+              className="login-guest-btn pointer-events-auto"
+            >
+              遊客進入
+            </button>
+            <p id="guest-enter-caption" className="login-guest-caption">遊客模式不會保存進度，亦不會登上排行榜</p>
           </>
         )}
       </motion.div>
@@ -313,7 +342,7 @@ const App: React.FC = () => {
   const volumePersistTimerRef = useRef<number | null>(null);
   const pendingVolumeRef = useRef<number | null>(null);
 
-  const [authState, setAuthState] = useState<AuthState>({ status: 'loading', user: null, message: null });
+  const [authState, setAuthState] = useState<AuthState>({ status: 'loading', user: null, message: null, isGuest: false });
   const authStateRef = useRef(authState);
   authStateRef.current = authState;
 
@@ -441,7 +470,8 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => watchAuthState(setAuthState), []);
-  const isAuthorized = authState.status === 'authorized';
+  const isAuthorized = canEnterGame(authState);
+  const isGuest = authState.status === 'guest' || authState.isGuest;
 
   const [surnameState, setSurnameStateLocal] = useState<SurnameState | null>(null);
   const [surnameEditorOpen, setSurnameEditorOpenLocal] = useState(false);
@@ -878,7 +908,7 @@ const App: React.FC = () => {
         <LoginGate onLogin={handleLogin} isExiting={isLoginExiting} authState={authState} />
       )}
 
-      {isAuthorized && isLoggedIn && surnameState?.ready && (surnameEditorOpen || surnameState.source === 'pending') && (
+      {isAuthorized && !isGuest && isLoggedIn && surnameState?.ready && (surnameEditorOpen || surnameState.source === 'pending') && (
         <Suspense fallback={<SoftFallback />}>
           <SurnamePicker
             key={`${surnameEditorOpen ? 'settings' : 'first'}-${surnameState.options.join('')}-${surnameState.manual}`}

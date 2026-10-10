@@ -46,12 +46,16 @@
             --header-bg: rgba(0, 0, 0, 0.4);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+        /* Reset 置於 base layer：Tailwind v4 utilities 在 @layer utilities，
+           未分層的 * { padding:0; margin:0 } 會蓋過所有 p-*／m-*（v1.2.4 移除 CDN 後的回歸）。 */
+        @layer base {
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+            }
         }
 
         body {
@@ -628,3 +632,92 @@
             .home-saber.is-back { opacity: 0 !important; }
             .home-meter-fill, .home-slip, .home-nav-icon { transition: none !important; }
         }
+
+/* ───────────── 遊客模式（Guest mode） ─────────────
+   新字串一律用 LXGW WenKai Mono TC（展示字型為子集，缺字會混排）。 */
+
+/* 登入頁：底部控制區墨色襯底，令小字不壓在立繪上 */
+.login-scrim {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 62%;
+    background: linear-gradient(0deg, rgba(13,11,9,.95) 0%, rgba(13,11,9,.86) 38%, rgba(13,11,9,.55) 64%, rgba(13,11,9,0) 100%);
+    pointer-events: none; z-index: 16;
+}
+.login-or {
+    display: flex; align-items: center; gap: 14px; width: 100%; max-width: 320px; margin: 18px 0 14px;
+    color: rgba(212,175,55,.78); font-size: 13px; letter-spacing: 4px; text-indent: 4px; line-height: 1;
+}
+.login-or::before, .login-or::after { content: ''; flex: 1; height: 1px; }
+.login-or::before { background: linear-gradient(90deg, rgba(212,175,55,0), rgba(212,175,55,.55)); }
+.login-or::after { background: linear-gradient(90deg, rgba(212,175,55,.55), rgba(212,175,55,0)); }
+
+.login-guest-btn {
+    width: 100%; max-width: 320px; min-height: 48px; padding: 0 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'LXGW WenKai Mono TC', monospace; font-weight: 700; font-size: 16px;
+    letter-spacing: 8px; text-indent: 8px; line-height: 1;
+    color: rgba(237,228,208,.88);
+    background: rgba(13,11,9,.42);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    border: 1px solid rgba(212,175,55,.34); border-radius: 999px;
+    transition: color .2s, border-color .2s, background-color .2s, transform .15s;
+    cursor: pointer;
+}
+.login-guest-btn:hover { color: var(--paper); border-color: rgba(212,175,55,.72); background: rgba(13,11,9,.62); }
+.login-guest-btn:active { transform: scale(.97); background: rgba(13,11,9,.75); }
+.login-guest-btn:focus-visible { outline: 2px solid var(--gilt); outline-offset: 3px; }
+.login-guest-btn:disabled { opacity: .5; cursor: default; transform: none; }
+.login-guest-caption {
+    margin-top: 10px; max-width: 320px; text-align: center;
+    font-size: 12px; line-height: 1.6; letter-spacing: 1px; color: rgba(237,228,208,.66);
+}
+.login-identity { margin-top: 12px; text-align: center; font-size: 12px; line-height: 1.6; color: rgba(212,175,55,.72); }
+.login-link {
+    margin-left: 8px; text-decoration: underline; text-underline-offset: 3px; color: inherit;
+    min-height: 44px; padding: 0 2px;
+}
+.login-link:hover { color: var(--gilt); }
+.login-link:focus-visible { outline: 2px solid var(--gilt); outline-offset: 2px; border-radius: 2px; }
+
+/* 頂欄：遊客身分小標籤（與文氣框同族，但更輕） */
+.home-guest-tag {
+    flex-shrink: 0; display: inline-flex; align-items: center; height: 18px; padding: 0 7px 0 8px;
+    font-family: 'LXGW WenKai Mono TC', serif; font-size: 11px; letter-spacing: 1px; line-height: 1;
+    color: var(--home-muted); border: 1px solid var(--home-line); border-radius: 999px;
+}
+
+/* 分頁內的帳戶按鈕（與「登出」「更改姓氏」同款，補 44px 觸控高度與焦點） */
+.guest-pill-btn {
+    flex-shrink: 0; min-height: 44px; padding: 0 18px; border-radius: 999px;
+    border: 1px solid var(--gold-accent); color: var(--gold-accent); background: transparent;
+    font-size: 14px; font-weight: 700; letter-spacing: 2px; text-indent: 2px; line-height: 1;
+    transition: background-color .2s, transform .15s;
+}
+.guest-pill-btn:hover { background: rgba(184,134,11,.1); }
+.guest-pill-btn:active { transform: scale(.96); }
+.guest-pill-btn:focus-visible { outline: 2px solid var(--gold-accent); outline-offset: 3px; }
+
+/* 排名：遊客空狀態 */
+.rank-guest {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 32px 48px; text-align: center;
+}
+.rank-guest-seal {
+    width: 76px; height: 76px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: var(--gold-accent); border: 1px solid var(--panel-border);
+    box-shadow: inset 0 0 0 5px var(--app-bg), inset 0 0 0 6px var(--panel-border);
+    background: var(--panel-bg); margin-bottom: 22px;
+}
+.rank-guest-title { font-size: 17px; font-weight: 700; letter-spacing: 3px; color: var(--text-main); line-height: 1.4; }
+.rank-guest-text { margin-top: 10px; max-width: 260px; font-size: 13px; line-height: 1.7; color: var(--text-sub); }
+.rank-guest .guest-pill-btn { margin-top: 24px; }
+
+/* 機緣：本機暫存提示 */
+.gacha-guest-note {
+    margin: -10px 0 18px; font-size: 11px; line-height: 1.5; letter-spacing: 1px;
+    color: var(--text-sub); opacity: .8; text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .login-guest-btn, .guest-pill-btn { transition: none; }
+    .login-guest-btn:active, .guest-pill-btn:active { transform: none; }
+}

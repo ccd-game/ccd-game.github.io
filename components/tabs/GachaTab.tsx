@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GachaItem, pullGacha, Rarity } from '../../src/lib/gachaSystem';
-import { subscribeToUser, CURRENT_USER, updateUserGold, UserData } from '../../src/lib/firebase';
+import { subscribeToUser, CURRENT_USER, updateUserGold, watchAuthState, UserData } from '../../src/lib/firebase';
 
 const RARITY_COLORS = {
   [Rarity.COMMON]: { 
@@ -41,10 +41,15 @@ interface GachaTabProps {
 
 const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [isSummoning, setIsSummoning] = useState(false);
   const [results, setResults] = useState<GachaItem[] | null>(null);
   const [charging, setCharging] = useState(false);
   const [lastCount, setLastCount] = useState<number>(1);
+
+  useEffect(() => watchAuthState((s) => {
+    setIsGuest(s.status === 'guest' || s.isGuest === true);
+  }), []);
 
   useEffect(() => {
     const unsubscribe = subscribeToUser(CURRENT_USER, (data) => {
@@ -158,6 +163,11 @@ const GachaTab: React.FC<GachaTabProps> = ({ onIsSummoningChange }) => {
           <span className="text-[11px] font-bold" style={{ color: 'var(--gold-accent)' }}>當前文氣</span>
           <span className="text-[14px] font-black text-white">{userData?.gold || 0}</span>
         </div>
+        {isGuest && (
+          <p className="gacha-guest-note" data-testid="gacha-guest-hint">
+            遊客的文氣只在本機暫存，不會保存
+          </p>
+        )}
 
         <div className="flex gap-4 w-full">
           <button 
