@@ -30,3 +30,9 @@ dist-ssr
 
 # AI Studio artifacts
 migrated_prompt_history/
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

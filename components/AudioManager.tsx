@@ -1,6 +1,9 @@
 
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { GameStatus } from '../types';
+import { applyBgmVolume } from './bgmVolume';
+
+export { applyBgmVolume };
 
 interface AudioManagerProps {
   status: GameStatus;
@@ -28,12 +31,21 @@ battleAudio.loop = true;
 menuAudio.preload = "auto";
 battleAudio.preload = "auto";
 
-/** Test hook: Playwright asserts HTMLMediaElement.volume on both tracks. */
+function applyVolumeToTracks(volume: number): void {
+  applyBgmVolume(volume, menuAudio, battleAudio);
+}
+
+/** Test hook: Playwright asserts HTMLMediaElement.volume / muted on both tracks. */
 if (typeof window !== "undefined") {
-  (window as unknown as { __bgmAudio?: { menu: HTMLAudioElement; battle: HTMLAudioElement } }).__bgmAudio = {
+  const w = window as unknown as {
+    __bgmAudio?: { menu: HTMLAudioElement; battle: HTMLAudioElement };
+    __applyBgmVolumeForTest?: (v: number) => void;
+  };
+  w.__bgmAudio = {
     menu: menuAudio,
     battle: battleAudio,
   };
+  w.__applyBgmVolumeForTest = (v: number) => applyVolumeToTracks(v);
 }
 
 const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({ 
@@ -44,12 +56,28 @@ const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({
   isLoggedIn
 }, ref) => {
   const isUnlocked = useRef(false);
+  const bgmVolumeRef = useRef(bgmVolume);
+  bgmVolumeRef.current = bgmVolume;
 
-  // 當音量狀態變更時，立即更新 Audio 實例
+  // 當音量狀態變更時，立即更新 Audio 實例（含 muted）
   useEffect(() => {
-    menuAudio.volume = bgmVolume;
-    battleAudio.volume = bgmVolume;
+    applyVolumeToTracks(bgmVolume);
   }, [bgmVolume]);
+
+  // load()/readyState 變更後部分瀏覽器會還原預設 volume — 再套一次
+  useEffect(() => {
+    const reapply = () => applyVolumeToTracks(bgmVolumeRef.current);
+    menuAudio.addEventListener('loadeddata', reapply);
+    battleAudio.addEventListener('loadeddata', reapply);
+    menuAudio.addEventListener('canplay', reapply);
+    battleAudio.addEventListener('canplay', reapply);
+    return () => {
+      menuAudio.removeEventListener('loadeddata', reapply);
+      battleAudio.removeEventListener('loadeddata', reapply);
+      menuAudio.removeEventListener('canplay', reapply);
+      battleAudio.removeEventListener('canplay', reapply);
+    };
+  }, []);
 
   // 封裝播放逻辑
   const syncPlayback = () => {
@@ -62,15 +90,22 @@ const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({
     const isBattle = status === GameStatus.PLAYING;
     const isMenu = status === GameStatus.MENU || status === GameStatus.CHARACTER_DETAIL;
 
+    // Re-apply before/after play so load/play cannot leave a stale non-zero volume.
+    applyVolumeToTracks(bgmVolumeRef.current);
+
     if (isBattle) {
       menuAudio.pause();
       if (battleAudio.paused) {
-        battleAudio.play().catch(e => console.warn("Battle audio play blocked", e));
+        battleAudio.play()
+          .then(() => applyVolumeToTracks(bgmVolumeRef.current))
+          .catch(e => console.warn("Battle audio play blocked", e));
       }
     } else if (isMenu) {
       battleAudio.pause();
       if (menuAudio.paused) {
-        menuAudio.play().catch(e => console.warn("Menu audio play blocked", e));
+        menuAudio.play()
+          .then(() => applyVolumeToTracks(bgmVolumeRef.current))
+          .catch(e => console.warn("Menu audio play blocked", e));
       }
     } else {
       menuAudio.pause();
@@ -104,13 +139,13 @@ const AudioManager = forwardRef<AudioManagerHandle, AudioManagerProps>(({
           console.warn("Audio files might be missing or unreachable:", { menuOk, battleOk });
         }
 
-        // 強制加載（load 後再套用音量，避免部分瀏覽器還原預設 volume）
+        // 強制加載（load 後再套用音量+muted，避免部分瀏覽器還原預設 volume）
         menuAudio.load();
         battleAudio.load();
-        menuAudio.volume = bgmVolume;
-        battleAudio.volume = bgmVolume;
+        applyVolumeToTracks(bgmVolumeRef.current);
 
         await menuAudio.play();
+        applyVolumeToTracks(bgmVolumeRef.current);
         isUnlocked.current = true;
         syncPlayback();
       } catch (e) {
