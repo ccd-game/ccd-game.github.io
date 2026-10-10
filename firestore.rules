@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'level', 'gold', 'exp', 'stamina', 'updatedAt']) &&
+             data.name is string && data.name.size() <= 32 &&
+             data.level is int &&
+             data.gold is int &&
+             data.exp is int &&
+             data.stamina is int &&
+             data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if true;
+      allow create: if ((isSignedIn() && request.auth.uid == userId) || userId == 'userid') && isValidUser(incoming());
+      allow update: if ((isSignedIn() && request.auth.uid == userId) || userId == 'userid') && (
+        (isValidUser(incoming()) && (incoming().updatedAt == request.time || incoming().updatedAt is timestamp)) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['gold', 'updatedAt']) && 
+         incoming().gold is int && (incoming().updatedAt == request.time || incoming().updatedAt is timestamp))
+      );
+    }
+
+    match /users {
+      allow list: if true;
+    }
+  }
+}

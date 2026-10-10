@@ -1,0 +1,30 @@
+{
+  "name": "文言地城",
+  "short_name": "文言地城",
+  "description": "一個基於香港中學文憑試（HKDSE）中文科十二篇範文開發的 RPG 地城闖關遊戲原型。第一關主題為柳宗元的《始得西山宴遊記》。玩家透過回答文言文題目來攻擊怪物並深入地城。",
+  "start_url": "../",
+  "display": "standalone",
+  "theme_color": "#0f0f0f",
+  "background_color": "#0f0f0f",
+  "icons": [
+    {
+      "src": "../app_icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "../app_icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "../app_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "requestFramePermissions": []
+}

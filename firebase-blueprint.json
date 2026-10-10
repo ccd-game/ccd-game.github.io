@@ -1,0 +1,24 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with game stats.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Display name" },
+        "level": { "type": "integer", "description": "Current level" },
+        "gold": { "type": "integer", "description": "Current gold" },
+        "exp": { "type": "integer", "description": "Current experience points" },
+        "stamina": { "type": "integer", "description": "Current stamina" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp" }
+      },
+      "required": ["name", "level", "gold", "exp", "stamina", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User documents mapping to their UID."
+    }
+  }
+}
