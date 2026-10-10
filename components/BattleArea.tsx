@@ -613,8 +613,8 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
              路徑／前後層／劍身呼吸與 CharacterDetailView 同款；位移％相對全幅框 */
           .btl-saber-stage { pointer-events: none; }
           .btl-saber { position: absolute; inset: 0; width: 100%; height: 100%; will-change: transform, opacity; }
-          .btl-saber.is-back { opacity: 0; animation: btlSaberPath 12.864s infinite, btlSaberBack 12.864s infinite; }
-          .btl-saber.is-front { animation: btlSaberPath 12.864s infinite, btlSaberFront 12.864s infinite; }
+          .btl-saber.is-back { opacity: 0; animation: btlSaberPath 9.696s infinite, btlSaberBack 9.696s infinite; }
+          .btl-saber.is-front { animation: btlSaberPath 9.696s infinite, btlSaberFront 9.696s infinite; }
           /* 整把劍上下浮動：幅度略大於人物呼吸（scaleY 1.012 ≈ 數 px）；尖／柄微擺仍由 btlSaberIdle 負責 */
           .btl-saber-float { position: absolute; inset: 0; width: 100%; height: 100%;
             animation: btlSaberFloat 4.5s ease-in-out infinite; will-change: transform; }
@@ -637,25 +637,25 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
           }
           @keyframes btlSaberPath {
             0%     { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: ease-in-out; }
-            26.87% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(.55,0,.85,.45); }
-            38.81% { transform: translate3d(-40.07%, -8.97%, 0) rotate(-10deg) scale(0.85); animation-timing-function: linear; }
-            41.79% { transform: translate3d(-67.41%, -8.97%, 0) rotate(-180deg) scale(0.7); animation-timing-function: linear; }
-            47.01% { transform: translate3d(-17.41%, 1.44%, 0) rotate(-178deg) scale(0.65); animation-timing-function: linear; }
-            55.22% { transform: translate3d(65.40%, 11.86%, 0) rotate(-172deg) scale(0.62); animation-timing-function: linear; }
-            58.21% { transform: translate3d(96.65%, 22.97%, 0) rotate(-356deg) scale(1.25); animation-timing-function: linear; }
-            65.67% { transform: translate3d(30.24%, 14.64%, 0) rotate(-352deg) scale(1.28); animation-timing-function: cubic-bezier(.2,.6,.4,1); }
-            76.12% { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); animation-timing-function: linear; }
+            35.65% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(.55,0,.85,.45); }
+            43.57% { transform: translate3d(-40.07%, -8.97%, 0) rotate(-10deg) scale(0.85); animation-timing-function: linear; }
+            45.54% { transform: translate3d(-67.41%, -8.97%, 0) rotate(-180deg) scale(0.7); animation-timing-function: linear; }
+            49.01% { transform: translate3d(-17.41%, 1.44%, 0) rotate(-178deg) scale(0.65); animation-timing-function: linear; }
+            54.45% { transform: translate3d(65.40%, 11.86%, 0) rotate(-172deg) scale(0.62); animation-timing-function: linear; }
+            56.44% { transform: translate3d(96.65%, 22.97%, 0) rotate(-356deg) scale(1.25); animation-timing-function: linear; }
+            61.39% { transform: translate3d(30.24%, 14.64%, 0) rotate(-352deg) scale(1.28); animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+            68.32% { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); animation-timing-function: linear; }
             100%   { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); }
           }
           @keyframes btlSaberFront {
-            0%, 38.73% { opacity: 1; }
-            38.81%, 55.22% { opacity: 0; }
-            55.3%, 100% { opacity: 1; }
+            0%, 43.51% { opacity: 1; }
+            43.57%, 54.45% { opacity: 0; }
+            54.51%, 100% { opacity: 1; }
           }
           @keyframes btlSaberBack {
-            0%, 38.73% { opacity: 0; }
-            38.81%, 55.22% { opacity: 0.85; }
-            55.3%, 100% { opacity: 0; }
+            0%, 43.51% { opacity: 0; }
+            43.57%, 54.45% { opacity: 0.85; }
+            54.51%, 100% { opacity: 0; }
           }
         `}</style>
       </div>

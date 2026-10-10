@@ -212,8 +212,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         .codex-fig-in { will-change: transform, opacity; }
         .codex-breathe { animation: codexBreathe 4.5s ease-in-out infinite; will-change: transform; }
         .codex-saber { will-change: transform, opacity; }
-        .codex-saber.is-back { opacity: 0; animation: codexSaberPath 12.864s infinite, codexSaberBack 12.864s infinite; }
-        .codex-saber.is-front { animation: codexSaberPath 12.864s infinite, codexSaberFront 12.864s infinite; }
+        .codex-saber.is-back { opacity: 0; animation: codexSaberPath 9.696s infinite, codexSaberBack 9.696s infinite; }
+        .codex-saber.is-front { animation: codexSaberPath 9.696s infinite, codexSaberFront 9.696s infinite; }
         /* 飛劍自身的「呼吸」：3.4 秒（與人物 4.5 秒非整數倍）、相位提前 1.1 秒；
            以劍身中點為軸 ±0.9° 微轉，加上極小的反向位移，劍尖與劍柄交替起落（劍柄相對手掌 ≤0.7px，劍尖約 1.6px）。
            持續運行、不需在起飛／落回時切換，因此不會跳動；飛行中這點幅度看不出來。 */
@@ -248,26 +248,26 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
            -360deg 與 0deg 為同一姿勢，循環接縫無跳動。 */
         @keyframes codexSaberPath {
           0%     { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: ease-in-out; }
-          26.87% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(.55,0,.85,.45); }
-          38.81% { transform: translate3d(-40.07%, -8.97%, 0) rotate(-10deg) scale(0.85); animation-timing-function: linear; }
-          41.79% { transform: translate3d(-67.41%, -8.97%, 0) rotate(-180deg) scale(0.7); animation-timing-function: linear; }
-          47.01% { transform: translate3d(-17.41%, 1.44%, 0) rotate(-178deg) scale(0.65); animation-timing-function: linear; }
-          55.22% { transform: translate3d(65.40%, 11.86%, 0) rotate(-172deg) scale(0.62); animation-timing-function: linear; }
-          58.21% { transform: translate3d(96.65%, 22.97%, 0) rotate(-356deg) scale(1.25); animation-timing-function: linear; }
-          65.67% { transform: translate3d(30.24%, 14.64%, 0) rotate(-352deg) scale(1.28); animation-timing-function: cubic-bezier(.2,.6,.4,1); }
-          76.12% { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); animation-timing-function: linear; }
+          35.65% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(.55,0,.85,.45); }
+          43.57% { transform: translate3d(-40.07%, -8.97%, 0) rotate(-10deg) scale(0.85); animation-timing-function: linear; }
+          45.54% { transform: translate3d(-67.41%, -8.97%, 0) rotate(-180deg) scale(0.7); animation-timing-function: linear; }
+          49.01% { transform: translate3d(-17.41%, 1.44%, 0) rotate(-178deg) scale(0.65); animation-timing-function: linear; }
+          54.45% { transform: translate3d(65.40%, 11.86%, 0) rotate(-172deg) scale(0.62); animation-timing-function: linear; }
+          56.44% { transform: translate3d(96.65%, 22.97%, 0) rotate(-356deg) scale(1.25); animation-timing-function: linear; }
+          61.39% { transform: translate3d(30.24%, 14.64%, 0) rotate(-352deg) scale(1.28); animation-timing-function: cubic-bezier(.2,.6,.4,1); }
+          68.32% { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); animation-timing-function: linear; }
           100%   { transform: translate3d(0, 0, 0) rotate(-360deg) scale(1); }
         }
         /* 前／後層切換點（飛行中段，劍都在畫面外），不會看到跳換 */
         @keyframes codexSaberFront {
-          0%, 38.73% { opacity: 1; }
-          38.81%, 55.22% { opacity: 0; }
-          55.3%, 100% { opacity: 1; }
+          0%, 43.51% { opacity: 1; }
+          43.57%, 54.45% { opacity: 0; }
+          54.51%, 100% { opacity: 1; }
         }
         @keyframes codexSaberBack {
-          0%, 38.73% { opacity: 0; }
-          38.81%, 55.22% { opacity: 0.85; }
-          55.3%, 100% { opacity: 0; }
+          0%, 43.51% { opacity: 0; }
+          43.57%, 54.45% { opacity: 0.85; }
+          54.51%, 100% { opacity: 0; }
         }
 
         @keyframes floatDetail {
