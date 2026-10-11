@@ -218,7 +218,11 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
                         </div>
                       </>
                     ) : (
-                      <img src={level.bossImg} alt={level.bossName} className="home-scene-layer" draggable={false} />
+                      <>
+                        <img src={level.bossImg} alt={level.bossName} className="home-scene-layer" draggable={false} />
+                        {/* 前景層（孔子：雙馬）疊在人物之上，同框同呼吸 */}
+                        {scene.front && <img src={scene.front} alt="" className="home-scene-layer" draggable={false} />}
+                      </>
                     )}
                   </div>
                 </div>

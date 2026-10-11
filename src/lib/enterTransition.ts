@@ -9,6 +9,8 @@
  * - 減少動態：不滑動，主頁整層淡出（下面即戰鬥畫面，不會閃白）。
  */
 import type { LevelConfig } from '../../types';
+import { HERO_SCENES } from '../../components/home/heroScene';
+import { portraitKey } from '../../data/portraits';
 
 /** 主頁 UI 滑出的總時長（v1.3.3 的 460ms × 2）：頂欄 → 篇名列 → 入陣 → 抽屜 → 底部導覽依序錯開 */
 export const ENTER_EXIT_MS = 920;
@@ -122,6 +124,9 @@ export function collectBattleImages(level: LevelConfig): string[] {
     if (typeof v === 'object') Object.values(v as Record<string, unknown>).forEach(x => walk(x, depth + 1));
   };
   walk(level, 0);
+  // 首頁場景的背景／前景層（例：孔子雙馬）：戰鬥沿用同一套圖層
+  const hero = HERO_SCENES[portraitKey(level.bossImg)];
+  if (hero) { out.add(hero.bg); if (hero.front) out.add(hero.front); }
   const base = import.meta.env.BASE_URL;
   out.add(`${base}resources/effect/ink_splash.png`);
   if ([...out].some(u => u.includes('/li_bai/'))) out.add(`${base}resources/avatar/li_bai/li_bai_shadow.png`);

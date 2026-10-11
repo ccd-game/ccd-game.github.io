@@ -5,6 +5,7 @@
  */
 import type { LevelConfig } from '../../types';
 import { LAYERED_PORTRAITS } from '../../data/portraits';
+import { HERO_SCENES } from '../../components/home/heroScene';
 
 const IMG_RE = /\.(png|jpe?g|webp)(\?.*)?$/i;
 
@@ -19,6 +20,7 @@ export function collectAllArt(levels: LevelConfig[], webp: ReadonlySet<string> =
   };
   levels.forEach(l => walk(l, 0));
   Object.values(LAYERED_PORTRAITS).forEach(p => { out.add(p.character); out.add(p.effect); });
+  Object.values(HERO_SCENES).forEach(h => { out.add(h.bg); if (h.front) out.add(h.front); });
   return [...out].map(u => { const w = u.replace(IMG_RE, '.webp'); return w !== u && webp.has(w) ? w : u; });
 }
 

@@ -14,8 +14,8 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
   const allCharacters = useMemo(() => {
     const SPECIAL_MAP: Record<number, { name: string; title: string; img?: string }> = {
       1: { name: "廉頗&藺相如", title: "《廉頗藺相如列傳》", img: `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan.png` },
-      5: { name: "荀子", title: "《勸學》", img: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi.png` },
-      6: { name: "孔子", title: "《論仁、論孝、論君子》", img: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi.png` },
+      5: { name: "荀子", title: "《勸學》", img: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_character.webp` },
+      6: { name: "孔子", title: "《論仁、論孝、論君子》", img: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_character.webp` },
       9: { name: "諸葛亮", title: "《出師表》", img: `${import.meta.env.BASE_URL}resources/avatar/zhu_ge_liang/zhu_ge_liang.png` },
       11: { name: "王維", title: "《山居秋暝》", img: DEFAULT_IMG },
       12: { name: "李白", title: "《月下獨酌》", img: `${import.meta.env.BASE_URL}resources/avatar/li_bai/li_bai.png` },

@@ -1,3 +1,5 @@
+import { HERO_SCENES, computeHeroFit, heroPeekHeight } from '../components/home/heroScene';
+
 /**
  * 戰鬥畫面 Boss 立繪定位（以人物本身為準，而非圖片外框）
  *
@@ -38,8 +40,9 @@ export const BATTLE_ANCHORS: Record<string, BattleSpriteAnchor> = {
   // 入鏡範圍：刀尖（全幅 x229 → 159）到衣襬右緣；待機姿勢不必顯示整把刀，刀尖與火焰可在左緣被裁切（cropL）
   // nameGap：名字底邊與頭頂間距（390 寬約 18px）；全體可玩 Boss 統一
   liu_zong_yuan_battle: { w: 1135, h: 623, faceX: 750, eyeY: 112, faceH: 52, headTopY: 28, fitX0: 159, fitX1: 1127, cropL: 0.6, nameGap: 6, nameCompact: true, bottomY: 622 }, // 人物 bbox 置中後帽頂≈40；標準標籤(38px+18)放不下 → 緊湊版
-  // kong_zi.png 1408×768：頭頂＝髮冠頂；入鏡範圍＝車輪（x248）到馬頭（x1355）；放不下時保住戰車（車輪外緣可裁切約 6% 畫面寬），馬匹可被裁切
-  kong_zi: { w: 1408, h: 768, faceX: 610, eyeY: 177, faceH: 45, headTopY: 122, fitX0: 248, fitX1: 1355, fitPriority: 'left', cropL: 0.06, nameGap: 18, bottomY: 767 },
+  // 孔子 v3 kong_zi_character.webp 1280×720（與背景、雙馬層逐像素對齊）：headTopY＝車蓋頂飾 149.5（名字在其上）；
+  // 入鏡範圍＝前輪外緣 x246～馬頭 x894；bottomY＝最低馬蹄 705
+  kong_zi_character: { w: 1280, h: 720, faceX: 508, eyeY: 271, faceH: 35, headTopY: 150, fitX0: 246, fitX1: 894, fitPriority: 'left', cropL: 0.06, nameGap: 18, bottomY: 705 },
   // zhu_ge_liang.png 768×1344：頭頂＝綸巾頂；身形含八卦光環
   zhu_ge_liang: { w: 768, h: 1344, faceX: 392, eyeY: 144, faceH: 97, headTopY: 35, fitX0: 54, fitX1: 739, nameGap: 18, bottomY: 1343 },
   // li_bai.png 1645×1503：頭頂＝髮頂；身形含舉杯的手與兩側衣袖（左側衣袖末端可裁切約 8% 畫面寬，酒杯不會被裁）
@@ -178,7 +181,18 @@ export interface BattleScene {
    * top = heroTop + topPad − s·headY；背景另以 (zoomX, 底邊) 為原點放大 zoom。chrome＝頂列 88＋導覽 76＋抽屜把手 52。
    */
   homeSync?: { w: number; h: number; chrome: number; heroTop: number; topPad: number; headY: number; X: number; ax: number; zoom: number; zoomX: number };
+  /**
+   * 與首頁預覽同步（通用版）：以 HERO_SCENES[heroSync] 及首頁同一套 computeHeroFit 算出同 viewport 下首頁英雄區（抽屜半開）的
+   * 場景縮放與位置，背景與人物（全幅對齊的 fig）都套用它 → 人物大小、錨點與首頁相同。未從首頁無縫入陣（無 homeBox）時使用。
+   */
+  heroSync?: string;
+  /** 疊在人物之上的前景層（與戰鬥立繪同框、逐像素對齊；例：孔子雙馬）。順序：背景 → 人物 → front */
+  front?: string;
 }
+
+/** 首頁版面：頂欄高（英雄區上緣）、底部導覽高；首頁內容區（.home-dungeon）高＝視窗高 − 兩者 */
+export const HOME_TOP_BAR_H = 88;
+export const HOME_NAV_H = 76;
 
 export const BATTLE_SCENES: Record<string, BattleScene> = {
   // 坐於岩上；戰鬥立繪 = 全幅 1280×720 裁切 (70, 13) 1135×623
@@ -187,8 +201,9 @@ export const BATTLE_SCENES: Record<string, BattleScene> = {
   liu_zong_yuan_battle: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], crop: { x: 70, y: 13, w: 1135, h: 623 }, foot: 634, footX: 974, ax: 820, charScale: 0.56, bodyBox: [378, 36, 1198, 636], nameScreenCenter: true, breathY: 0, bgTopAlign: 12, labelGap: 20, restOnBg: { foot: [975, 633], bg: [953.77, 465.18], relScale: 0.64 / 1.14 },
     // v6：homeSync＝背景縮放／位置、人物大小與首頁同 viewport 一致（首頁 figScale 0.64、bgZoom 1.14@x995、rest 頭頂 y＝429.5−614·0.64）
     homeSync: { w: 1280, h: 720, chrome: 216, heroTop: 88, topPad: 12, headY: 429.5 - (633 - 19) * 0.64, X: 0.53, ax: 867, zoom: 1.14, zoomX: 995 } }, // v5：背景同 v4；人物沿用首頁貼合（首頁 rest(948,429.5)＋bgZoom 1.14@x995 底 → 背景原圖 (953.77,465.18)；0.64/1.14＝0.5614）
-  // 坐於車中；立繪與背景同尺寸
-  kong_zi: { bgW: 1408, bgH: 768, fig: [0, 0, 1408, 768], foot: 705, ax: 616 },
+  // 孔子 v3：坐於戰車、雙馬在前；三層與背景同尺寸逐像素對齊（輪／蹄本來就踏在背景路面上）。
+  // heroSync：縮放／位置與首頁預覽同 viewport 相同；front＝雙馬（武器層）疊在人物之上
+  kong_zi_character: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], foot: 705, ax: 570, breathY: 0, heroSync: 'kong_zi', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
   // 立於殿前木棧（欄杆右側地板）
   zhu_ge_liang: { bgW: 1408, bgH: 768, fig: [860, 140, 320, 560], foot: 712, ax: 1020 },
   // 立於月下岩台
@@ -337,6 +352,25 @@ export function computeGroundedBattle(
     sceneBox.width = sc.bgW * scale; sceneBox.height = sc.bgH * scale; sceneBox.mirrorBottom = false;
   }
   if (sc.charShiftY) figTop += sc.charShiftY;
+  // 通用首頁同步：場景（背景＋全幅人物）＝首頁英雄區同一套縮放與位置
+  let heroFigScale: number | null = null;
+  const heroSc = sc.heroSync ? HERO_SCENES[sc.heroSync] : undefined;
+  if (heroSc && !homeBox) {
+    const D = rootH - HOME_TOP_BAR_H - HOME_NAV_H;
+    const { s, left, top: t } = computeHeroFit(heroSc, rootW, heroPeekHeight(D), D);
+    const top = HOME_TOP_BAR_H + t;
+    sceneBox.left = left; sceneBox.top = top; sceneBox.scale = s;
+    sceneBox.width = sc.bgW * s; sceneBox.height = sc.bgH * s; sceneBox.mirrorBottom = false;
+    const gap = {
+      left: Math.max(0, left), top: Math.max(0, top),
+      right: Math.max(0, rootW - (left + sceneBox.width)), bottom: Math.max(0, sceneH - (top + sceneBox.height)),
+    };
+    sceneBox.gap = gap;
+    sceneBox.mirrorTiles = gap.left > 0.5 || gap.top > 0.5 || gap.right > 0.5 || gap.bottom > 0.5;
+    heroFigScale = sameDpi ? s : s * fw / a.w;
+    figLeft = left + (sameDpi ? crop.x : fx) * s;
+    figTop = top + (sameDpi ? crop.y : fy) * s;
+  }
   if (homeBox) {
     // 戰鬥背景＝主頁預覽背景（同圖、同縮放、同位置）
     const { left, top, scale } = homeBox.bg;
@@ -361,6 +395,8 @@ export function computeGroundedBattle(
     restScale = sameDpi ? s : s * fw / a.w;
     figLeft = homeBox.scene.left + (sameDpi ? crop.x : fx) * s;
     figTop = homeBox.scene.top + (sameDpi ? crop.y : fy) * s;
+  } else if (heroFigScale != null) {
+    restScale = heroFigScale;
   }
   // 沿用主頁時，戰鬥待機呼吸改用主頁同一個 homeSceneBreathe（只有 scaleY，沒有 breathY 下移），相位由 syncHeroAnimations 接續
   const figScaleF = restScale ?? figScale;

@@ -22,7 +22,8 @@ export interface PortraitAnchor {
 export const PORTRAIT_ANCHORS: Record<string, PortraitAnchor> = {
   liu_zong_yuan: { w: 1280, h: 720,  faceX: 820,  eyeY: 125, faceH: 52,  face: { top: 108, chin: 176, cx: 836 } },
   zhu_ge_liang:  { w: 768,  h: 1344, faceX: 392,  eyeY: 144, faceH: 97,  face: { top: 130, chin: 225, cx: 392 } },
-  kong_zi:       { w: 1408, h: 768,  faceX: 610,  eyeY: 177, faceH: 45,  face: { top: 154, chin: 211, cx: 612 } },
+  // 孔子三層立繪 v3（kong_zi_character.webp 1280×720，與背景／雙馬逐像素對齊）：髮髻頂 y≈232、額頂 256、眼線 271、下巴（不含鬍）291，臉心 x≈508
+  kong_zi:       { w: 1280, h: 720,  faceX: 508,  eyeY: 271, faceH: 35,  face: { top: 256, chin: 291, cx: 508 } },
   li_bai:        { w: 1645, h: 1503, faceX: 1040, eyeY: 205, faceH: 125, face: { top: 170, chin: 292, cx: 1045 } },
 };
 

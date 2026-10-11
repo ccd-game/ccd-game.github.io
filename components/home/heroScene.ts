@@ -32,6 +32,8 @@ export interface HeroScene {
   footPad?: number;
   /** 帽頂留白 px（預設 12） */
   topPad?: number;
+  /** 疊在人物之上的前景層（與人物同框、同尺寸、逐像素對齊；例：孔子的雙馬＝武器層）。順序：背景 → 人物 → front */
+  front?: string;
 }
 const BG = `${import.meta.env.BASE_URL}resources/background`;
 export const HERO_SCENES: Record<string, HeroScene> = {
@@ -41,7 +43,10 @@ export const HERO_SCENES: Record<string, HeroScene> = {
   // fit 'headTop'：抽屜半開時英雄區變矮 → 人物大小不變，背景＋人物下移到帽頂留白 12px，下半身可被 UI／抽屜遮
   liu_zong_yuan: { bg: `${BG}/bg_level_2.png`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 867, X: 0.53, head: 19, foot: 633, footX: 975, k: 1.62, breathe: '64.8% 79.9%', figScale: 0.64, fill: 'coverBottom', rest: [948, 429.5], bgZoom: [1.14, 995], fit: 'headTop' },
   // 坐於車中，放大約一成半；車輪著地，馬匹向右出框
-  kong_zi: { bg: `${BG}/bg_level_6.jpeg`, w: 1408, h: 768, fig: [0, 0, 1408, 768], ax: 616, X: 0.53, head: 17, foot: 705, k: 2.28, breathe: '50% 92%' },
+  // v3 三層（1280×720 逐像素對齊）：kong_zi_bg → kong_zi_character（人物＋戰車）→ kong_zi_weapon（雙馬，疊在人物上）
+  // head＝車蓋頂飾 y149.5；foot＝最低馬蹄 y705（前輪著地 640.9、後輪 623.2、馬蹄 659–705，皆在同一張背景的路面上）
+  // ax＝戰車＋雙馬的水平中心（前輪外緣 x246～馬頭 x894 → 570）置於 X 0.5；breathe 原點＝輪／蹄著地線（y≈662＝92%），呼吸時輪蹄不離地
+  kong_zi: { bg: `${BG}/kong_zi_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 570, X: 0.5, head: 149.5, foot: 705, k: 2.28, breathe: '45% 92%', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
   // 立於殿前木棧（欄杆右側的地板），雙足踏地
   zhu_ge_liang: { bg: `${BG}/bg_level_9.jpeg`, w: 1408, h: 768, fig: [860, 140, 320, 560], ax: 1020, X: 0.52, head: 152, foot: 712, k: 2.31, breathe: '50% 99%' },
   // 立於月下岩台

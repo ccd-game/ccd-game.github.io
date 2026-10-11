@@ -150,7 +150,10 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
                          </div>
                        </>
                      ) : (
-                       <img className="codex-layer" src={char.img} alt="" draggable="false" />
+                       <>
+                         <img className="codex-layer" src={char.img} alt="" draggable="false" />
+                         {scene.front && <img className="codex-layer" src={scene.front} alt="" draggable="false" />}
+                       </>
                      )}
                    </div>
                  </div>

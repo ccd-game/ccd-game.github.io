@@ -262,6 +262,9 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
   // ---- 立繪版面（人物錨點）＋落地場景（背景與立繪同一 transform）----
   const imgFill: React.CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', maxWidth: 'none', display: 'block', objectFit: 'contain', objectPosition: 'center bottom' };
   const sceneBox = sceneBoxProp ?? null;
+  /** 疊在人物之上的前景層（孔子：雙馬＝武器層） */
+  const frontImg = scene?.front;
+  const maskSrc = frontImg ? `url("${bossImg}"), url("${frontImg}")` : `url("${bossImg}")`;
   const grounded = !!(scene && sceneBox && bgImg);
   const spriteBoxStyle: React.CSSProperties = layout
     ? { position: 'absolute', left: layout.left, top: layout.top, width: layout.width, height: layout.height }
@@ -455,16 +458,33 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
                 </>
               ) : (
                 <>
-                  <img src={bossImg} alt="" style={{ ...imgFill, opacity: holdScene ? 0 : 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)', ...auraFade }} />
-                  <img src={bossImg} alt={bossName} style={{ ...imgFill, zIndex: 10, filter: holdScene ? 'drop-shadow(0 0 0px rgba(0,0,0,0))' : 'drop-shadow(0 0 8px rgba(0,0,0,0.8))', ...auraFade }} />
+                  {frontImg ? (
+                    /* 人物＋前景層（孔子：戰車人物在下、雙馬在上），兩層同框；紅光／陰影套在整組上 */
+                    <>
+                      <div className="absolute inset-0" style={{ opacity: holdScene ? 0 : 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)', ...auraFade }}>
+                        <img src={bossImg} alt="" style={imgFill} />
+                        <img src={frontImg} alt="" style={imgFill} />
+                      </div>
+                      <div className="absolute inset-0" role="img" aria-label={bossName} style={{ zIndex: 10, filter: holdScene ? 'drop-shadow(0 0 0px rgba(0,0,0,0))' : 'drop-shadow(0 0 8px rgba(0,0,0,0.8))', ...auraFade }}>
+                        <img src={bossImg} alt="" style={imgFill} />
+                        <img src={frontImg} alt="" style={imgFill} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <img src={bossImg} alt="" style={{ ...imgFill, opacity: holdScene ? 0 : 0.6, zIndex: 5, filter: 'drop-shadow(0 0 15px #ff0000)', ...auraFade }} />
+                      <img src={bossImg} alt={bossName} style={{ ...imgFill, zIndex: 10, filter: holdScene ? 'drop-shadow(0 0 0px rgba(0,0,0,0))' : 'drop-shadow(0 0 8px rgba(0,0,0,0.8))', ...auraFade }} />
+                    </>
+                  )}
                 </>
               )}
 
               <div className={`absolute inset-0 pointer-events-none ${enemyAnim === 'hurt' ? 'hurt-flash-active' : 'opacity-0'}`} style={{ zIndex: 16 }}>
                 <div style={{
                   height: '100%', width: '100%', backgroundColor: '#ff0000',
-                  maskImage: `url("${bossImg}")`, maskSize: 'contain', maskRepeat: 'no-repeat', maskPosition: 'center bottom',
-                  WebkitMaskImage: `url("${bossImg}")`, WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center bottom'
+                  // 受擊紅光遮罩＝人物（＋前景層）的聯集
+                  maskImage: maskSrc, maskSize: 'contain', maskRepeat: 'no-repeat', maskPosition: 'center bottom',
+                  WebkitMaskImage: maskSrc, WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center bottom'
                 }} />
               </div>
             </div>

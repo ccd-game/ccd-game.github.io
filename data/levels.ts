@@ -46,29 +46,29 @@ export const LEVELS_DATA: LevelConfig[] = [
   },
   {
     id: 5, title: "《勸學》（節錄）", subTitle: "荀子", sheetIds: [5], bossName: "荀子",
-    bossImg: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi.png`, // 暫代
-    bgImg: `${import.meta.env.BASE_URL}resources/background/bg_level_6.jpeg`, // 暫代
+    bossImg: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_character.webp`, // 暫代
+    bgImg: `${import.meta.env.BASE_URL}resources/background/kong_zi_bg.webp`, // 暫代
     quote: '不積跬步，無以至千里；不積小流，無以成江海。',
     locked: true
   },
   { 
     id: 6, title: "《論仁、論孝、論君子》", subTitle: "孔子", sheetIds: [6], bossName: "孔子",
-    bossImg: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi.png`,
-    bgImg: `${import.meta.env.BASE_URL}resources/background/bg_level_6.jpeg`,
+    bossImg: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_character.webp`,
+    bgImg: `${import.meta.env.BASE_URL}resources/background/kong_zi_bg.webp`,
     quote: '一日克己復禮，天下歸仁焉。',
     locked: false
   },
   {
     id: 7, title: "《魚我所欲也》", subTitle: "孟子", sheetIds: [7], bossName: "孟子",
-    bossImg: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi.png`, // 暫代
-    bgImg: `${import.meta.env.BASE_URL}resources/background/bg_level_6.jpeg`, // 暫代
+    bossImg: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_character.webp`, // 暫代
+    bgImg: `${import.meta.env.BASE_URL}resources/background/kong_zi_bg.webp`, // 暫代
     quote: '生亦我所欲也，義亦我所欲也；二者不可得兼，舍生而取義者也。',
     locked: true
   },
   {
     id: 8, title: "《逍遙遊》（節錄）", subTitle: "莊子", sheetIds: [8], bossName: "莊子",
-    bossImg: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi.png`, // 暫代
-    bgImg: `${import.meta.env.BASE_URL}resources/background/bg_level_6.jpeg`, // 暫代
+    bossImg: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_character.webp`, // 暫代
+    bgImg: `${import.meta.env.BASE_URL}resources/background/kong_zi_bg.webp`, // 暫代
     quote: '無所可用，安所困苦哉？',
     locked: true
   },
