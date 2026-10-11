@@ -44,9 +44,11 @@ export const HERO_SCENES: Record<string, HeroScene> = {
   liu_zong_yuan: { bg: `${BG}/bg_level_2.png`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 867, X: 0.53, head: 19, foot: 633, footX: 975, k: 1.62, breathe: '64.8% 79.9%', figScale: 0.64, fill: 'coverBottom', rest: [948, 429.5], bgZoom: [1.14, 995], fit: 'headTop' },
   // 坐於車中，放大約一成半；車輪著地，馬匹向右出框
   // v3 三層（1280×720 逐像素對齊）：kong_zi_bg → kong_zi_character（人物＋戰車）→ kong_zi_weapon（雙馬，疊在人物上）
-  // head＝車蓋頂飾 y149.5；foot＝最低馬蹄 y705（前輪著地 640.9、後輪 623.2、馬蹄 659–705，皆在同一張背景的路面上）
-  // ax＝戰車＋雙馬的水平中心（前輪外緣 x246～馬頭 x894 → 570）置於 X 0.5；breathe 原點＝輪／蹄著地線（y≈662＝92%），呼吸時輪蹄不離地
-  kong_zi: { bg: `${BG}/kong_zi_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 570, X: 0.5, head: 149.5, foot: 705, k: 2.28, breathe: '45% 92%', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
+  // head＝車蓋頂飾 y149.5；foot＝前輪著地 y640.9（後輪 623.2、馬蹄 659–705，皆在同一張背景的路面上；雙馬向右下出框）
+  // v1.3.7：foot 705→640.9（全身入框改以「車蓋頂～前輪著地」為準）→ 場景放大、整體上移：390×844 背景頂高出畫面、不露鏡像，
+  //   且螢幕臉高（faceH 35）＝柳宗元（faceH 52×figScale 0.64）≈29px；ax 570→533 讓前輪外緣 x246 露出量與舊版相同
+  // breathe 原點＝輪／蹄著地線（y≈662＝92%），呼吸時輪蹄不離地
+  kong_zi: { bg: `${BG}/kong_zi_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 533, X: 0.5, head: 149.5, foot: 640.9, k: 2.28, breathe: '45% 92%', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
   // 立於殿前木棧（欄杆右側的地板），雙足踏地
   zhu_ge_liang: { bg: `${BG}/bg_level_9.jpeg`, w: 1408, h: 768, fig: [860, 140, 320, 560], ax: 1020, X: 0.52, head: 152, foot: 712, k: 2.31, breathe: '50% 99%' },
   // 立於月下岩台

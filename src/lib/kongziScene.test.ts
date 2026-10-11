@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BATTLE_ANCHORS, BATTLE_SCENES, HOME_NAV_H, HOME_TOP_BAR_H, battleAnchorKey, computeGroundedBattle } from '../../data/battleLayout';
+import { BATTLE_ANCHORS, BATTLE_SCENES, HOME_NAV_H, HOME_TOP_BAR_H, battleAnchorKey, bossNameSlotY, computeGroundedBattle } from '../../data/battleLayout';
 import { HERO_SCENES, computeHeroFit, heroPeekHeight } from '../../components/home/heroScene';
 import { LEVELS_DATA } from '../../data/levels';
 
@@ -38,5 +38,28 @@ describe('孔子 v3 三層場景（第 6 關）', () => {
     expect(r.layout.left).toBeCloseTo(-223.3, 6);
     expect(r.layout.top).toBeCloseTo(-9.7, 6);
     expect(r.layout.scale).toBeCloseTo(0.7339, 6);
+  });
+
+  it('390×844：背景頂高出畫面（三頁皆不露鏡像）、臉高＝柳宗元（±5%）', () => {
+    const W = 390, H = 844, D = H - HOME_TOP_BAR_H - HOME_NAV_H, Hp = heroPeekHeight(D);
+    const kz = computeHeroFit(HERO_SCENES.kong_zi, W, Hp, D);
+    const lz = computeHeroFit(HERO_SCENES.liu_zong_yuan, W, Hp, D);
+    expect(HOME_TOP_BAR_H + kz.top).toBeLessThan(0);              // 戰鬥頁（同幾何、自畫面頂起算）
+    expect(kz.top + 720 * kz.s).toBeGreaterThanOrEqual(Hp - 0.5); // 首頁／圖鑑底不露
+    expect(kz.top + 149.5 * kz.s).toBeGreaterThanOrEqual(11.9);    // 車蓋頂飾不出框
+    const r = computeGroundedBattle(BATTLE_ANCHORS[key], BATTLE_SCENES[key], W, H)!;
+    expect(r.sceneBox.mirrorTiles).toBe(false);
+    const kzFace = 35 * kz.s, lzFace = 52 * lz.s * (HERO_SCENES.liu_zong_yuan.figScale ?? 1);
+    expect(Math.abs(kzFace / lzFace - 1)).toBeLessThan(0.05);
+  });
+});
+
+describe('關主名字＋圖標固定槽位（BOSS_NAME_SLOT）', () => {
+  it.each([[390, 844], [375, 667], [430, 932]])('%i×%i：全體關主名字位置相同、水平置中、等於柳宗元基準', (W, H) => {
+    const ys = Object.keys(BATTLE_SCENES).map(k => computeGroundedBattle(BATTLE_ANCHORS[k], BATTLE_SCENES[k], W, H)!.layout);
+    for (const l of ys) { expect(l.headX).toBe(W / 2); expect(l.headY).toBe(bossNameSlotY(W, H)); }
+  });
+  it('柳宗元 390×844 位置不變（v1.3.6：標籤底 y≈89.49）', () => {
+    expect(bossNameSlotY(390, 844)).toBeCloseTo(89.494, 2);
   });
 });

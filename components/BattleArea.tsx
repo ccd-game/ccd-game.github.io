@@ -1,7 +1,7 @@
 
 import React, { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BossAttackStyle, WeaponLayerConfig, FLYING_SWORD_TIMING, X_SLASH_TIMING } from '../types';
-import { BattleLayout, BattleScene, BattleSceneBox } from '../data/battleLayout';
+import { BOSS_NAME_SLOT, BattleLayout, BattleScene, BattleSceneBox } from '../data/battleLayout';
 import { buildWeave, sampleWeave, WeaveTrack, WEAVE_PERSPECTIVE } from './swordWeave';
 
 /** 鏡射補邊圖塊（不含中央本體） */
@@ -381,6 +381,36 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
         className={`absolute top-0 left-0 w-full h-[62%] transition-opacity duration-[1000ms] ${isCharacterVisible || holdScene ? 'opacity-100' : 'opacity-0'}`}
         style={{ overflow: 'visible', pointerEvents: 'none', transitionDuration: `${1000 * animScale}ms` }}
       >
+        {/* 名字標籤：全體關主固定槽位（BOSS_NAME_SLOT，格式與位置以柳宗元為準；框寬高固定，不隨關主頭頂改變；放在呼吸／受擊位移層之外，畫面位置永遠固定） */}
+        <div
+          data-boss-name=""
+          className="absolute z-[100] pointer-events-none"
+          style={layout ? {
+            left: layout.headX,
+            top: layout.headY,
+            width: BOSS_NAME_SLOT.w,
+            height: BOSS_NAME_SLOT.h,
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            transform: 'translate3d(-50%, -100%, 0)',
+            willChange: 'transform',
+            zIndex: 100,
+          } : {
+            top: '-15%',
+            left: '50%',
+            transform: 'translateX(-50%) translate3d(-50px, 35px, 0)',
+            willChange: 'transform'
+          }}
+        >
+          {/* 緊湊格式：名字 12px 在上、◆ 在下；整組水平置中 */}
+          <div className={`flex flex-col items-center justify-center gap-[2px] transition-opacity duration-500 ${isNameVisible ? 'boss-name-anim opacity-100' : 'opacity-0'}`} style={{ transitionDuration: `${500 * animScale}ms`, lineHeight: 1 }}>
+            <span className="text-white font-black tracking-[2px] mr-[-2px]" style={{ fontSize: 12, lineHeight: 1, WebkitTextStroke: '0.6px rgba(0,0,0,0.85)', paintOrder: 'stroke fill', textShadow: '0 0 2px #000, 0 0 4px rgba(0,0,0,1), 0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)' }}>{bossName}</span>
+            {/* 窄菱形 ◆：高 8、寬 4.8（0.6 比例）；外框＝可見形狀，名字底→◆頂 恰 2px */}
+            <span data-boss-dia style={{ display: 'block', filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.8)) drop-shadow(0 0 1.5px rgba(0,0,0,1))' }}>
+              <span style={{ display: 'block', width: 4.8, height: 8, background: '#fff', clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }} />
+            </span>
+          </div>
+        </div>
+
         <div
           className={`absolute inset-0 ${enemyAnim === 'idle' ? 'enemy-breathing' : 'base-offset'}`}
           style={inheritBreathOrigin && enemyAnim === 'idle'
@@ -395,42 +425,6 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
             `}
             style={cssVars({ willChange: 'transform', transformOrigin: spriteOrigin, '--cast-duration': `${fxTotal}ms` })}
           >
-            {/* 名字標籤（原樣式；位置改為貼在新版面的頭頂上方，隨立繪一起擺動） */}
-            <div
-              data-boss-name=""
-              className="absolute z-[100] pointer-events-none"
-              style={layout ? {
-                left: layout.headX,
-                top: layout.headY,
-                transform: 'translate3d(-50%, -100%, 0)',
-                willChange: 'transform',
-                zIndex: 100,
-              } : {
-                top: '-15%',
-                left: '50%',
-                transform: 'translateX(-50%) translate3d(-50px, 35px, 0)',
-                willChange: 'transform'
-              }}
-            >
-              {layout?.anchor.nameCompact ? (
-                /* 緊湊版：名字 12px 在上、◆ 在下；整組水平置中 */
-                <div className={`flex flex-col items-center justify-center gap-[2px] transition-opacity duration-500 ${isNameVisible ? 'boss-name-anim opacity-100' : 'opacity-0'}`} style={{ transitionDuration: `${500 * animScale}ms`, lineHeight: 1 }}>
-                  <span className="text-white font-black tracking-[2px] mr-[-2px]" style={{ fontSize: 12, lineHeight: 1, WebkitTextStroke: '0.6px rgba(0,0,0,0.85)', paintOrder: 'stroke fill', textShadow: '0 0 2px #000, 0 0 4px rgba(0,0,0,1), 0 1px 3px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6)' }}>{bossName}</span>
-                  {/* 窄菱形 ◆：高 8、寬 4.8（0.6 比例）；外框＝可見形狀，名字底→◆頂 恰 2px */}
-                  <span data-boss-dia style={{ display: 'block', filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.8)) drop-shadow(0 0 1.5px rgba(0,0,0,1))' }}>
-                    <span style={{ display: 'block', width: 4.8, height: 8, background: '#fff', clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }} />
-                  </span>
-                </div>
-              ) : (
-              <div className={`flex flex-col items-center transition-opacity duration-500 ${isNameVisible ? 'boss-name-anim opacity-100' : 'opacity-0'}`} style={{ transitionDuration: `${500 * animScale}ms` }}>
-                <div className="text-[1.1rem] mb-[-4px] text-white flex justify-center" style={{ lineHeight: 1, transform: 'translate3d(0, -3px, 0) scale(0.325, 0.65)', transformOrigin: 'center bottom', textShadow: '0 0 12px rgba(255,255,255,0.8), 0 0 4px rgba(0,0,0,1), 0 2px 4px rgba(0,0,0,0.8)' }}>◆</div>
-                <div className="flex items-center justify-center mr-[-4px]">
-                   <span className="mt-[1px] text-white font-black tracking-[4px] text-shadow-sm">{bossName}</span>
-                </div>
-              </div>
-              )}
-            </div>
-
             <div data-boss-sprite="" style={{
               ...spriteBoxStyle,
             }}>

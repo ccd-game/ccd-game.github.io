@@ -28,7 +28,6 @@ export const QUESTIONS_EXHAUSTED_POLICY: QuestionsExhaustedPolicy = 'defeat';
 export const UI_STATIC_TEXT = {
   LOADING: { title: "文言地城", sub: "感應雲端中...", startBtn: "深入不毛", cancelBtn: "驀然回首" },
   PAUSE: { quote: "夫戰，勇氣也。\n一鼓作氣，再而衰，三而竭。\n《曹劌論戰》", resume: "學不可已", quit: "驀然回首" },
-  QUIT_CONFIRM: { title: "中止修煉？", keep: "鍥而不舍", leave: "鍥而舍之" },
   WARNING: { timer: "時間將盡！", lowHp: "命懸一線！" }
 };
 

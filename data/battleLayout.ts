@@ -28,25 +28,20 @@ export interface BattleSpriteAnchor {
   fitPriority?: 'left' | 'right';
   /** 允許入鏡範圍左／右緣超出畫面的量（佔畫面寬比例），讓臉能更接近目標位置 */
   cropL?: number; cropR?: number;
-  /** 名字標籤底邊與頭頂的間距（px）；未設則用 BATTLE_LAYOUT.headGap。目前只調柳宗元 */
-  nameGap?: number;
-  /** 緊湊名字標籤：名字 12px 在上、◆ 在下（行高 1），整組置中 */
-  nameCompact?: boolean;
   bottomY: number;
 }
 
 export const BATTLE_ANCHORS: Record<string, BattleSpriteAnchor> = {
   // liu_zong_yuan_battle.png 1135×623（= 全幅 1280×720 合成圖裁切 x70 y13）
   // 入鏡範圍：刀尖（全幅 x229 → 159）到衣襬右緣；待機姿勢不必顯示整把刀，刀尖與火焰可在左緣被裁切（cropL）
-  // nameGap：名字底邊與頭頂間距（390 寬約 18px）；全體可玩 Boss 統一
-  liu_zong_yuan_battle: { w: 1135, h: 623, faceX: 750, eyeY: 112, faceH: 52, headTopY: 28, fitX0: 159, fitX1: 1127, cropL: 0.6, nameGap: 6, nameCompact: true, bottomY: 622 }, // 人物 bbox 置中後帽頂≈40；標準標籤(38px+18)放不下 → 緊湊版
+  liu_zong_yuan_battle: { w: 1135, h: 623, faceX: 750, eyeY: 112, faceH: 52, headTopY: 28, fitX0: 159, fitX1: 1127, cropL: 0.6, bottomY: 622 },
   // 孔子 v3 kong_zi_character.webp 1280×720（與背景、雙馬層逐像素對齊）：headTopY＝車蓋頂飾 149.5（名字在其上）；
   // 入鏡範圍＝前輪外緣 x246～馬頭 x894；bottomY＝最低馬蹄 705
-  kong_zi_character: { w: 1280, h: 720, faceX: 508, eyeY: 271, faceH: 35, headTopY: 150, fitX0: 246, fitX1: 894, fitPriority: 'left', cropL: 0.06, nameGap: 18, bottomY: 705 },
+  kong_zi_character: { w: 1280, h: 720, faceX: 508, eyeY: 271, faceH: 35, headTopY: 150, fitX0: 246, fitX1: 894, fitPriority: 'left', cropL: 0.06, bottomY: 705 },
   // zhu_ge_liang.png 768×1344：頭頂＝綸巾頂；身形含八卦光環
-  zhu_ge_liang: { w: 768, h: 1344, faceX: 392, eyeY: 144, faceH: 97, headTopY: 35, fitX0: 54, fitX1: 739, nameGap: 18, bottomY: 1343 },
+  zhu_ge_liang: { w: 768, h: 1344, faceX: 392, eyeY: 144, faceH: 97, headTopY: 35, fitX0: 54, fitX1: 739, bottomY: 1343 },
   // li_bai.png 1645×1503：頭頂＝髮頂；身形含舉杯的手與兩側衣袖（左側衣袖末端可裁切約 8% 畫面寬，酒杯不會被裁）
-  li_bai: { w: 1645, h: 1503, faceX: 1040, eyeY: 205, faceH: 125, headTopY: 103, fitX0: 281, fitX1: 1644, cropL: 0.08, nameGap: 18, bottomY: 1502 },
+  li_bai: { w: 1645, h: 1503, faceX: 1040, eyeY: 205, faceH: 125, headTopY: 103, fitX0: 281, fitX1: 1644, cropL: 0.08, bottomY: 1502 },
 };
 
 /** 全體共用的版面參數（以戰鬥區＝畫面上方 62% 為基準） */
@@ -69,8 +64,24 @@ export const BATTLE_LAYOUT = {
   maxFigureRatio: 0.74,
   /** 若以腳底貼地會讓眼線低於此比例，就整體上移（寬身形縮小後不致沉到題目框後面） */
   eyeMaxRatio: 0.42,
-  /** 名字標籤底部與頭頂的距離 px */
-  headGap: 4,
+} as const;
+
+/**
+ * 關主名字＋◆ 圖標：全體關主共用的固定槽位（永遠同一格式、同一螢幕位置，不隨關主頭頂或逐關參數改變）。
+ * 格式＝緊湊版（名字 12px 在上、◆ 在下，整組水平置中於螢幕）；位置以柳宗元（v1.3.6）為標準：
+ * 標籤底邊 y＝柳宗元戰鬥場景（未經首頁入陣時的 homeSync＋restOnBg 幾何；帽頂＝bodyBox alpha 實測 y36）帽頂螢幕 y − gap，x＝畫面寬／2。
+ * 新關主不需任何設定即套用；不得再加逐關的名字位置參數。
+ */
+export const BOSS_NAME_SLOT = {
+  /** 位置基準關主（BATTLE_SCENES 鍵） */
+  ref: 'liu_zong_yuan_battle',
+  /** 標籤底邊（◆）與基準帽頂的間距 px */
+  gap: 20,
+  /** 版面淨空計算用的名字列高（px，同 v1.3.6 緊湊版） */
+  labelH: 12,
+  /** 槽位框固定寬高（px）：名字 12px（至多約四字）＋間距 2＋◆ 8；內容底部置中 */
+  w: 64,
+  h: 22,
 } as const;
 
 export interface BattleLayout {
@@ -116,7 +127,7 @@ export function computeBattleLayout(anchor: BattleSpriteAnchor | undefined, root
   else left = a.fitPriority === 'right' ? leftMax : a.fitPriority === 'left' ? leftMin : (leftMin + leftMax) / 2; // 放不下：保住指定的一側
   return {
     scale: s, left, top, width: a.w * s, height: a.h * s,
-    headX: left + a.faceX * s, headY: top + a.headTopY * s - (a.nameGap ?? P.headGap),
+    headX: rootW / 2, headY: bossNameSlotY(rootW, rootH),
     faceX: left + a.faceX * s, faceY: top + a.eyeY * s,
     centerX: rootW / 2, bottomY: top + a.bottomY * s,
     anchor: a,
@@ -144,8 +155,6 @@ export interface BattleScene {
    * 繞腳底縮放並對齊背景岩石接觸點；禁止對已 face-clamp 的尺寸再乘一次。
    */
   charScale?: number;
-  /** 立繪＋特效上移像素（螢幕），正值＝上移；可與背景 offset 分離 */
-  offsetY?: number;
   /** 僅背景平移（螢幕 px）：正 X＝右、正 Y＝下 */
   bgOffsetX?: number;
   bgOffsetY?: number;
@@ -159,8 +168,6 @@ export interface BattleScene {
    * 「頂 HP 條下緣 12px ～ 題目框上緣（0.6·H − 162）」；腳仍貼岩；露邊時以靴底為原點放大背景補滿。
    */
   bodyBox?: [number, number, number, number];
-  /** 名字標籤一律水平置中於螢幕（x = rootW/2），不跟臉 */
-  nameScreenCenter?: boolean;
   /** 待機呼吸的垂直位移（px，預設 8）。0＝只做 scale(1.01)（原點在靴底），腳不離岩 */
   breathY?: number;
   /** 最後套用的獨立位移（螢幕 px，正＝下移）：背景與人物（含飛劍）各自移動，不互相連動、不重新貼岩、不補邊 */
@@ -168,8 +175,6 @@ export interface BattleScene {
   charShiftY?: number;
   /** 背景上緣對齊此 y（螢幕 px；例：頂 HP 條下緣 12）。設定時取代 bgShiftY；不縮放、不鏡射補邊 */
   bgTopAlign?: number;
-  /** 名字標籤底邊（◆）與帽頂的顯示間距（px）；只影響名字位置，不影響人物／背景版面 */
-  labelGap?: number;
   /**
    * 與首頁同一貼合點：立繪 (foot 原點, 人物層像素) 對到背景原圖像素 bgRest，人物相對背景比例 relScale。
    * 在背景最終位置（含 bgTopAlign）之後套用，取代 charShiftY；人物螢幕位置由此推得。
@@ -198,12 +203,12 @@ export const BATTLE_SCENES: Record<string, BattleScene> = {
   // 坐於岩上；戰鬥立繪 = 全幅 1280×720 裁切 (70, 13) 1135×623
   // 坐於岩上（zoomout_v2 bg）；靴底 (974,634)；戰鬥人物／特效 charScale 0.7，腳仍貼岩；首頁預覽尺寸另見 home patch
   // charScale 0.56（=0.7×0.8）繞靴底縮放；人物外框（alpha bbox 378,36–1198,636）置中於題目框以上的畫面區，背景同量平移（腳貼岩）；名字置中於螢幕
-  liu_zong_yuan_battle: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], crop: { x: 70, y: 13, w: 1135, h: 623 }, foot: 634, footX: 974, ax: 820, charScale: 0.56, bodyBox: [378, 36, 1198, 636], nameScreenCenter: true, breathY: 0, bgTopAlign: 12, labelGap: 20, restOnBg: { foot: [975, 633], bg: [953.77, 465.18], relScale: 0.64 / 1.14 },
+  liu_zong_yuan_battle: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], crop: { x: 70, y: 13, w: 1135, h: 623 }, foot: 634, footX: 974, ax: 820, charScale: 0.56, bodyBox: [378, 36, 1198, 636], breathY: 0, bgTopAlign: 12, restOnBg: { foot: [975, 633], bg: [953.77, 465.18], relScale: 0.64 / 1.14 },
     // v6：homeSync＝背景縮放／位置、人物大小與首頁同 viewport 一致（首頁 figScale 0.64、bgZoom 1.14@x995、rest 頭頂 y＝429.5−614·0.64）
     homeSync: { w: 1280, h: 720, chrome: 216, heroTop: 88, topPad: 12, headY: 429.5 - (633 - 19) * 0.64, X: 0.53, ax: 867, zoom: 1.14, zoomX: 995 } }, // v5：背景同 v4；人物沿用首頁貼合（首頁 rest(948,429.5)＋bgZoom 1.14@x995 底 → 背景原圖 (953.77,465.18)；0.64/1.14＝0.5614）
   // 孔子 v3：坐於戰車、雙馬在前；三層與背景同尺寸逐像素對齊（輪／蹄本來就踏在背景路面上）。
   // heroSync：縮放／位置與首頁預覽同 viewport 相同；front＝雙馬（武器層）疊在人物之上
-  kong_zi_character: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], foot: 705, ax: 570, breathY: 0, heroSync: 'kong_zi', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
+  kong_zi_character: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], foot: 640.9, ax: 533, breathY: 0, heroSync: 'kong_zi', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
   // 立於殿前木棧（欄杆右側地板）
   zhu_ge_liang: { bgW: 1408, bgH: 768, fig: [860, 140, 320, 560], foot: 712, ax: 1020 },
   // 立於月下岩台
@@ -229,9 +234,22 @@ export function computeGroundedBattle(
   scene: BattleScene | undefined,
   rootW: number,
   rootH: number,
+  homeBox?: Parameters<typeof groundedCore>[4],
+): { layout: BattleLayout; sceneBox: BattleSceneBox } | null {
+  const r = groundedCore(anchor, scene, rootW, rootH, homeBox);
+  return r && { layout: r.layout, sceneBox: r.sceneBox };
+}
+
+function groundedCore(
+  anchor: BattleSpriteAnchor | undefined,
+  scene: BattleScene | undefined,
+  rootW: number,
+  rootH: number,
   /** 入陣無縫轉場：沿用主頁預覽的背景與人物幾何（見 src/lib/enterTransition.ts measureHomeScene） */
   homeBox?: { bg: { left: number; top: number; scale: number }; scene: { left: number; top: number; scale: number }; breatheOrigin?: [number, number] | null } | null,
-): { layout: BattleLayout; sceneBox: BattleSceneBox } | null {
+  /** 僅供 bossNameSlotY 計算基準關主時使用（避免遞迴） */
+  slotOverride?: number,
+): { layout: BattleLayout; sceneBox: BattleSceneBox; hatScreenY: number } | null {
   if (!anchor || !scene || rootW <= 0 || rootH <= 0) return null;
   const a = anchor, P = BATTLE_LAYOUT, sc = scene;
   const sceneH = rootH * P.sceneRatio;
@@ -293,9 +311,9 @@ export function computeGroundedBattle(
       dx = rootW / 2 - (figLeft + ((x0 + x1) / 2 - crop.x) * figScale);
       dy = (areaTop + areaBottom) / 2 - (figTop + ((y0 + y1) / 2 - crop.y) * figScale);
       // 名字淨空優先：標籤頂需 ≥ HP 條下緣 + 8；呼吸中段 scale(1.01) 會讓帽頂再上移約 3px → 不足時整組最少量下移
-      const LABEL_H = a.nameCompact ? 12 : 39, BREATH_PEAK_UP = 3;
+      const BREATH_PEAK_UP = 3, LABEL_GAP = 6; // 緊湊標籤（BOSS_NAME_SLOT.labelH）＋帽頂間距 6（同 v1.3.6 柳宗元）
       const hatTop = figTop + dy + (y0 - crop.y) * figScale;
-      const labelTop = hatTop - BREATH_PEAK_UP - (a.nameGap ?? P.headGap) - LABEL_H;
+      const labelTop = hatTop - BREATH_PEAK_UP - LABEL_GAP - BOSS_NAME_SLOT.labelH;
       if (labelTop < areaTop + 8) dy += areaTop + 8 - labelTop;
     } else {
       const areaBottom = rootH * 0.6 - 11; // 底 HP 條：bottom calc(40% + 1px)、h 10px
@@ -401,33 +419,38 @@ export function computeGroundedBattle(
   // 沿用主頁時，戰鬥待機呼吸改用主頁同一個 homeSceneBreathe（只有 scaleY，沒有 breathY 下移），相位由 syncHeroAnimations 接續
   const figScaleF = restScale ?? figScale;
 
-  // 名字／圖示：水平對準實際臉心（cxΔ=0），垂直 nameGap（可玩 Boss 皆 18）
-  const headMin = Math.max(26, P.headTopMinPx * 0.3);
+  // 名字／圖示：全體共用固定槽位（BOSS_NAME_SLOT），不隨本關頭頂位置改變
   const faceScreenX = figLeft + a.faceX * figScaleF;
-  const nameGap = a.nameGap ?? P.headGap;
-  const lift = sc.offsetY ?? 0;
-  // 名字只在貼近頂部（與左上 AUTO／右上題型同列）時才水平夾住；頭在下方時直接置中於臉心（cxΔ=0）
-  const hatY = sc.bodyBox && sameDpi ? sc.bodyBox[1] - crop.y : a.headTopY; // bodyBox 為 alpha 實測帽頂
-  const nameBottomRaw = figTop + hatY * figScaleF - (sc.labelGap ?? nameGap) - lift;
-  const headX = sc.nameScreenCenter ? rootW / 2
-    : nameBottomRaw < P.headTopMinPx + 40
-      ? Math.min(Math.max(faceScreenX, 126), rootW - 126)
-      : Math.min(Math.max(faceScreenX, 40), rootW - 40);
-  // 先套 lift 再夾 headMin，避免名字被頂出戰鬥區
-  const headY = a.nameCompact ? nameBottomRaw : Math.max(nameBottomRaw, headMin); // 緊湊版不夾 headMin（避免壓帽）；淨空由版面保證
+  const hatScreenY = figTop + (sc.bodyBox && sameDpi ? sc.bodyBox[1] - crop.y : a.headTopY) * figScaleF;
+  const headX = rootW / 2;
+  const headY = slotOverride ?? bossNameSlotY(rootW, rootH);
   const layout: BattleLayout = {
     scale: figScaleF,
-    left: figLeft, top: figTop - lift,
+    left: figLeft, top: figTop,
     width: restScale ? (sameDpi ? crop.w : a.w) * restScale : figW,
     height: restScale ? (sameDpi ? crop.h : a.h) * restScale : figH,
     headX, headY,
     faceX: faceScreenX,
-    faceY: figTop + a.eyeY * figScaleF - lift,
+    faceY: figTop + a.eyeY * figScaleF,
     centerX: rootW / 2,
-    bottomY: figTop + a.bottomY * figScaleF - lift,
+    bottomY: figTop + a.bottomY * figScaleF,
     anchor: a,
   };
-  return { layout, sceneBox };
+  return { layout, sceneBox, hatScreenY };
+}
+
+/** 名字槽位 y（標籤底邊，螢幕 px）：由基準關主（柳宗元）同 viewport 的帽頂推得；依 viewport 快取 */
+const slotCache = new Map<string, number>();
+export function bossNameSlotY(rootW: number, rootH: number): number {
+  const key = `${rootW}x${rootH}`;
+  const hit = slotCache.get(key);
+  if (hit != null) return hit;
+  const R = BOSS_NAME_SLOT;
+  const ref = groundedCore(BATTLE_ANCHORS[R.ref], BATTLE_SCENES[R.ref], rootW, rootH, null, 0);
+  const y = ref ? ref.hatScreenY - R.gap : 0;
+  if (slotCache.size > 32) slotCache.clear();
+  slotCache.set(key, y);
+  return y;
 }
 
 /** @deprecated 改由 computeGroundedBattle；保留給無場景資料時的退路 */

@@ -671,18 +671,32 @@
         .home-drawer.is-closed .home-drawer-list { opacity: 0; pointer-events: none; }
         .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }
         .home-drawer-list .home-slip { flex: 1; min-width: 0; min-height: 0; padding: 0 8px 0 0; }
-        /* 「第一篇」…「第十二篇」最長四字：50 → 62px、字級上限 14 → 13px，不換行、不貼左側色條 */
-        .home-drawer-list .home-slip-no { width: 62px; padding-left: 3px; white-space: nowrap; letter-spacing: 0; font-size: clamp(11.5px, 2.4cqh, 13px); }
-        .home-drawer-list .home-slip-title, .home-drawer-list .home-slip-sub { display: block; white-space: nowrap; overflow: visible; text-overflow: clip; padding-left: 8px; }
-        .home-drawer-list .home-slip-title { font-size: clamp(12.5px, 3.1cqh, 16px); line-height: 1.25; }
-        .home-drawer-list .home-slip-sub { line-height: 1.25; }
+        /*
+         * 單行篇名＋作者：永不截斷／省略號。十二篇共用同一字級，隨抽屜內容區寬（cqw）縮放，
+         * 使最長項（《廉頗藺相如列傳》（節錄）司馬遷）在窄屏仍一行內完整顯示。
+         * 校準：textBox≈100cqw−55px；16px 時最長約需 270px → fs=(100cqw−65px)/17，上限 16px。
+         * 390px 視窗 → 100cqw=358 → 算得 >16 → 實際 16px；320px → ≈13.1px。
+         */
+        /* cqw 必須寫在容器後代上（容器自身無法對自己解析 cqw） */
+        .home-drawer-list .home-slip-text {
+            --slip-title-fs: clamp(12px, calc((100cqw - 65px) / 17), 16px);
+            padding-left: 12px; gap: 0.35em; font-size: var(--slip-title-fs);
+        }
+        .home-drawer-list .home-slip-title {
+            display: block; font-size: 1em; line-height: 1.25; letter-spacing: 1.5px;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .home-drawer-list .home-slip-sub {
+            display: block; margin-top: 0; font-size: 0.75em; line-height: 1.25;
+            white-space: nowrap; flex-shrink: 0;
+        }
         .home-drawer-list .home-slip-face, .home-drawer-list .home-slip-lock { width: auto; height: min(40px, calc((100cqh - 56px) / 12 - 8px)); aspect-ratio: 1; }
         .home-drawer-list .home-slip-lock { transform: none; align-items: center; justify-content: center; }
         .home-drawer-list .home-slip-lock svg { width: 70%; height: 70%; }
-        /* 矮螢幕（列高 < 約 42px）：篇名與作者仍分兩行，行高收緊、作者縮小 */
+        /* 矮螢幕：只收行高／字距，字級仍由 --slip-title-fs 決定 */
         @container drawer (max-height: 560px) {
             .home-drawer-list .home-slip-title { line-height: 1.15; letter-spacing: 1px; }
-            .home-drawer-list .home-slip-sub { margin-top: 0; font-size: 10px; line-height: 1.15; }
+            .home-drawer-list .home-slip-sub { line-height: 1.15; }
         }
 
         @media (prefers-reduced-motion: reduce) {

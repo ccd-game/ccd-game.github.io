@@ -415,8 +415,6 @@ const App: React.FC = () => {
   const [isTimerPulse, setIsTimerPulse] = useState(false);
   const [skillPanelShown, setSkillPanelShown] = useState(false);
   const [lastImpactIndex, setLastImpactIndex] = useState<number | null>(null);
-  const [isQuitConfirmOpen, setIsQuitConfirmOpen] = useState(false);
-  const [isQuitConfirmExiting, setIsQuitConfirmExiting] = useState(false);
   const [isPauseExiting, setIsPauseExiting] = useState(false);
   const [isFatalDefeat, setIsFatalDefeat] = useState(false);
   const [isInkActive, setIsInkActive] = useState(false);
@@ -574,7 +572,6 @@ const App: React.FC = () => {
       setLevelQuestions([]);
       battleQuestionsRef.current = [];
       setBattleQuestions([]);
-      setIsQuitConfirmOpen(false);
       setHomePause(false);
 
       setGameState(p => ({
@@ -1225,35 +1222,14 @@ const App: React.FC = () => {
 
       {isLoggedIn && gameState.isPaused && (
         <div className={`pause-overlay ${isPauseExiting ? 'animate-fadeOut' : 'show-pause'}`}>
-          {isQuitConfirmOpen && (
-            /* 驀然回首 → 中止修煉？：版面與暫停內容相同（隱形引文佔位＋同一組 modern-glass-btn／mb-6），兩顆按鈕與「學不可已／驀然回首」同位置同尺寸 */
-            <div className={`absolute inset-0 z-[100000] flex flex-col items-center justify-center pointer-events-auto ${isQuitConfirmExiting ? 'animate-simpleFadeOut' : 'animate-simpleFadeIn'}`}>
-              <div className="w-full flex flex-col items-center relative">
-                    <div className="relative inline-block px-10 mb-12 invisible" aria-hidden="true">
-                  <span className="absolute top-[-26px] left-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>「</span>
-                  <p className="text-white text-[16px] tracking-[4px] leading-[2.4] font-medium text-center whitespace-pre-wrap" style={{ textShadow: '0 0 20px rgba(255,255,255,0.4)', fontFamily: "'LXGW WenKai Mono TC', monospace", transform: 'translate(5px, 5px)' }}>{UI_STATIC_TEXT.PAUSE.quote}</p>
-                  <span className="absolute bottom-[-26px] right-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>」</span>
-                </div>
-                <div className={`relative flex flex-col items-center transition-transform duration-300 ${isQuitConfirmExiting ? 'scale-95' : 'scale-100'}`}>
-                  {/* 卡片底：上緣包住標題（46 + 28 + 32；已移除「學」圓章），下緣在第二顆按鈕下 46px */}
-                  <div className="absolute left-1/2 -translate-x-1/2 w-[310px] bg-[#1a1a1a] rounded-[30px] border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] pointer-events-none" style={{ top: -(46 + 28 + 32), bottom: -46 }} />
-                  <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center" style={{ bottom: 'calc(100% + 32px)' }}>
-                    <h3 className="text-white text-xl font-bold tracking-[4px] h-7 leading-7 whitespace-nowrap">{UI_STATIC_TEXT.QUIT_CONFIRM.title}</h3>
-                  </div>
-                  <button onClick={() => { setIsQuitConfirmExiting(true); setTimeout(() => { setIsQuitConfirmOpen(false); setIsQuitConfirmExiting(false); }, 300); }} className="modern-glass-btn active:scale-95 !bg-[#d4af37] !text-black !border-[#d4af37] shadow-[0_4px_15_rgba(212,175,55,0.3)] mb-6 relative">{UI_STATIC_TEXT.QUIT_CONFIRM.keep}</button>
-                  <button onClick={resetToStart} className="modern-glass-btn active:scale-95 !bg-[#521c1c] !text-white !border-white/5 shadow-[0_4px_15_rgba(82,28,28,0.4)] relative">{UI_STATIC_TEXT.QUIT_CONFIRM.leave}</button>
-                </div>
-              </div>
-            </div>
-          )}
-          <div className={`w-full flex flex-col items-center relative transition-opacity duration-300 ${isQuitConfirmOpen ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
+          <div className="w-full flex flex-col items-center relative">
             <div className="relative inline-block px-10 mb-12">
               <span className="absolute top-[-26px] left-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>「</span>
               <p className="text-white text-[16px] tracking-[4px] leading-[2.4] font-medium text-center whitespace-pre-wrap" style={{ textShadow: '0 0 20px rgba(255,255,255,0.4)', fontFamily: "'LXGW WenKai Mono TC', monospace", transform: 'translate(5px, 5px)' }}>{UI_STATIC_TEXT.PAUSE.quote}</p>
               <span className="absolute bottom-[-26px] right-[-15px] text-[3.5rem] text-[#d4af37] text-4xl leading-none opacity-60 select-none pointer-events-none" style={{ fontFamily: 'serif' }}>」</span>
             </div>
             <button className="modern-glass-btn active:scale-95 !bg-[#d4af37] !text-black !border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.3)] mb-6" onClick={() => { setIsPauseExiting(true); setTimeout(() => { setGameState(p => ({ ...p, isPaused: false })); setIsPauseExiting(false); }, 400); }}>{UI_STATIC_TEXT.PAUSE.resume}</button>
-            <button className="modern-glass-btn active:scale-95 !bg-white/10 !border-white/20 !text-white" onClick={() => setIsQuitConfirmOpen(true)}>{UI_STATIC_TEXT.PAUSE.quit}</button>
+            <button className="modern-glass-btn active:scale-95 !bg-white/10 !border-white/20 !text-white" onClick={resetToStart}>{UI_STATIC_TEXT.PAUSE.quit}</button>
           </div>
         </div>
       )}

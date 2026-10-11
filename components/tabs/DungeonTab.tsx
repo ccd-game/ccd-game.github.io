@@ -186,9 +186,8 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
                   onKeyDown={e => { if (open && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(level); } }}
                   className={`home-slip home-focus ${open ? 'is-open' : 'is-locked'} ${isActive && open ? 'is-active' : ''}`}
                 >
-                  <span className="home-slip-no" aria-hidden="true">{chapterLabel(index).replace('回', '篇')}</span>
-                  <div className="flex-1 min-w-0 flex flex-col justify-center overflow-hidden">
-                    {/* 篇名一律完整顯示（不跑馬燈、不截斷）：字級隨抽屜高度縮放 */}
+                  {/* 單行：篇名＋作者（不截斷、不省略號）；字級由抽屜 cqw 統一縮放以容納最長篇目 */}
+                  <div className="home-slip-text flex-1 min-w-0 flex items-baseline">
                     <span className="home-slip-title">{level.title}</span>
                     <span className="home-slip-sub" title={level.subTitle}>{shortAuthor(level.subTitle)}</span>
                   </div>
