@@ -43,6 +43,21 @@ const isInteractiveTarget = (target: EventTarget | null) => {
 type MenuTab = 'character' | 'rank' | 'dungeon' | 'gacha' | 'settings';
 const TABS: MenuTab[] = ['character', 'rank', 'dungeon', 'gacha', 'settings'];
 
+/** 主頁圖殼資產（v1.3.11 chrome-shell-hotfix） */
+const CHROME_BASE = `${import.meta.env.BASE_URL}resources/ui/chrome`;
+const TOP_HUD_SRC = {
+  webp: `${CHROME_BASE}/top-hud-layer.webp`,
+  png: `${CHROME_BASE}/top-hud-layer.png`,
+};
+const BOTTOM_SHELL_SRC = {
+  webp: `${CHROME_BASE}/bottom-bar-shell.webp`,
+  png: `${CHROME_BASE}/bottom-bar-shell.png`,
+};
+const NAV_GOLD_FRAME_SRC = {
+  webp: `${CHROME_BASE}/nav-gold-frame.webp`,
+  png: `${CHROME_BASE}/nav-gold-frame.png`,
+};
+
 interface MenuScreenProps {
   levels: LevelConfig[];
   onSelect: (level: LevelConfig) => void;
@@ -61,6 +76,8 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
   const [activeTab, setActiveTab] = useState<MenuTab>('dungeon');
   const [slideDirection, setSlideDirection] = useState<'right' | 'left'>('right');
   const [isSummoning, setIsSummoning] = useState(false);
+  const reduceNav = useReducedMotion();
+  const activeNavIndex = TABS.indexOf(activeTab);
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
 
@@ -212,7 +229,11 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
       `}</style>
 
       {/* 標題欄：玩家牌 */}
-      <header className={`home-bar home-bar-top absolute top-0 left-0 right-0 h-[88px] px-4 flex items-center gap-3 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
+      <header className={`home-bar home-bar-top home-chrome-shell-host absolute top-0 left-0 right-0 h-[88px] px-4 flex items-center gap-3 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
+        <picture className="home-chrome-shell home-chrome-shell--top" aria-hidden="true">
+          <source srcSet={TOP_HUD_SRC.webp} type="image/webp" />
+          <img src={TOP_HUD_SRC.png} alt="" draggable={false} />
+        </picture>
         <div className="home-lv" aria-label={`等級 ${playerData.level}`}>
           <span className="home-lv-label" aria-hidden="true">等級</span>
           <span className="home-lv-num" aria-hidden="true">{playerData.level}</span>
@@ -272,13 +293,36 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
       {/* 底部導航欄 */}
       <nav
         aria-label="主選單"
-        className={`home-bar home-bar-bottom absolute bottom-0 left-0 right-0 flex items-stretch justify-evenly px-0 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}
-
+        className={`home-bar home-bar-bottom home-chrome-shell-host absolute bottom-0 left-0 right-0 flex items-stretch justify-evenly px-0 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}
+        data-active-index={activeNavIndex}
         style={{
-            paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-            height: 'calc(76px + env(safe-area-inset-bottom))'
+            /* 殼貼底；safe-area 只墊內容（r9） */
+            paddingBottom: 'max(8px, env(safe-area-inset-bottom, 0px))',
+            height: 'calc(76px + env(safe-area-inset-bottom, 0px))'
         }}
       >
+        <picture className="home-chrome-shell home-chrome-shell--bottom" aria-hidden="true">
+          <source srcSet={BOTTOM_SHELL_SRC.webp} type="image/webp" />
+          <img src={BOTTOM_SHELL_SRC.png} alt="" draggable={false} />
+        </picture>
+        <motion.div
+          className="home-nav-gold-frame"
+          aria-hidden="true"
+          initial={false}
+          animate={{
+            left: `${((activeNavIndex + 0.5) / TABS.length) * 100 - 50}%`,
+          }}
+          transition={
+            reduceNav
+              ? { duration: 0 }
+              : { type: 'spring', stiffness: 380, damping: 32, mass: 0.85 }
+          }
+        >
+          <picture>
+            <source srcSet={NAV_GOLD_FRAME_SRC.webp} type="image/webp" />
+            <img src={NAV_GOLD_FRAME_SRC.png} alt="" draggable={false} />
+          </picture>
+        </motion.div>
         <NavButton label="豪杰" icon={<IconUser />} active={activeTab === 'character'} onClick={() => handleNavClick('character')} />
         <NavButton label="排名" icon={<IconRank />} active={activeTab === 'rank'} onClick={() => handleNavClick('rank')} />
         <NavButton label="地城" icon={<IconDungeon />} active={activeTab === 'dungeon'} onClick={() => handleNavClick('dungeon')} />
@@ -289,24 +333,15 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
   );
 };
 
-const NavButton: React.FC<{ label: string, icon: React.ReactNode, active?: boolean, onClick: () => void }> = ({ label, icon, active = false, onClick }) => {
-  const reduce = useReducedMotion();
-  return (
+const NavButton: React.FC<{ label: string, icon: React.ReactNode, active?: boolean, onClick: () => void }> = ({ label, icon, active = false, onClick }) => (
     <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`home-nav-btn home-focus ${active ? 'is-active' : ''}`}>
       {/* r9: icon+label 槽水平完全置中於選中金圓（地城 cx=195） */}
       <span className="home-nav-slot">
         <span className="home-nav-icon">{icon}</span>
         <span className="home-nav-label">{label}</span>
       </span>
-      {active && (
-        <motion.span
-          layoutId="home-nav-brush"
-          className="home-nav-brush"
-          transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
-        />
-      )}
+      {/* 選中金框改由 nav 層 .home-nav-gold-frame 叠 */}
     </button>
   );
-};
 
 export default MenuScreen;

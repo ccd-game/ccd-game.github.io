@@ -409,22 +409,31 @@
         .home-focus:focus-visible { outline: 2px solid var(--gilt); outline-offset: 3px; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
-        /* 頂欄／底欄 */
+        /* 頂欄／底欄（chrome-shell-hotfix：圖殼底層；無殼時仍半透明 blur） */
         .home-bar { background: var(--home-bar); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+        .home-bar.home-chrome-shell-host {
+            background: transparent;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            box-shadow: none;
+        }
         .home-bar-top { border-bottom: 1px solid var(--home-line);
             /* r9: Dynamic Island 緊湊避開；僅小幅 padding-top，勿大塊 sat 空白 */
             padding-top: max(2px, env(safe-area-inset-top, 0px));
             box-sizing: border-box;
         }
+        .home-bar-top.home-chrome-shell-host { border-bottom: none; }
         /* r9 HUD：暱稱左緣對齊經驗標；經驗／體力／暱稱同字級（上已 10px） */
         .home-bar-top .flex-1 > .flex.items-center.justify-between { align-items: flex-start; }
         .home-bar-top .home-name { display: block; text-align: left; margin-left: 0; }
         .home-guest-tag { display: none !important; } /* home HUD 無遊客標 */
         .home-bar-bottom { border-top: 1px solid var(--home-line);
-            /* r9: 底欄貼底＋safe-area */
+            /* r9: 底欄貼底＋safe-area（內容墊；殼本身 bottom:0） */
             padding-bottom: env(safe-area-inset-bottom, 0px);
             box-sizing: border-box;
+            overflow: visible; /* 金框可上突 */
         }
+        .home-bar-bottom.home-chrome-shell-host { border-top: none; }
         .home-lv {
             width: 52px; height: 58px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: linear-gradient(160deg, #e9c95a, #a8841f 60%, #7a5c0f);

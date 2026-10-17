@@ -35,3 +35,92 @@
   font-family: 'LXGW WenKai Mono TC', serif;
   font-synthesis: none;
 }
+
+
+/* ===== chrome-shell-hotfix：頂／底圖殼＋選中金框 ===== */
+.home-chrome-shell-host {
+  position: absolute; /* 已有 absolute；確保定位上下文 */
+}
+
+.home-chrome-shell {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.home-chrome-shell img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* 頂欄圖殼：鋪滿 header；內容在上層可點 */
+.home-chrome-shell--top {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.home-chrome-shell--top img {
+  object-fit: cover;
+  object-position: top center;
+}
+
+/* 底欄圖殼：貼螢幕底全寬；拉滿 nav（含 safe-area） */
+.home-chrome-shell--bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  width: 100%;
+  height: 100%;
+}
+.home-chrome-shell--bottom img {
+  object-fit: fill;
+  object-position: bottom center;
+}
+
+/* 內容／按鈕在殼之上 */
+.home-chrome-shell-host > .home-lv,
+.home-chrome-shell-host > .flex-1,
+.home-chrome-shell-host > .home-nav-btn {
+  position: relative;
+  z-index: 2;
+}
+
+/* 選中金框：全寬層，orb 對準當前 tab 中心；可 overhang 底欄頂 */
+.home-nav-gold-frame {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  height: auto;
+  /* 資產 1264×383 → 約 390×118；略縮以貼殼 */
+  aspect-ratio: 1264 / 383;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+  will-change: left;
+  transform-origin: center top;
+}
+.home-nav-gold-frame picture,
+.home-nav-gold-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  object-fit: fill;
+  /* orb×0.855 量級：略縮並頂對齊，金線貼殼頂、圓可上突 */
+  transform: scale(0.855);
+  transform-origin: center top;
+}
+
+/* 圖殼上線時隱藏舊 CSS 金刷線（若殘留） */
+.home-chrome-shell-host .home-nav-brush {
+  display: none;
+}
