@@ -1,0 +1,4 @@
+用途：展示／標題（篇名、關主名、章回、主要標籤等）
+來源：華文行楷_GBK（STXingkai_GBK.ttf）→ pyftsubset → woff2
+授權：專有；見 stxingkai-display.LICENSE.txt（用戶已知風險並下令部署）
+備註：入陣卷軸「入」「陣」二字改用齊伋體 QIJIC Body，不用本字型。

@@ -1,0 +1,29 @@
+/* Font mapping (v1.3.9) — kept here so Vite/Tailwind cannot drop title rules */
+/* 展示／標題＝華文行楷；列表／HUD＝霞鶩；入陣二字＝齊伋（.home-cta） */
+.home-htitle,
+.home-vtitle,
+.home-chapter-no,
+.home-seal,
+.home-section-title,
+.home-slip-title,
+.home-slip-no,
+.home-lv-label,
+.home-lv-num {
+  font-family: var(--font-display) !important;
+  font-synthesis: none;
+}
+.home-name,
+.home-meter-label,
+.home-meter-val,
+.home-coin-num,
+.home-section-meta,
+.home-slip-sub,
+.home-nav-label,
+.home-guest-tag {
+  font-family: var(--font-sans-ui);
+  font-synthesis: none;
+}
+.home-cta {
+  font-family: var(--font-enter-cta, 'QIJIC Body', serif) !important;
+  font-synthesis: none;
+}

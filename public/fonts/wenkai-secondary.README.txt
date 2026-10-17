@@ -1,0 +1,4 @@
+霞鶩文楷 TC Medium（LXGW WenKai TC）— SIL OFL 1.1
+用途：內文／列表／頂欄 HUD（次要 UI）
+本檔為子集 woff2：wenkai-secondary.woff2
+完整授權見 wenkai-secondary.LICENSE.txt

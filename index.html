@@ -19,8 +19,9 @@
     <!-- 正式 Web App Manifest（置於 public/，勿再引用根目錄 metadata.json） -->
     <link rel="manifest" href="/manifest.webmanifest">
     
-    <!-- 本地字型：展示（蒼景明朝子集）＋內文（齊伋體子集）；SIL OFL 1.1，見 public/fonts/*.LICENSE.txt -->
-    <link rel="preload" href="/fonts/soukou-display.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- 本地字型：展示＝華文行楷（專有；用戶已知風險並下令部署）＋HUD／列表＝霞鶩文楷 OFL＋齊伋體（入陣二字／戰鬥內文）；見 public/fonts/*.LICENSE.txt -->
+    <link rel="preload" href="/fonts/stxingkai-display.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/fonts/wenkai-secondary.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/fonts/qijic-body.woff2" as="font" type="font/woff2" crossorigin>
 
 <script type="importmap">
