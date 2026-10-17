@@ -36,6 +36,11 @@ export interface HeroScene {
   front?: string;
 }
 const BG = `${import.meta.env.BASE_URL}resources/background`;
+/** 水墨遮罩（邊緣墨暈壓背景、中心較透）；首頁預覽與圖鑑落地場景共用。z：山景 → 此層 → 立繪 → UI */
+export const INK_WASH_MASK = `${import.meta.env.BASE_URL}resources/effect/ink_wash_mask.webp`;
+/** 入陣卷軸（art2 定稿）：合上＝雙軸填紙；打开＝展開卷。主頁 .home-cta 用。 */
+export const SCROLL_ENTER_OPEN = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/open.webp`;
+export const SCROLL_ENTER_CLOSED = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/closed-axles-filled.webp`;
 export const HERO_SCENES: Record<string, HeroScene> = {
   // 坐於岩上，放大約兩成（場景含背景一起放大，地面線不動）；身體中線 53%，軀幹在篇名右側、右袖在印章之上；飛劍在篇名後方被柔焦或出框（首頁預覽不需顯示飛劍）
   // zoomout bg：cover＋貼底（不露墨黑）；靴底（人物層 975,633）落在岩丘頂 (948,429.5)（受光岩緣 y≈426、實岩 y≈429–430，逐欄量測）

@@ -10,4 +10,8 @@
   --font-serif-title: var(--font-display);
   --font-sans-ui: 'LXGW WenKai Mono TC', serif;
   --font-enter-cta: var(--font-display);
+  /* 主頁朱印：王漢宗印篆 */
+  --font-seal: 'Wang InJang Seal', var(--font-display);
+  /* 主頁底欄：美人篆 Regular */
+  --font-meiren: 'Aa MeiRen Zhuan', var(--font-display);
 }

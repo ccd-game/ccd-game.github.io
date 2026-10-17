@@ -18,7 +18,7 @@ const TabFallback: React.FC = () => (
 );
 
 const IconDungeon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M3 21H21"/><path d="M5 21V10L12 4L19 10V21"/><path d="M9 21V15C9 13.3431 10.3431 12 12 12C13.6569 12 15 13.3431 15 15V21"/><path d="M2 10H5M19 10H22"/><path d="M12 4V2"/>
   </svg>
 );
@@ -46,7 +46,7 @@ const TABS: MenuTab[] = ['character', 'rank', 'dungeon', 'gacha', 'settings'];
 interface MenuScreenProps {
   levels: LevelConfig[];
   onSelect: (level: LevelConfig) => void;
-  viewingCharacter?: any | null; 
+  viewingCharacter?: any | null;
   onShowCharacterDetail: (char: any) => void;
   onBackFromDetail: () => void;
   theme: 'light' | 'dark';
@@ -59,7 +59,7 @@ interface MenuScreenProps {
 
 const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharacter, onShowCharacterDetail, onBackFromDetail, theme, onThemeToggle, bgmEnabled, onBgmToggle, bgmVolume, onVolumeChange }) => {
   const [activeTab, setActiveTab] = useState<MenuTab>('dungeon');
-  const [slideDirection, setSlideDirection] = useState<'right' | 'left'>('right'); 
+  const [slideDirection, setSlideDirection] = useState<'right' | 'left'>('right');
   const [isSummoning, setIsSummoning] = useState(false);
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
@@ -132,7 +132,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (viewingCharacter || isSummoning || startX.current === null || startY.current === null) return;
-    
+
     const endX = e.changedTouches[0].clientX;
     const endY = e.changedTouches[0].clientY;
     const diffX = startX.current - endX;
@@ -160,7 +160,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
 
   const handleMouseUp = (e: React.MouseEvent) => {
     if (viewingCharacter || isSummoning || startX.current === null || startY.current === null) return;
-    
+
     const diffX = startX.current - e.clientX;
     const diffY = startY.current - e.clientY;
 
@@ -193,8 +193,8 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
   };
 
   return (
-    <div 
-      className="absolute inset-0 flex flex-col overflow-hidden z-[500] select-none" 
+    <div
+      className="absolute inset-0 flex flex-col overflow-hidden z-[500] select-none"
       style={{ backgroundColor: 'var(--app-bg)' }}
     >
       <style>{`
@@ -202,8 +202,8 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
           from { transform: translateX(var(--slide-offset)); opacity: 0; filter: blur(4px); }
           to { transform: translateX(0); opacity: 1; filter: blur(0); }
         }
-        .tab-slide-dynamic { 
-          animation: dynamicTabSlide 0.55s cubic-bezier(0.2, 1, 0.3, 1) forwards; 
+        .tab-slide-dynamic {
+          animation: dynamicTabSlide 0.55s cubic-bezier(0.2, 1, 0.3, 1) forwards;
           width: 100%;
           height: 100%;
           display: flex;
@@ -221,9 +221,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <span className="home-name truncate">{playerData.name}</span>
-              {isGuest && (
-                <span data-testid="guest-badge" className="home-guest-tag">遊客</span>
-              )}
+              {/* r9: home HUD 無「遊客」標 */}
             </div>
             <div className="home-coin" aria-label={`機緣 ${playerData.jiyuan}`}>
               <span className="home-coin-label" aria-hidden="true">機緣</span>
@@ -247,19 +245,19 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
           </div>
         </div>
       </header>
-      
+
       {/* 內容區域：關鍵修復 touch-action: pan-y */}
-      <main 
+      <main
         className="w-full h-full relative z-10 transition-all duration-500"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        style={{ 
+        style={{
           paddingTop: isSummoning ? 0 : '88px',
           paddingBottom: isSummoning ? 0 : 'calc(76px + env(safe-area-inset-bottom))',
           touchAction: 'pan-y', // 允許系統接管垂直滾動
-          overflow: 'hidden' 
+          overflow: 'hidden'
         }}
       >
         {viewingCharacter ? (
@@ -272,19 +270,20 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
       </main>
 
       {/* 底部導航欄 */}
-      <nav 
+      <nav
         aria-label="主選單"
-        className={`home-bar home-bar-bottom absolute bottom-0 left-0 right-0 flex items-stretch justify-around px-1 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`} 
-        style={{ 
-            paddingBottom: 'max(8px, env(safe-area-inset-bottom))', 
+        className={`home-bar home-bar-bottom absolute bottom-0 left-0 right-0 flex items-stretch justify-evenly px-0 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}
+
+        style={{
+            paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
             height: 'calc(76px + env(safe-area-inset-bottom))'
         }}
       >
-        <NavButton label="圖鑒" icon={<IconUser />} active={activeTab === 'character'} onClick={() => handleNavClick('character')} />
+        <NavButton label="豪杰" icon={<IconUser />} active={activeTab === 'character'} onClick={() => handleNavClick('character')} />
         <NavButton label="排名" icon={<IconRank />} active={activeTab === 'rank'} onClick={() => handleNavClick('rank')} />
         <NavButton label="地城" icon={<IconDungeon />} active={activeTab === 'dungeon'} onClick={() => handleNavClick('dungeon')} />
-        <NavButton label="尋訪" icon={<IconGacha />} active={activeTab === 'gacha'} onClick={() => handleNavClick('gacha')} />
-        <NavButton label="設定" icon={<IconSettings />} active={activeTab === 'settings'} onClick={() => handleNavClick('settings')} />
+        <NavButton label="寻访" icon={<IconGacha />} active={activeTab === 'gacha'} onClick={() => handleNavClick('gacha')} />
+        <NavButton label="设定" icon={<IconSettings />} active={activeTab === 'settings'} onClick={() => handleNavClick('settings')} />
       </nav>
     </div>
   );
@@ -294,8 +293,11 @@ const NavButton: React.FC<{ label: string, icon: React.ReactNode, active?: boole
   const reduce = useReducedMotion();
   return (
     <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`home-nav-btn home-focus ${active ? 'is-active' : ''}`}>
-      <span className="home-nav-icon">{icon}</span>
-      <span className="home-nav-label">{label}</span>
+      {/* r9: icon+label 槽水平完全置中於選中金圓（地城 cx=195） */}
+      <span className="home-nav-slot">
+        <span className="home-nav-icon">{icon}</span>
+        <span className="home-nav-label">{label}</span>
+      </span>
       {active && (
         <motion.span
           layoutId="home-nav-brush"

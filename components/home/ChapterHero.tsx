@@ -4,7 +4,7 @@ import { LevelConfig } from '../../types';
 import { portraitKey, LAYERED_PORTRAITS } from '../../data/portraits';
 import { anchorStyle, chapterLabel, faceCircleStyle, type Target } from './heroUtils';
 import { useGyroParallax, type GyroLayer } from './useGyroParallax';
-import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroFigStyle, pct, sceneVars } from './heroScene';
+import { HERO_SCENES, SCENE_TILES, INK_WASH_MASK, SCROLL_ENTER_OPEN, SCROLL_ENTER_CLOSED, computeHeroFit, heroFigStyle, pct, sceneVars } from './heroScene';
 
 /**
  * 英雄區立繪目標（相對於立繪框 .home-fig-stage：寬 100%、高寬比 47:39，置頂；
@@ -195,7 +195,11 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
                     style={i || j ? { left: `${i * 100}%`, top: `${j * 100}%`, transform: `scale(${i ? -1 : 1}, ${j ? -1 : 1})` } : undefined} />
                 ))}
               </div>
-              <div className={`home-scene${scene.fill === 'coverBottom' ? ' is-cover-bottom' : ''}${' is-fit'}`} style={sceneVars(scene)}>
+              {/* 水墨遮罩：山景之上、立繪之下、UI chrome 之下；viewport cover，中心透、邊緣壓 */}
+              <div className="home-ink-wash" aria-hidden="true">
+                <img src={INK_WASH_MASK} alt="" draggable={false} />
+              </div>
+              <div className={`home-scene home-scene-fig-frame${scene.fill === 'coverBottom' ? ' is-cover-bottom' : ''}${' is-fit'}`} style={sceneVars(scene)}>
                 <div className="home-scene-fig" style={heroFigStyle(scene)}>
                   {/* 呼吸套在人物與飛劍共同父層：靜候時劍隨手起伏。有 LAYERED 時拆成人物＋飛劍（前／後兩份切 z） */}
                   <div className={`home-scene-layer ${reduce ? '' : 'home-scene-breathe'}`} style={{ transformOrigin: layered?.seat ?? scene.breathe }}>
@@ -347,8 +351,13 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
         </div>
         )}
 
-        <button type="button" className={`home-cta home-focus mt-4${isL2 ? ' l2-cta' : ''}`} onClick={() => onEnter(level)}>
-          入陣
+        <button type="button" className={`home-cta home-focus mt-4${isL2 ? ' l2-cta' : ''}`} onClick={() => onEnter(level)} aria-label={`入陣：${level.title}`}>
+          {/* 入陣卷軸 art2：靜態默认打开＋「入陣」字；合上圖供 :active／未來轉場 */}
+          <span className="home-cta-scroll" aria-hidden="true">
+            <img className="home-cta-scroll-open" src={SCROLL_ENTER_OPEN} alt="" draggable={false} />
+            <img className="home-cta-scroll-closed" src={SCROLL_ENTER_CLOSED} alt="" draggable={false} />
+          </span>
+          <span className="home-cta-label">入陣</span>
           <span className="sr-only">：{level.title}</span>
         </button>
       </div>

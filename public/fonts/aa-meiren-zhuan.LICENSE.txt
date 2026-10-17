@@ -1,0 +1,2 @@
+AaMeiRenZhuan（美人篆）子集 — 僅含主頁底欄標籤用字。
+來源檔：AaMeiRenZhuan-2.ttf（用戶提供）。本目錄僅存放 woff2 子集供 runtime @font-face。

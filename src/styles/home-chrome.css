@@ -1,25 +1,36 @@
-/* Font mapping (v1.3.7) — GenWan display + WenKai Mono TC body */
+/* Font mapping (v1.3.7 + seal-zhuan + meiren-r9) — GenWan display + WenKai Mono TC body */
 /* 展示／標題／入陣／頂欄標籤＝源雲明體；用戶名／列表副標＝文楷 Mono TC */
+/* 朱印＝王漢宗印篆（--font-seal）；底欄標＝美人篆 Regular（--font-meiren） */
 .home-htitle,
 .home-vtitle,
 .home-chapter-no,
-.home-seal,
 .home-section-title,
 .home-slip-title,
 .home-slip-no,
 .home-lv-label,
 .home-lv-num,
 .home-meter-label,
+.home-name,
 .home-cta {
   font-family: var(--font-display) !important;
   font-synthesis: none;
 }
-.home-name,
+.home-seal {
+  font-family: var(--font-seal) !important;
+  font-synthesis: none;
+}
+.home-nav-label {
+  font-family: var(--font-meiren) !important;
+  font-weight: 400 !important;
+  font-synthesis: none;
+  /* 禁 stroke／假粗／700 */
+  -webkit-text-stroke: 0 !important;
+  text-shadow: none !important;
+}
 .home-meter-val,
 .home-coin-num,
 .home-section-meta,
 .home-slip-sub,
-.home-nav-label,
 .home-guest-tag {
   font-family: 'LXGW WenKai Mono TC', serif;
   font-synthesis: none;

@@ -351,6 +351,21 @@
             src: url('/fonts/genwan-display.woff2') format('woff2');
             font-weight: 100 900; font-style: normal; font-display: block;
         }
+        /* 主頁朱印：王漢宗印篆體（GPL v2 自由字型子集）。 */
+        @font-face {
+            font-family: 'Wang InJang Seal';
+            src: url('/fonts/wang-injang-seal.woff2') format('woff2');
+            font-weight: 400 900;
+            font-display: swap;
+        }
+        /* 主頁底欄：美人篆 Regular（僅常規字重；禁假粗）。 */
+        @font-face {
+            font-family: 'Aa MeiRen Zhuan';
+            src: url('/fonts/aa-meiren-zhuan.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
         :root {
             /* 具名色票 */
             --ink: #0d0b09;
@@ -375,6 +390,8 @@
             --font-serif-title: var(--font-display);
             --font-sans-ui: 'LXGW WenKai Mono TC', serif;
             --font-enter-cta: var(--font-display);
+            --font-seal: 'Wang InJang Seal', var(--font-display);
+            --font-meiren: 'Aa MeiRen Zhuan', var(--font-display);
             --vt-ls: 0.12; /* 直書篇名字距（em，無單位） */
         }
         .dark-mode {
@@ -394,8 +411,20 @@
 
         /* 頂欄／底欄 */
         .home-bar { background: var(--home-bar); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-        .home-bar-top { border-bottom: 1px solid var(--home-line); }
-        .home-bar-bottom { border-top: 1px solid var(--home-line); }
+        .home-bar-top { border-bottom: 1px solid var(--home-line);
+            /* r9: Dynamic Island 緊湊避開；僅小幅 padding-top，勿大塊 sat 空白 */
+            padding-top: max(2px, env(safe-area-inset-top, 0px));
+            box-sizing: border-box;
+        }
+        /* r9 HUD：暱稱左緣對齊經驗標；經驗／體力／暱稱同字級（上已 10px） */
+        .home-bar-top .flex-1 > .flex.items-center.justify-between { align-items: flex-start; }
+        .home-bar-top .home-name { display: block; text-align: left; margin-left: 0; }
+        .home-guest-tag { display: none !important; } /* home HUD 無遊客標 */
+        .home-bar-bottom { border-top: 1px solid var(--home-line);
+            /* r9: 底欄貼底＋safe-area */
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            box-sizing: border-box;
+        }
         .home-lv {
             width: 52px; height: 58px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: linear-gradient(160deg, #e9c95a, #a8841f 60%, #7a5c0f);
@@ -404,14 +433,14 @@
         }
         .home-lv-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 1px; opacity: .8; }
         .home-lv-num { font-family: var(--font-display); font-weight: 900; font-size: 22px; line-height: 1.05; }
-        .home-name { font-family: 'LXGW WenKai Mono TC', serif; font-weight: 400; font-size: 16px; letter-spacing: 2px; color: var(--home-text); line-height: 1; }
+        .home-name { font-family: var(--font-display); font-weight: 400; font-size: 10px; letter-spacing: 1px; color: var(--home-text); line-height: 1; }
         .home-coin { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--home-line); border-radius: 999px; }
         .home-coin-label { font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--home-accent); }
         .home-coin-icon { width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fbe69a, #d4af37 55%, #8a6a12); box-shadow: inset 0 0 0 2px rgba(0,0,0,.18); position: relative; }
         .home-coin-icon::after { content: ''; position: absolute; inset: 4px; background: rgba(0,0,0,.35); }
         .home-coin-num { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--home-text); }
         .home-meter { display: flex; align-items: center; gap: 8px; }
-        .home-meter-label { font-family: var(--font-display); font-size: 12px; font-weight: 700; color: var(--home-accent); width: 26px; line-height: 1; }
+        .home-meter-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; color: var(--home-accent); width: 26px; line-height: 1; }
         .home-meter-label.is-jade { color: #2f6f52; }
         .dark-mode .home-meter-label.is-jade { color: var(--jade); }
         .home-meter-track { flex: 1; height: 5px; background: var(--home-track); border-radius: 1px; overflow: hidden; }
@@ -420,15 +449,46 @@
         .home-meter-fill.is-stamina { background: linear-gradient(90deg, #2f6f52, var(--jade)); }
         .home-meter-val { font-size: 12px; font-weight: 700; color: var(--home-text); min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; line-height: 1; }
 
-        .home-nav-btn { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--home-muted); transition: color .25s; border-radius: 10px; }
+        .home-nav-btn {
+            position: relative; flex: 1 1 0; min-width: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 0; margin: 0; color: var(--home-muted); transition: color .25s; border-radius: 10px;
+        }
         .home-nav-btn.is-active { color: var(--home-accent); }
-        .home-nav-icon { display: flex; transition: transform .25s; }
-        .home-nav-btn.is-active .home-nav-icon { transform: translateY(-2px); filter: drop-shadow(0 0 8px rgba(212,175,55,.35)); }
-        .home-nav-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-indent: 2px; }
+        /* r9: 圖示＋標籤共槽，水平完全置中於按鈕／金圓軸（地城 slot cx=195） */
+        .home-nav-slot {
+            position: relative; z-index: 2;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; max-width: 72px; margin-inline: auto;
+            transform: translateY(-2px); /* 標上移進選中金圓 */
+        }
+        .home-nav-icon {
+            display: flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; margin: 0 auto; flex-shrink: 0;
+            transition: transform .25s;
+        }
+        .home-nav-icon svg {
+            display: block; width: 22px; height: 22px; margin: 0 auto;
+            /* 幾何中心對齊槽心；禁偏左 inset */
+        }
+        .home-nav-btn.is-active .home-nav-icon { transform: translateY(-4px); filter: drop-shadow(0 0 8px rgba(212,175,55,.35)); }
+        .home-nav-label {
+            font-family: var(--font-meiren); font-size: 12px; font-weight: 400;
+            letter-spacing: 0.08em; text-indent: 0;
+            /* letter-spacing 尾空白補償 → 光學水平置中 */
+            padding-left: 0.08em; box-sizing: border-box;
+            font-synthesis: none; -webkit-text-stroke: 0; text-shadow: none;
+            position: relative; z-index: 2; margin: 2px 0 0; line-height: 1;
+            width: 100%; text-align: center; color: #E8C76A;
+        }
+        .home-nav-btn.is-active .home-nav-label { color: #FFE9A0; }
         .home-nav-brush {
-            position: absolute; top: 0; left: 22%; right: 22%; height: 3px;
+            /* 金刷／選中指示：水平置中於按鈕軸 */
+            position: absolute; top: 0; left: 50%; width: 56%; height: 3px;
+            transform: translateX(-50%);
             background: linear-gradient(90deg, transparent, var(--gilt) 18%, var(--gilt) 82%, transparent);
             border-radius: 0 0 3px 3px;
+            pointer-events: none;
         }
 
         /* 英雄區 */
@@ -442,6 +502,7 @@
             position: absolute; width: calc(var(--s) * var(--W)); height: calc(var(--s) * var(--H));
             left: clamp(calc(100cqw - var(--s) * var(--W)), calc(var(--X) * 100cqw - var(--s) * var(--ax)), 0px);
             top: calc(var(--V) - var(--s) * var(--foot));
+            z-index: 1; /* 山景底；水墨 2／立繪 3 叠其上 */
         }
         /* 第 2 關：背景 cover 英雄區並貼底（頂部天空裁掉、底部填滿，無墨黑） */
         .home-scene.is-cover-bottom {
@@ -453,6 +514,19 @@
         .home-scene-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; }
         .home-scene-fig { position: absolute; will-change: transform; }
         .home-scene-bg { /* 無頂部 mask：遠景直通 */ }
+
+        /* 水墨遮罩：只罩山景；立繪／卷軸／朱印／篇章列表皆在其上（z 鎖） */
+        .home-ink-wash {
+            position: absolute; inset: 0; z-index: 2;
+            pointer-events: none; overflow: hidden;
+            opacity: 1; /* 強度 100%；整層實色 RGB＋外層 opacity；用戶批 2026-10-18 */
+        }
+        .home-ink-wash img {
+            width: 100%; height: 100%;
+            object-fit: cover; object-position: center 38%;
+            max-width: none;
+        }
+        .home-scene-fig-frame { z-index: 3; } /* 立繪 > 水墨 */
         .home-hero-bg.is-under-scene { display: none !important; }
         @keyframes homeSceneBreathe { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(1.012); } }
         .home-scene-breathe { animation: homeSceneBreathe 4.5s ease-in-out infinite; will-change: transform; }
@@ -581,17 +655,19 @@
         .l2-title-row { margin-top: 26px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .l2-title-row .home-htitle { margin-top: 0; flex: 1 1 auto; min-width: 0; }
         .l2-cta { margin-top: 20px; }
-        .home-seal-l2 { position: absolute; right: 18px; top: 38%; z-index: 1; }
+        .home-seal-l2 { position: absolute; right: 18px; top: 38%; z-index: 2; } /* 朱印 > 水墨（父層 z-10） */
         /* 矮英雄區（抽屜 peek）：朱印移到右上，不壓篇名／頭像列 */
         @container (max-height: 420px) { .home-seal-l2 { top: 14px; } }
         .home-chapter-no { font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: 4px; color: var(--gilt); text-shadow: 0 1px 2px #000, 0 0 10px rgba(0,0,0,.9); }
         .home-quote { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--paper); text-shadow: 0 1px 6px rgba(0,0,0,.8); }
+        /* 主頁朱印：王漢宗印篆、紅底白字白內框（定稿；禁並存舊紙色字／舊 display 粗體印） */
         .home-seal {
             flex-shrink: 0; writing-mode: vertical-rl; text-orientation: upright;
-            font-family: var(--font-display); font-weight: 900; font-size: 15px; letter-spacing: 2px; line-height: 1;
-            color: #f6ead2; background: var(--cinnabar); padding: 8px 6px; border-radius: 3px;
-            box-shadow: inset 0 0 0 2px #f6ead2, inset 0 0 0 3px var(--cinnabar), 0 4px 12px rgba(0,0,0,.4);
+            font-family: var(--font-seal); font-weight: 400; font-size: 15px; letter-spacing: 2px; line-height: 1;
+            color: #fff; background: var(--cinnabar); padding: 8px 6px; border-radius: 3px;
+            box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px var(--cinnabar), 0 4px 12px rgba(0,0,0,.4);
             transform: rotate(-4deg);
+            font-synthesis: none;
         }
         .home-arrow { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: var(--gilt); border: 1px solid rgba(212,175,55,.45); border-radius: 50%; background: rgba(13,11,9,.5); transition: background .2s, transform .15s; }
         .home-arrow:hover { background: rgba(212,175,55,.15); }
@@ -599,15 +675,53 @@
         .home-thumb { position: relative; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: #2a231b; border: 2px solid rgba(237,228,208,.25); opacity: .7; transition: opacity .25s, border-color .25s, transform .25s; }
         .home-thumb.is-on { opacity: 1; border-color: var(--gilt); transform: scale(1.1); box-shadow: 0 0 14px rgba(212,175,55,.45); }
         .home-thumb:hover { opacity: 1; }
+        /* 入陣 CTA＝art2 卷軸（打开為默認面；合上在 :active 閃現）。槽位參考＠390：247×75→高×1.10≈83 */
         .home-cta {
-            width: 100%; height: 48px; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: 16px; text-indent: 16px;
-            color: var(--ink); background: linear-gradient(180deg, #ecca5c, var(--gilt) 55%, #a8841f);
-            clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
+            position: relative; z-index: 2; /* 入陣卷軸 > 水墨（父層 .relative.z-10） */
+            display: flex; align-items: center; justify-content: center;
+            width: min(100%, 247px); height: 97px; margin-inline: auto; /* r4/r9: 高×0.9 vs r3 108 */
+            padding: 0; border: 0; background: transparent; clip-path: none;
+            font-family: var(--font-display); font-weight: 600; font-size: 20px;
+            letter-spacing: 0; text-indent: 0; /* letter-spacing 改由 .home-cta-label 處理以利置中 */
+            color: var(--ink);
             transition: filter .2s, transform .15s;
         }
-        .home-cta:hover { filter: brightness(1.08); }
+        .home-cta-scroll {
+            position: absolute; inset: 0; pointer-events: none;
+            /* r2: 禁止 drop-shadow／黑底；卷圖僅靠自身 RGBA alpha */
+        }
+        .home-cta-scroll img {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            object-fit: fill; /* 對齊示意槽 247×83（高×1.10；非原生比例） */
+            opacity: 0; transition: opacity .18s ease;
+            background: transparent;
+        }
+        /* 提高 specificity：蓋過 `.home-cta-scroll img` 的 opacity:0 */
+        .home-cta-scroll img.home-cta-scroll-open { opacity: 1; }
+        .home-cta-scroll img.home-cta-scroll-closed {
+            /* 合上資產為豎長雙軸：置中contain，避免拉扁 */
+            object-fit: contain; object-position: center;
+        }
+        .home-cta:active .home-cta-scroll img.home-cta-scroll-open { opacity: 0; }
+        .home-cta:active .home-cta-scroll img.home-cta-scroll-closed { opacity: 1; }
+        .home-cta-label {
+            /* r8/r9: 「入陣」水平＋光學垂直置中（cy_up≈6；無紙底 backing） */
+            position: absolute; inset: 0; z-index: 1;
+            display: flex; align-items: center; justify-content: center;
+            letter-spacing: 0.4em;
+            text-indent: 0;
+            padding-left: 0.4em; /* 與 letter-spacing 對稱，光學置中 */
+            transform: translateY(-6px); /* optical vertical nudge */
+            box-sizing: border-box;
+            font-synthesis: none;
+            text-shadow: none; /* 無紙底／無軟襯 */
+            pointer-events: none;
+            background: transparent;
+        }
+        .home-cta:active .home-cta-label { opacity: 0; } /* 合上態無紙面字 */
+        .home-cta:hover { filter: brightness(1.06); }
         .home-cta:active { transform: scale(.98); }
-        .home-cta:focus-visible { outline: none; filter: brightness(1.15) drop-shadow(0 0 0 #fff); box-shadow: 0 0 0 3px var(--paper); }
+        .home-cta:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; filter: brightness(1.1); border-radius: 8px; }
 
         /* 篇章列（竹簡） */
         .home-section-title { font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: 3px; color: var(--home-text); }
@@ -643,7 +757,8 @@
             --bar-h: 52px;
             /* peek＝標題列＋前四篇（列高＝展開時 12 列等分：(H − bar − 列表上下 12px − 11 個 4px 間距)/12；四列＋上 2px＋四個間距）
                = bar + 18px + (H − bar − 56px)/3 = H/3 + 2·bar/3 − 0.67px */
-            --peek-h: calc(100% / 3 + var(--bar-h) * 2 / 3 - 1px);
+            /* r9 drawer 分區鎖：chapters 408–618 @390×693 → peek 從底算 (100% - 408/693*100%) */
+            --peek-h: max(calc(100% / 3 + var(--bar-h) * 2 / 3 - 1px), calc(100% - 408 * 100% / 693)); /* drawer-zone-lock-r9 */
             position: relative; height: 100%; overflow: hidden;
         }
         /* 英雄區下緣＝抽屜上緣（peek／open 時在 peek 線；closed 時在標題列） */
