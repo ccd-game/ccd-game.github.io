@@ -59,14 +59,17 @@
   -webkit-user-drag: none;
 }
 
-/* 頂欄圖殼：鋪滿 header；內容在上層可點 */
+/* 頂欄圖殼：原生 390×98；雲底完整外露（fill-edges）；勿 height+padding 雙重加 sat */
 .home-chrome-shell--top {
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: auto;
   width: 100%;
-  height: 100%;
+  height: 98px; /* asset native @390；可向下超出 88px 內容帶 */
 }
 .home-chrome-shell--top img {
-  object-fit: cover;
+  object-fit: fill;
   object-position: top center;
 }
 
@@ -93,22 +96,28 @@
 }
 
 /* 玉佩上 GenWan 等級文字（無六角底；玉佩本體在 top-hud-layer） */
+/* chrome-min-r2: 對齊玉佩心 JADE_CENTER≈(43.5,43.2) @390；水平＋垂直置中 */
 .home-lv-jade-text {
   position: absolute;
-  /* 中心對齊 JADE_CENTER≈(43.9,41.2) @390；玉佩在 top-hud-layer */
-  left: 14px;
-  top: 11px;
+  /* 盒心 → JADE_CENTER≈(43.5, 43.2)；相對旧 top:11 下移置中 */
+  left: 13.5px;
+  top: 13.2px;
   width: 60px;
   height: 60px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  text-align: center;
   pointer-events: none;
   z-index: 2;
   color: var(--ink, #2a2418);
   background: none;
   clip-path: none;
+  padding: 0;
+  box-sizing: border-box;
+  /* 字型 ascent 使墨心偏上 ≈3px；光學下移對齊玉心 */
+  transform: translateY(3px);
 }
 .home-lv-jade-text .home-lv-label {
   font-family: var(--font-display);
@@ -117,12 +126,20 @@
   line-height: 1;
   letter-spacing: 1px;
   opacity: 0.9;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  width: 100%;
 }
 .home-lv-jade-text .home-lv-num {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 20px;
   line-height: 1.05;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  width: 100%;
 }
 
 /* r9: 中欄左緣＝經驗標左緣（≈96 @390）；頂欄圖殼玉佩佔左 */
@@ -131,6 +148,8 @@
   padding-right: 12px !important;
   gap: 0 !important;
   box-sizing: border-box;
+  /* chrome-min-r2: 雲底可向下超出分區；勿裁 */
+  overflow: visible !important;
 }
 .home-hud-mid {
   position: relative;
@@ -141,22 +160,37 @@
   min-width: 0;
   align-self: stretch;
 }
-/* hotfix2-min: 名／經驗／體力三列等距；機緣絕對右上不佔列高 */
+/* chrome-min-r2: 名＋機緣同列；經驗／體力等距；機緣右緣＝meters 右緣 */
 .home-hud-stack {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 8px; /* 三者間距相同 */
+  gap: 8px;
   min-width: 0;
-  padding-right: 86px; /* 讓出機緣 chip */
-  /* hotfix2-min: 下移使名≈玉心帶（r9 title y≈36），與雙條同列等距 */
+  width: 100%;
+  padding-right: 0;
   margin-top: 20px;
 }
-.home-hud-mid > .home-coin {
-  position: absolute;
-  top: 4px; /* r9 jiyuan y0≈27；略上於名列 */
-  right: 0;
-  z-index: 3;
+.home-hud-name-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.home-hud-name-row .home-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.home-hud-name-row .home-coin {
+  flex: 0 0 auto;
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
+  margin: 0;
 }
 
 /* 金線 PNG 圖示 */
@@ -172,14 +206,14 @@
 }
 .home-nav-icon svg { display: none !important; }
 
-/* 選中金框：全寬層，orb 對準當前 tab 中心；可 overhang 底欄頂 */
+/* 選中金框：定稿放大（orbOD≈99.7≈shell×1.17）；金線頂緣＝殼頂緣；禁 scale<1 */
 .home-nav-gold-frame {
   position: absolute;
-  top: 0;
-  width: 100%;
+  /* asset 1264×383；scale＝99.7/167≈0.597 → W≈754；金線資產 y≈59 → top -35 */
+  width: 754px;
   height: auto;
-  /* 資產 1264×383 → 約 390×118；定稿原大無 scale */
   aspect-ratio: 1264 / 383;
+  top: -35px; /* 橫金線頂緣對齊底欄殼頂 */
   z-index: 1;
   pointer-events: none;
   overflow: visible;
@@ -194,7 +228,7 @@
   user-select: none;
   -webkit-user-drag: none;
   object-fit: fill;
-  /* hotfix2-min: 禁縮圓；定稿原大（無 scale；orbOD≈shellH×1.17≈99.7） */
+  /* 禁縮圓；勿加 scale<1 */
   transform: none;
 }
 

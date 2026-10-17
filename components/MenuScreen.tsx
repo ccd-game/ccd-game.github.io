@@ -59,6 +59,8 @@ const NAV_GOLD_FRAME_SRC = {
   webp: `${CHROME_BASE}/nav-gold-frame.webp`,
   png: `${CHROME_BASE}/nav-gold-frame.png`,
 };
+/** 定稿金框顯示寬：asset 1264 × (orbOD 99.7 / assetOD 167) ≈ 754；金線頂緣貼殼頂 */
+const NAV_GOLD_FRAME_W = 754;
 
 interface MenuScreenProps {
   levels: LevelConfig[];
@@ -242,14 +244,16 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
           <span className="home-lv-num" aria-hidden="true">{playerData.level}</span>
         </div>
         <div className="flex-1 min-w-0 home-hud-mid">
-          {/* hotfix2-min: 機緣獨立右上；名／經驗／體力三列等距並列 */}
-          <div className="home-coin" aria-label={`機緣 ${playerData.jiyuan}`}>
-            <span className="home-coin-label" aria-hidden="true">機緣</span>
-            <span className="home-coin-icon" aria-hidden="true"></span>
-            <span className="home-coin-num" aria-hidden="true">{playerData.jiyuan.toLocaleString()}</span>
-          </div>
+          {/* chrome-min-r2: 機緣與名同列；右緣對齊 meters 右緣 */}
           <div className="home-hud-stack">
-            <span className="home-name truncate">{playerData.name || '歐陽同學'}</span>
+            <div className="home-hud-name-row">
+              <span className="home-name truncate">{playerData.name || '歐陽同學'}</span>
+              <div className="home-coin" aria-label={`機緣 ${playerData.jiyuan}`}>
+                <span className="home-coin-label" aria-hidden="true">機緣</span>
+                <span className="home-coin-icon" aria-hidden="true"></span>
+                <span className="home-coin-num" aria-hidden="true">{playerData.jiyuan.toLocaleString()}</span>
+              </div>
+            </div>
             {/* r9: home HUD 無「遊客」標 */}
             <div className="home-meter">
               <span className="home-meter-label">經驗</span>
@@ -312,7 +316,8 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
           aria-hidden="true"
           initial={false}
           animate={{
-            left: `${((activeNavIndex + 0.5) / TABS.length) * 100 - 50}%`,
+            /* 框寬 NAV_GOLD_FRAME_W；中心對準當前 tab 中心 */
+            left: `calc(${((activeNavIndex + 0.5) / TABS.length) * 100}% - ${NAV_GOLD_FRAME_W / 2}px)`,
           }}
           transition={
             reduceNav

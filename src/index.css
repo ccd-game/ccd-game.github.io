@@ -422,7 +422,7 @@
             padding-top: max(2px, env(safe-area-inset-top, 0px));
             box-sizing: border-box;
         }
-        .home-bar-top.home-chrome-shell-host { border-bottom: none; }
+        .home-bar-top.home-chrome-shell-host { border-bottom: none; overflow: visible; }
         /* r9 HUD：暱稱左緣對齊經驗標；經驗／體力／暱稱同字級（上已 10px） */
         .home-bar-top .home-name { display: block; text-align: left; margin-left: 0; padding-left: 0; }
         .home-bar-top .home-meter { margin-left: 0; padding-left: 0; }
