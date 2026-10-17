@@ -1,5 +1,5 @@
-/* Font mapping (v1.3.9) — kept here so Vite/Tailwind cannot drop title rules */
-/* 展示／標題＝華文行楷；列表／HUD＝霞鶩；入陣二字＝齊伋（.home-cta） */
+/* Font mapping (v1.3.7) — GenWan display + WenKai Mono TC body */
+/* 展示／標題／入陣／頂欄標籤＝源雲明體；用戶名／列表副標＝文楷 Mono TC */
 .home-htitle,
 .home-vtitle,
 .home-chapter-no,
@@ -8,22 +8,19 @@
 .home-slip-title,
 .home-slip-no,
 .home-lv-label,
-.home-lv-num {
+.home-lv-num,
+.home-meter-label,
+.home-cta {
   font-family: var(--font-display) !important;
   font-synthesis: none;
 }
 .home-name,
-.home-meter-label,
 .home-meter-val,
 .home-coin-num,
 .home-section-meta,
 .home-slip-sub,
 .home-nav-label,
 .home-guest-tag {
-  font-family: var(--font-sans-ui);
-  font-synthesis: none;
-}
-.home-cta {
-  font-family: var(--font-enter-cta, 'QIJIC Body', serif) !important;
+  font-family: 'LXGW WenKai Mono TC', serif;
   font-synthesis: none;
 }

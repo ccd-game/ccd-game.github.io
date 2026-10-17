@@ -59,7 +59,7 @@
         }
 
         body {
-            font-family: var(--font-body, 'QIJIC Body', serif);
+            font-family: 'LXGW WenKai Mono TC', monospace;
             background-color: #000;
             height: 100dvh;
             width: 100vw;
@@ -345,30 +345,11 @@
         .float-active { animation: floatAnim 4s ease-in-out infinite; }
 
         /* ===================== 主頁（地城）重設計 ===================== */
-        /* 展示／標題：華文行楷_GBK（STXingkai；專有字型，用戶已知授權風險並下令部署）。
-           子集只含篇名、作者、Boss 名、章回、按鈕／標籤等固定介面字。 */
+        /* 展示字型：源雲明體 GenWanMin2 TC SemiBold（SIL OFL 1.1（含 Adobe 保留字型名 Source；本子集未使用該名））。子集只含篇名、作者、回數、介面字；玩家名等動態文字改用內文字型。 */
         @font-face {
-            font-family: 'STXingkai Display';
-            src: url('/fonts/stxingkai-display.woff2') format('woff2');
+            font-family: 'GenWanMin2 TC Display';
+            src: url('/fonts/genwan-display.woff2') format('woff2');
             font-weight: 100 900; font-style: normal; font-display: block;
-        }
-        /* 內文／列表／頂欄 HUD：霞鶩文楷 TC（SIL OFL 1.1）。 */
-        @font-face {
-            font-family: 'LXGW WenKai Secondary';
-            src: url('/fonts/wenkai-secondary.woff2') format('woff2');
-            font-weight: 100 900; font-style: normal; font-display: block;
-        }
-        /* 齊伋體 QIJIC（SIL OFL 1.1）：戰鬥／題庫動態長文 body；入陣 CTA「入」「陣」二字專用（--font-enter-cta）。 */
-        @font-face {
-            font-family: 'QIJIC Body';
-            src: url('/fonts/qijic-body.woff2') format('woff2');
-            font-weight: 100 900; font-style: normal; font-display: block;
-        }
-        /* 蒼景明朝：已停用為主展示；保留檔案與 @font-face 僅作 fallback 鏈末端。 */
-        @font-face {
-            font-family: 'Soukou Mincho Display';
-            src: url('/fonts/soukou-display.woff2') format('woff2');
-            font-weight: 100 900; font-style: normal; font-display: swap;
         }
         :root {
             /* 具名色票 */
@@ -389,11 +370,11 @@
             --home-bar: rgba(247, 244, 237, 0.94);
             --home-track: rgba(42, 36, 28, 0.12);
             /* Font stacks also in design-tokens.css; keep aliases here for cascade safety */
-            --font-serif-title: 'STXingkai Display', 'LXGW WenKai Secondary', 'Soukou Mincho Display', 'QIJIC Body', serif;
-            --font-sans-ui: 'LXGW WenKai Secondary', 'QIJIC Body', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-            --font-enter-cta: 'QIJIC Body', 'STXingkai Display', serif;
-            --font-body: 'QIJIC Body', 'LXGW WenKai Secondary', serif;
-            --font-display: var(--font-serif-title);
+            --font-display: 'GenWanMin2 TC Display', 'LXGW WenKai Mono TC', serif;
+            --font-body: 'LXGW WenKai Mono TC', monospace;
+            --font-serif-title: var(--font-display);
+            --font-sans-ui: 'LXGW WenKai Mono TC', serif;
+            --font-enter-cta: var(--font-display);
             --vt-ls: 0.12; /* 直書篇名字距（em，無單位） */
         }
         .dark-mode {
@@ -423,14 +404,14 @@
         }
         .home-lv-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 1px; opacity: .8; }
         .home-lv-num { font-family: var(--font-display); font-weight: 900; font-size: 22px; line-height: 1.05; }
-        .home-name { font-family: var(--font-sans-ui); font-weight: 400; font-size: 16px; letter-spacing: 2px; color: var(--home-text); line-height: 1; }
+        .home-name { font-family: 'LXGW WenKai Mono TC', serif; font-weight: 400; font-size: 16px; letter-spacing: 2px; color: var(--home-text); line-height: 1; }
         .home-coin { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--home-line); border-radius: 999px; }
         .home-coin-label { font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--home-accent); }
         .home-coin-icon { width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fbe69a, #d4af37 55%, #8a6a12); box-shadow: inset 0 0 0 2px rgba(0,0,0,.18); position: relative; }
         .home-coin-icon::after { content: ''; position: absolute; inset: 4px; background: rgba(0,0,0,.35); }
-        .home-coin-num { font-family: var(--font-sans-ui); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--home-text); }
+        .home-coin-num { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--home-text); }
         .home-meter { display: flex; align-items: center; gap: 8px; }
-        .home-meter-label { font-family: var(--font-sans-ui); font-size: 12px; font-weight: 700; color: var(--home-accent); width: 26px; line-height: 1; }
+        .home-meter-label { font-family: var(--font-display); font-size: 12px; font-weight: 700; color: var(--home-accent); width: 26px; line-height: 1; }
         .home-meter-label.is-jade { color: #2f6f52; }
         .dark-mode .home-meter-label.is-jade { color: var(--jade); }
         .home-meter-track { flex: 1; height: 5px; background: var(--home-track); border-radius: 1px; overflow: hidden; }
@@ -619,7 +600,7 @@
         .home-thumb.is-on { opacity: 1; border-color: var(--gilt); transform: scale(1.1); box-shadow: 0 0 14px rgba(212,175,55,.45); }
         .home-thumb:hover { opacity: 1; }
         .home-cta {
-            width: 100%; height: 48px; font-family: var(--font-enter-cta, 'QIJIC Body', serif); font-weight: 600; font-size: 20px; letter-spacing: 16px; text-indent: 16px;
+            width: 100%; height: 48px; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: 16px; text-indent: 16px;
             color: var(--ink); background: linear-gradient(180deg, #ecca5c, var(--gilt) 55%, #a8841f);
             clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
             transition: filter .2s, transform .15s;
@@ -732,7 +713,7 @@
         }
 
 /* ───────────── 遊客模式（Guest mode） ─────────────
-   新字串一律用 QIJIC Body（展示字型為子集，缺字會混排）。 */
+   新字串一律用 LXGW WenKai Mono TC（展示字型為子集，缺字會混排）。 */
 
 /* 登入頁：底部控制區墨色襯底，令小字不壓在立繪上 */
 .login-scrim {
@@ -751,7 +732,7 @@
 .login-guest-btn {
     width: 100%; max-width: 320px; min-height: 48px; padding: 0 16px;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'QIJIC Body', serif; font-weight: 700; font-size: 16px;
+    font-family: 'LXGW WenKai Mono TC', monospace; font-weight: 700; font-size: 16px;
     letter-spacing: 8px; text-indent: 8px; line-height: 1;
     color: rgba(237,228,208,.88);
     background: rgba(13,11,9,.42);
@@ -779,7 +760,7 @@
 /* 頂欄：遊客身分小標籤（與機緣框同族，但更輕） */
 .home-guest-tag {
     flex-shrink: 0; display: inline-flex; align-items: center; height: 18px; padding: 0 7px 0 8px;
-    font-family: var(--font-sans-ui); font-size: 11px; letter-spacing: 1px; line-height: 1;
+    font-family: 'LXGW WenKai Mono TC', serif; font-size: 11px; letter-spacing: 1px; line-height: 1;
     color: var(--home-muted); border: 1px solid var(--home-line); border-radius: 999px;
 }
 

@@ -1,3 +1,0 @@
-華文行楷_GBK（STXingkai_GBK）— 專有字型（華文字型／ST）
-本目錄含預覽用子集 woff2（stxingkai-display.woff2）。
-授權狀態：專有；用戶已知授權風險並下令公開部署嵌入。非 SIL OFL；請勿與本目錄其他 OFL 字型混為同一授權聲明。

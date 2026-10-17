@@ -1,5 +1,0 @@
-齊伋體 QIJIC（Lingdong Huang／齊伋體；Reserved Font Name QIJI）
-授權：SIL OFL 1.1（本子集 CSS 名為 QIJIC Body，未使用保留名 QIJI）
-來源：https://github.com/LingDong-/qiji-font ；用戶提供之 QIJIC.ttf
-本檔為子集 woff2：涵蓋題庫字（QUESTION_BANK.md）、干擾字（distractors）、Boss 台詞（BOSS_SPEECHES.md）、暫停／戰敗／勝利引文、姓氏對照與常見姓名字、數字與標點；以 pyftsubset 由原檔產生；字形未經修改。
-目標大小 ≤1.5MB（若超過 2MB 須再收緊）。作為全域內文／動態文字字型，並作為展示字型缺字備援。

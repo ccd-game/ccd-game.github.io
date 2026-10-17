@@ -1,5 +1,0 @@
-蒼景明朝／装甲明朝 SoukouMincho（Flop Design；基於 Adobe 源ノ明朝 Source Han Serif）
-授權：SIL OFL 1.1（保留字型名 SoukouMincho／装甲明朝；本子集 CSS 名為 Soukou Mincho Display，未使用保留名）
-來源：用戶提供之 SoukouMincho.ttf（OFL）
-本檔為子集 woff2：只含主頁／HUD 展示用固定介面字（篇名、作者、Boss 名、按鈕、標籤、章回、數字與標點），以 pyftsubset 由原檔產生；字形未經修改。
-目標大小 ≤150KB。動態文字（玩家名、題目、引文）改用內文字型 QIJIC Body。

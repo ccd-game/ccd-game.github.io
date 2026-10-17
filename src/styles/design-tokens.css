@@ -1,14 +1,13 @@
-/* 《文言修煉者》字型 tokens（v1.3.9 最小集）
-   展示／標題＝華文行楷_GBK（STXingkai；專有，用戶已知風險並下令部署）
-   內文／列表／頂欄 HUD＝霞鶩文楷 TC（LXGW WenKai Secondary；SIL OFL 1.1）
-   「入陣」二字／戰鬥動態長文＝齊伋體 QIJIC Body（SIL OFL 1.1）
-   蒼景明朝保留為 fallback 鏈末端（檔案仍在 public/fonts） */
+/* 《文言修煉者》字型 tokens（還原 v1.3.7／516bfaf）
+   展示／標題＝源雲明體 GenWanMin2 TC Display（SIL OFL 1.1；子集 local）
+   內文／HUD／用戶名＝LXGW WenKai Mono TC（Google Fonts）
+   入陣 CTA 與展示同棧（--font-display）；無 STXingkai／齊伋／蒼景主棧 */
 
 :root {
-  --font-serif-title: 'STXingkai Display', 'LXGW WenKai Secondary', 'Soukou Mincho Display', 'QIJIC Body', serif;
-  --font-sans-ui: 'LXGW WenKai Secondary', 'QIJIC Body', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-  --font-enter-cta: 'QIJIC Body', 'STXingkai Display', serif;
-  --font-body: 'QIJIC Body', 'LXGW WenKai Secondary', serif;
-  /* Compatibility alias used throughout index.css */
-  --font-display: var(--font-serif-title);
+  --font-display: 'GenWanMin2 TC Display', 'LXGW WenKai Mono TC', serif;
+  --font-body: 'LXGW WenKai Mono TC', monospace;
+  /* Compatibility aliases → v1.3.7 behaviour */
+  --font-serif-title: var(--font-display);
+  --font-sans-ui: 'LXGW WenKai Mono TC', serif;
+  --font-enter-cta: var(--font-display);
 }
