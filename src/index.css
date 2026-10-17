@@ -59,7 +59,7 @@
         }
 
         body {
-            font-family: 'LXGW WenKai Mono TC', monospace;
+            font-family: 'QIJIC Body', serif;
             background-color: #000;
             height: 100dvh;
             width: 100vw;
@@ -345,10 +345,18 @@
         .float-active { animation: floatAnim 4s ease-in-out infinite; }
 
         /* ===================== 主頁（地城）重設計 ===================== */
-        /* 展示字型：源雲明體 GenWanMin2 TC SemiBold（SIL OFL 1.1（含 Adobe 保留字型名 Source；本子集未使用該名））。子集只含篇名、作者、回數、介面字；玩家名等動態文字改用內文字型。 */
+        /* 展示字型：蒼景明朝／装甲明朝 SoukouMincho（SIL OFL 1.1；Flop Design，基於源ノ明朝；保留名 SoukouMincho／装甲明朝，本子集 CSS 名未使用保留名）。
+           子集只含篇名、作者、Boss 名、章回、按鈕／標籤等固定介面字；玩家名、題目、引文等動態文字用內文字型。 */
         @font-face {
-            font-family: 'GenWanMin2 TC Display';
-            src: url('/fonts/genwan-display.woff2') format('woff2');
+            font-family: 'Soukou Mincho Display';
+            src: url('/fonts/soukou-display.woff2') format('woff2');
+            font-weight: 100 900; font-style: normal; font-display: block;
+        }
+        /* 內文字型：齊伋體 QIJIC（SIL OFL 1.1；Lingdong Huang，保留名 QIJI；本子集 CSS 名 QIJIC Body）。
+           子集涵蓋題庫、干擾字、Boss 台詞、暫停／戰敗／勝利引文、姓氏與常見姓名字、數字標點；並作展示字型缺字備援。 */
+        @font-face {
+            font-family: 'QIJIC Body';
+            src: url('/fonts/qijic-body.woff2') format('woff2');
             font-weight: 100 900; font-style: normal; font-display: block;
         }
         :root {
@@ -369,7 +377,7 @@
             --home-slip-open: #fbf8f1;
             --home-bar: rgba(247, 244, 237, 0.94);
             --home-track: rgba(42, 36, 28, 0.12);
-            --font-display: 'GenWanMin2 TC Display', 'LXGW WenKai Mono TC', serif;
+            --font-display: 'Soukou Mincho Display', 'QIJIC Body', serif;
             --vt-ls: 0.12; /* 直書篇名字距（em，無單位） */
         }
         .dark-mode {
@@ -399,7 +407,7 @@
         }
         .home-lv-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 1px; opacity: .8; }
         .home-lv-num { font-family: var(--font-display); font-weight: 900; font-size: 22px; line-height: 1.05; }
-        .home-name { font-family: 'LXGW WenKai Mono TC', serif; font-weight: 400; font-size: 16px; letter-spacing: 2px; color: var(--home-text); line-height: 1; }
+        .home-name { font-family: 'QIJIC Body', serif; font-weight: 400; font-size: 16px; letter-spacing: 2px; color: var(--home-text); line-height: 1; }
         .home-coin { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--home-line); border-radius: 999px; }
         .home-coin-label { font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--home-accent); }
         .home-coin-icon { width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fbe69a, #d4af37 55%, #8a6a12); box-shadow: inset 0 0 0 2px rgba(0,0,0,.18); position: relative; }
@@ -708,7 +716,7 @@
         }
 
 /* ───────────── 遊客模式（Guest mode） ─────────────
-   新字串一律用 LXGW WenKai Mono TC（展示字型為子集，缺字會混排）。 */
+   新字串一律用 QIJIC Body（展示字型為子集，缺字會混排）。 */
 
 /* 登入頁：底部控制區墨色襯底，令小字不壓在立繪上 */
 .login-scrim {
@@ -727,7 +735,7 @@
 .login-guest-btn {
     width: 100%; max-width: 320px; min-height: 48px; padding: 0 16px;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'LXGW WenKai Mono TC', monospace; font-weight: 700; font-size: 16px;
+    font-family: 'QIJIC Body', serif; font-weight: 700; font-size: 16px;
     letter-spacing: 8px; text-indent: 8px; line-height: 1;
     color: rgba(237,228,208,.88);
     background: rgba(13,11,9,.42);
@@ -755,7 +763,7 @@
 /* 頂欄：遊客身分小標籤（與機緣框同族，但更輕） */
 .home-guest-tag {
     flex-shrink: 0; display: inline-flex; align-items: center; height: 18px; padding: 0 7px 0 8px;
-    font-family: 'LXGW WenKai Mono TC', serif; font-size: 11px; letter-spacing: 1px; line-height: 1;
+    font-family: 'QIJIC Body', serif; font-size: 11px; letter-spacing: 1px; line-height: 1;
     color: var(--home-muted); border: 1px solid var(--home-line); border-radius: 999px;
 }
 
