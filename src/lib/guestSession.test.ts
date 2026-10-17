@@ -37,7 +37,7 @@ describe('guestSession', () => {
   });
 
   it('defaults match teacher-test defaults (isGuest identity fields) with new fields', () => {
-    expect(GUEST_DEFAULT_USER_DATA.name).toBe('文言修煉者');
+    expect(GUEST_DEFAULT_USER_DATA.name).toBe('歐陽同學');
     expect(GUEST_DEFAULT_USER_DATA.displayLabel).toBe('遊客');
     expect(GUEST_DEFAULT_USER_DATA.level).toBe(1);
     expect(GUEST_DEFAULT_USER_DATA.jiyuan).toBe(100);
@@ -87,7 +87,7 @@ describe('guestSession', () => {
     const restored = restoreGuestUserData();
     expect(restored.score).toBe(861);
     expect(restored.jiyuan).toBe(60);
-    expect(restored.name).toBe('文言修煉者');
+    expect(restored.name).toBe('歐陽同學');
   });
 
   it('遊客通關：較慢不刷新紀錄；低於下限不記錄', () => {

@@ -41,7 +41,7 @@ export const GUEST_DEFAULT_USER_DATA: Readonly<GuestUserData> = Object.freeze({
   levels: {},
   displayLabel: '遊客',
   /** Header name; the 「遊客」 status tag sits beside it, so don't repeat it here. */
-  name: '文言修煉者',
+  name: '歐陽同學',
   surname: '',
   surnameSource: null,
   updatedAt: null,

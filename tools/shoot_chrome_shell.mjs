@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import path from 'path';
 import fs from 'fs';
 
-const OUT = process.env.OUT || '/workspace/chrome-shell-hotfix/screenshots';
+const OUT = process.env.OUT || '/workspace/chrome-hotfix-2/screenshots';
 const URL = process.env.SHOT_URL || 'http://127.0.0.1:4192/';
 fs.mkdirSync(OUT, { recursive: true });
 

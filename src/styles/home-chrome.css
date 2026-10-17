@@ -84,13 +84,93 @@
   object-position: bottom center;
 }
 
-/* 內容／按鈕在殼之上 */
-.home-chrome-shell-host > .home-lv,
+/* 內容／按鈕在殼之上；金框 z=1，內容須蓋過金框不透明玉心才能見「地城」
+   注意：.home-lv-jade-text 必須保持 absolute 叠在玉佩上，勿列入 relative */
 .home-chrome-shell-host > .flex-1,
 .home-chrome-shell-host > .home-nav-btn {
   position: relative;
   z-index: 2;
 }
+
+/* 玉佩上 GenWan 等級文字（無六角底；玉佩本體在 top-hud-layer） */
+.home-lv-jade-text {
+  position: absolute;
+  /* 中心對齊 JADE_CENTER≈(43.9,41.2) @390；玉佩在 top-hud-layer */
+  left: 14px;
+  top: 11px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+  color: var(--ink, #2a2418);
+  background: none;
+  clip-path: none;
+}
+.home-lv-jade-text .home-lv-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 1px;
+  opacity: 0.9;
+}
+.home-lv-jade-text .home-lv-num {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 20px;
+  line-height: 1.05;
+}
+
+/* r9: 中欄左緣＝經驗標左緣（≈96 @390）；頂欄圖殼玉佩佔左 */
+.home-bar-top.home-chrome-shell-host {
+  padding-left: 96px !important;
+  padding-right: 12px !important;
+  gap: 0 !important;
+  box-sizing: border-box;
+}
+.home-hud-mid {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  align-self: stretch;
+}
+/* hotfix2-min: 名／經驗／體力三列等距；機緣絕對右上不佔列高 */
+.home-hud-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px; /* 三者間距相同 */
+  min-width: 0;
+  padding-right: 86px; /* 讓出機緣 chip */
+  /* hotfix2-min: 下移使名≈玉心帶（r9 title y≈36），與雙條同列等距 */
+  margin-top: 20px;
+}
+.home-hud-mid > .home-coin {
+  position: absolute;
+  top: 4px; /* r9 jiyuan y0≈27；略上於名列 */
+  right: 0;
+  z-index: 3;
+}
+
+/* 金線 PNG 圖示 */
+.home-nav-icon-img {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  margin: 0 auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.home-nav-icon svg { display: none !important; }
 
 /* 選中金框：全寬層，orb 對準當前 tab 中心；可 overhang 底欄頂 */
 .home-nav-gold-frame {
@@ -98,13 +178,12 @@
   top: 0;
   width: 100%;
   height: auto;
-  /* 資產 1264×383 → 約 390×118；略縮以貼殼 */
+  /* 資產 1264×383 → 約 390×118；定稿原大無 scale */
   aspect-ratio: 1264 / 383;
   z-index: 1;
   pointer-events: none;
   overflow: visible;
   will-change: left;
-  transform-origin: center top;
 }
 .home-nav-gold-frame picture,
 .home-nav-gold-frame img {
@@ -115,12 +194,19 @@
   user-select: none;
   -webkit-user-drag: none;
   object-fit: fill;
-  /* orb×0.855 量級：略縮並頂對齊，金線貼殼頂、圓可上突 */
-  transform: scale(0.855);
-  transform-origin: center top;
+  /* hotfix2-min: 禁縮圓；定稿原大（無 scale；orbOD≈shellH×1.17≈99.7） */
+  transform: none;
 }
 
 /* 圖殼上線時隱藏舊 CSS 金刷線（若殘留） */
 .home-chrome-shell-host .home-nav-brush {
   display: none;
+}
+
+/* hotfix-2：確保選中槽內容在金框之上且水平置中 */
+.home-nav-btn {
+  z-index: 2;
+}
+.home-nav-btn .home-nav-slot {
+  z-index: 2;
 }

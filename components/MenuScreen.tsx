@@ -17,20 +17,7 @@ const TabFallback: React.FC = () => (
   <div className="w-full h-full home-surface" aria-hidden="true" />
 );
 
-const IconDungeon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M3 21H21"/><path d="M5 21V10L12 4L19 10V21"/><path d="M9 21V15C9 13.3431 10.3431 12 12 12C13.6569 12 15 13.3431 15 15V21"/><path d="M2 10H5M19 10H22"/><path d="M12 4V2"/>
-  </svg>
-);
-const IconUser = () => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>);
-const IconRank = () => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>);
-const IconGacha = () => (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>);
-const IconSettings = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="3"/>
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-  </svg>
-);
+
 
 
 const isInteractiveTarget = (target: EventTarget | null) => {
@@ -43,7 +30,22 @@ const isInteractiveTarget = (target: EventTarget | null) => {
 type MenuTab = 'character' | 'rank' | 'dungeon' | 'gacha' | 'settings';
 const TABS: MenuTab[] = ['character', 'rank', 'dungeon', 'gacha', 'settings'];
 
-/** 主頁圖殼資產（v1.3.11 chrome-shell-hotfix） */
+/** 定稿金線 PNG（nav-v2 icons-line-art1-r2）— 禁灰 currentColor SVG */
+const NAV_ICON_BASE = `${import.meta.env.BASE_URL}resources/ui/chrome/nav-icons`;
+const NAV_ICONS = {
+  character: { idle: `${NAV_ICON_BASE}/codex.png`, active: `${NAV_ICON_BASE}/codex-active.png` },
+  rank: { idle: `${NAV_ICON_BASE}/rank.png`, active: `${NAV_ICON_BASE}/rank-active.png` },
+  dungeon: { idle: `${NAV_ICON_BASE}/dungeon.png`, active: `${NAV_ICON_BASE}/dungeon-active.png` },
+  gacha: { idle: `${NAV_ICON_BASE}/visit.png`, active: `${NAV_ICON_BASE}/visit-active.png` },
+  settings: { idle: `${NAV_ICON_BASE}/settings.png`, active: `${NAV_ICON_BASE}/settings-active.png` },
+} as const;
+
+const NavIconImg: React.FC<{ tab: MenuTab; active: boolean }> = ({ tab, active }) => {
+  const src = active ? NAV_ICONS[tab].active : NAV_ICONS[tab].idle;
+  return <img className="home-nav-icon-img" src={src} alt="" draggable={false} width={28} height={28} />;
+};
+
+/** 主頁圖殼資產（v1.3.12 + hotfix-2 金線 nav） */
 const CHROME_BASE = `${import.meta.env.BASE_URL}resources/ui/chrome`;
 const TOP_HUD_SRC = {
   webp: `${CHROME_BASE}/top-hud-layer.webp`,
@@ -82,7 +84,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
   const startY = useRef<number | null>(null);
 
   const [playerData, setPlayerData] = useState<UserData & { maxStamina: number, maxExp: number }>({
-    name: "文言修煉者",
+    name: "歐陽同學",
     level: 1,
     jiyuan: 0,
     stamina: 0,
@@ -105,7 +107,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         setPlayerData(prev => ({
           ...prev,
           ...data,
-          name: data.name || prev.name,
+          name: (!data.name || data.name === "文言修煉者") ? "歐陽同學" : data.name,
           maxStamina: 100, // 假設固定為 100
           exp: expIntoLevel(data.level, data.exp), // exp 為累計值；經驗條只顯示本級內的進度
           maxExp: getRequiredExpForLevel(data.level)
@@ -229,40 +231,40 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
       `}</style>
 
       {/* 標題欄：玩家牌 */}
-      <header className={`home-bar home-bar-top home-chrome-shell-host absolute top-0 left-0 right-0 h-[88px] px-4 flex items-center gap-3 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
+      <header className={`home-bar home-bar-top home-chrome-shell-host absolute top-0 left-0 right-0 h-[88px] flex items-center z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
         <picture className="home-chrome-shell home-chrome-shell--top" aria-hidden="true">
           <source srcSet={TOP_HUD_SRC.webp} type="image/webp" />
           <img src={TOP_HUD_SRC.png} alt="" draggable={false} />
         </picture>
-        <div className="home-lv" aria-label={`等級 ${playerData.level}`}>
+        {/* hotfix-2: 玉佩等級由 top-hud-layer 承載；僅叠 GenWan 文字，勿再畫舊六角 .home-lv */}
+        <div className="home-lv-jade-text" aria-label={`等級 ${playerData.level}`}>
           <span className="home-lv-label" aria-hidden="true">等級</span>
           <span className="home-lv-num" aria-hidden="true">{playerData.level}</span>
         </div>
-        <div className="flex-1 min-w-0 flex flex-col gap-[7px]">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="home-name truncate">{playerData.name}</span>
-              {/* r9: home HUD 無「遊客」標 */}
-            </div>
-            <div className="home-coin" aria-label={`機緣 ${playerData.jiyuan}`}>
-              <span className="home-coin-label" aria-hidden="true">機緣</span>
-              <span className="home-coin-icon" aria-hidden="true"></span>
-              <span className="home-coin-num" aria-hidden="true">{playerData.jiyuan.toLocaleString()}</span>
-            </div>
+        <div className="flex-1 min-w-0 home-hud-mid">
+          {/* hotfix2-min: 機緣獨立右上；名／經驗／體力三列等距並列 */}
+          <div className="home-coin" aria-label={`機緣 ${playerData.jiyuan}`}>
+            <span className="home-coin-label" aria-hidden="true">機緣</span>
+            <span className="home-coin-icon" aria-hidden="true"></span>
+            <span className="home-coin-num" aria-hidden="true">{playerData.jiyuan.toLocaleString()}</span>
           </div>
-          <div className="home-meter">
-            <span className="home-meter-label">經驗</span>
-            <div className="home-meter-track" role="progressbar" aria-label="經驗" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor((playerData.exp / playerData.maxExp) * 100)}>
-              <div className="home-meter-fill is-exp" style={{ width: `${Math.min(100, (playerData.exp / playerData.maxExp) * 100)}%` }}></div>
+          <div className="home-hud-stack">
+            <span className="home-name truncate">{playerData.name || '歐陽同學'}</span>
+            {/* r9: home HUD 無「遊客」標 */}
+            <div className="home-meter">
+              <span className="home-meter-label">經驗</span>
+              <div className="home-meter-track" role="progressbar" aria-label="經驗" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor((playerData.exp / playerData.maxExp) * 100)}>
+                <div className="home-meter-fill is-exp" style={{ width: `${Math.min(100, (playerData.exp / playerData.maxExp) * 100)}%` }}></div>
+              </div>
+              <span className="home-meter-val">{Math.floor((playerData.exp / playerData.maxExp) * 100)}%</span>
             </div>
-            <span className="home-meter-val">{Math.floor((playerData.exp / playerData.maxExp) * 100)}%</span>
-          </div>
-          <div className="home-meter">
-            <span className="home-meter-label is-jade">體力</span>
-            <div className="home-meter-track" role="progressbar" aria-label="體力" aria-valuemin={0} aria-valuemax={playerData.maxStamina} aria-valuenow={playerData.stamina}>
-              <div className="home-meter-fill is-stamina" style={{ width: `${(playerData.stamina / playerData.maxStamina) * 100}%` }}></div>
+            <div className="home-meter">
+              <span className="home-meter-label is-jade">體力</span>
+              <div className="home-meter-track" role="progressbar" aria-label="體力" aria-valuemin={0} aria-valuemax={playerData.maxStamina} aria-valuenow={playerData.stamina}>
+                <div className="home-meter-fill is-stamina" style={{ width: `${(playerData.stamina / playerData.maxStamina) * 100}%` }}></div>
+              </div>
+              <span className="home-meter-val">{playerData.stamina}/{playerData.maxStamina}</span>
             </div>
-            <span className="home-meter-val">{playerData.stamina}/{playerData.maxStamina}</span>
           </div>
         </div>
       </header>
@@ -323,24 +325,23 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
             <img src={NAV_GOLD_FRAME_SRC.png} alt="" draggable={false} />
           </picture>
         </motion.div>
-        <NavButton label="豪杰" icon={<IconUser />} active={activeTab === 'character'} onClick={() => handleNavClick('character')} />
-        <NavButton label="排名" icon={<IconRank />} active={activeTab === 'rank'} onClick={() => handleNavClick('rank')} />
-        <NavButton label="地城" icon={<IconDungeon />} active={activeTab === 'dungeon'} onClick={() => handleNavClick('dungeon')} />
-        <NavButton label="寻访" icon={<IconGacha />} active={activeTab === 'gacha'} onClick={() => handleNavClick('gacha')} />
-        <NavButton label="设定" icon={<IconSettings />} active={activeTab === 'settings'} onClick={() => handleNavClick('settings')} />
+        <NavButton label="豪杰" tab="character" active={activeTab === 'character'} onClick={() => handleNavClick('character')} />
+        <NavButton label="排名" tab="rank" active={activeTab === 'rank'} onClick={() => handleNavClick('rank')} />
+        <NavButton label="地城" tab="dungeon" active={activeTab === 'dungeon'} onClick={() => handleNavClick('dungeon')} />
+        <NavButton label="寻访" tab="gacha" active={activeTab === 'gacha'} onClick={() => handleNavClick('gacha')} />
+        <NavButton label="设定" tab="settings" active={activeTab === 'settings'} onClick={() => handleNavClick('settings')} />
       </nav>
     </div>
   );
 };
 
-const NavButton: React.FC<{ label: string, icon: React.ReactNode, active?: boolean, onClick: () => void }> = ({ label, icon, active = false, onClick }) => (
+const NavButton: React.FC<{ label: string; tab: MenuTab; active?: boolean; onClick: () => void }> = ({ label, tab, active = false, onClick }) => (
     <button onClick={onClick} aria-current={active ? 'page' : undefined} className={`home-nav-btn home-focus ${active ? 'is-active' : ''}`}>
-      {/* r9: icon+label 槽水平完全置中於選中金圓（地城 cx=195） */}
+      {/* r9b: icon+label 共槽；cx ≡ 選中金圓／orb（地城 195）；內容 z 在金框不透明區之上 */}
       <span className="home-nav-slot">
-        <span className="home-nav-icon">{icon}</span>
+        <span className="home-nav-icon"><NavIconImg tab={tab} active={active} /></span>
         <span className="home-nav-label">{label}</span>
       </span>
-      {/* 選中金框改由 nav 層 .home-nav-gold-frame 叠 */}
     </button>
   );
 
