@@ -1,11 +1,14 @@
 
 import React from 'react';
+import { STAMINA_COPY } from '../src/config/staminaCopy';
 
 interface GameOverScreenProps {
   onRestart: () => void;
+  /** 本場戰敗已實際返還體力時顯示一行提示 */
+  staminaRefunded?: boolean;
 }
 
-const GameOverScreen: React.FC<GameOverScreenProps> = ({ onRestart }) => {
+const GameOverScreen: React.FC<GameOverScreenProps> = ({ onRestart, staminaRefunded = false }) => {
   return (
     <div 
       className="absolute inset-0 z-[99999] flex flex-col items-center justify-center p-6 text-center animate-[fadeIn_0.5s_forwards]" 
@@ -42,6 +45,12 @@ const GameOverScreen: React.FC<GameOverScreenProps> = ({ onRestart }) => {
             」
           </span>
         </div>
+
+        {staminaRefunded && (
+          <p data-testid="stamina-refunded" className="text-[#d4af37]/90 text-[0.85rem] tracking-widest mb-8 -mt-8">
+            {STAMINA_COPY.refunded}
+          </p>
+        )}
         
         {/* 按鈕容器 */}
         <div className="flex justify-center w-full">

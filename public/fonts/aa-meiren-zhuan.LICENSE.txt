@@ -1,2 +1,3 @@
 AaMeiRenZhuan（美人篆）子集 — 僅含主頁底欄標籤用字。
 來源檔：AaMeiRenZhuan-2.ttf（用戶提供）。本目錄僅存放 woff2 子集供 runtime @font-face。
+含字：豪杰／庙堂／江湖／殊遇／通习（及舊標圖鉴／排名／地城／寻访／设定 殘字）。

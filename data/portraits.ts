@@ -50,6 +50,10 @@ export const PORTRAIT_TARGET_OVERRIDE: Record<string, Partial<Record<PortraitPag
     // 內頁已改用 LAYERED_PORTRAITS 分層立繪；此值僅在未登錄分層資料時作後備
     inner: { faceH: 0.0609, eyeY: 0.2174, faceX: 0.12 },
   },
+  // 孔子外頁：統一 TARGET.faceX=0.0741 會把臉偏右；覆寫 faceX=0 使臉對齊卡框中線（faceH／eyeY 不變）
+  kong_zi: {
+    outer: { faceH: 0.126, eyeY: 0.2252, faceX: 0 },
+  },
 };
 
 /**

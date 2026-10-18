@@ -1,11 +1,14 @@
 
 import React from 'react';
+import { EXP_PER_CLEAR } from '../src/lib/scoring';
 
 interface VictoryScreenProps {
   onRestart: () => void;
+  /** 本場通關經驗（預設 EXP_PER_CLEAR） */
+  expGained?: number;
 }
 
-const VictoryScreen: React.FC<VictoryScreenProps> = ({ onRestart }) => {
+const VictoryScreen: React.FC<VictoryScreenProps> = ({ onRestart, expGained = EXP_PER_CLEAR }) => {
   return (
     <div 
       className="absolute inset-0 z-[99999] flex flex-col items-center justify-center p-6 text-center animate-[fadeIn_0.5s_forwards]" 
@@ -51,6 +54,10 @@ const VictoryScreen: React.FC<VictoryScreenProps> = ({ onRestart }) => {
             」
           </span>
         </div>
+
+        <p data-testid="victory-exp" className="text-[#d4af37]/90 text-[0.85rem] tracking-widest mb-8 -mt-8">
+          經驗 +{expGained}
+        </p>
         
         {/* 按鈕容器 */}
         <div className="flex justify-center w-full">

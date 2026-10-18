@@ -21,6 +21,7 @@ import {
   setDoc,
   getDoc,
   serverTimestamp,
+  Timestamp,
   onSnapshot,
   collection,
   query,
@@ -52,9 +53,13 @@ import {
 } from './settingsStore';
 import {
   clearGuestSessionStorage,
+  clearGuestStaminaRefundable,
+  deductGuestStamina,
+  guestStaminaView,
   isGuestSessionStored,
   persistGuestSession,
   recordGuestClear,
+  refundGuestStamina,
   resetGuestUserData,
   restoreGuestUserData,
   setGuestJiyuan,
@@ -64,6 +69,7 @@ import {
   ClearInput,
   ClearOutcome,
   LevelBests,
+  MAX_STAMINA,
   NEW_PLAYER_PROGRESS,
   PLAYER_LIMITS,
   PUBLIC_PROFILE_FIELDS,
@@ -73,6 +79,7 @@ import {
   normalizeLevels,
   scoreFor,
 } from './playerData';
+import { planDeduct, planRefund, type StaminaState } from './stamina';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -393,6 +400,8 @@ export interface UserData {
   jiyuan: number;
   exp: number;
   stamina: number;
+  /** 體力回復起點（Unix 毫秒；由 Timestamp 轉出） */
+  staminaUpdatedAt: number;
   /** 總分＝各關最佳分數之和（排行榜依此排序） */
   score: number;
   /** 各關個人最佳：{ [levelId]: { bestTimeMs, bestScore } } */
@@ -489,7 +498,12 @@ async function syncUserProfile(user: User, oauthProfile: NameProfile | null) {
       schoolDomain: domain,
       surname,
       surnameSource: source,
-      ...NEW_PLAYER_PROGRESS,
+      level: NEW_PLAYER_PROGRESS.level,
+      jiyuan: NEW_PLAYER_PROGRESS.jiyuan,
+      exp: NEW_PLAYER_PROGRESS.exp,
+      stamina: MAX_STAMINA,
+      staminaUpdatedAt: serverTimestamp(),
+      score: NEW_PLAYER_PROGRESS.score,
       levels: {},
       updatedAt: serverTimestamp(),
     });
@@ -508,12 +522,17 @@ async function syncUserProfile(user: User, oauthProfile: NameProfile | null) {
   if (upToDate) return;
 
   // 完整覆寫：未列出的欄位（name、displayName、photoURL、email…）會被刪除
+  // 缺 staminaUpdatedAt 的舊文件：migrateGameFields 已把體力設為滿格；起點用 serverTimestamp
+  const hadAnchor = d != null && 'staminaUpdatedAt' in d && d.staminaUpdatedAt != null;
   await setDoc(ref, {
     displayLabel: label,
     schoolDomain: domain,
     surname,
     surnameSource: source,
     ...progress,
+    staminaUpdatedAt: hadAnchor
+      ? Timestamp.fromMillis(progress.staminaUpdatedAt)
+      : serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 }
@@ -648,7 +667,16 @@ function toPublicUserData(raw: Record<string, unknown>): UserData {
     // 未遷移的舊文件（尚未重新登入）暫以 gold 顯示，登入時 syncUserProfile 會改寫為 jiyuan
     jiyuan: num(raw.jiyuan, num(raw.gold, 0)),
     exp: num(raw.exp, 0),
-    stamina: num(raw.stamina, 0),
+    stamina: num(raw.stamina, MAX_STAMINA),
+    staminaUpdatedAt: (() => {
+      const v = raw.staminaUpdatedAt;
+      if (typeof v === 'number' && Number.isFinite(v)) return Math.floor(v);
+      if (v && typeof (v as { toMillis?: () => number }).toMillis === 'function') {
+        const ms = (v as { toMillis: () => number }).toMillis();
+        if (Number.isFinite(ms)) return Math.floor(ms);
+      }
+      return Date.now();
+    })(),
     score: num(raw.score, scoreFor(levels, num(raw.exp, 0))),
     levels,
     displayLabel: safeDisplayLabel(raw),
@@ -801,4 +829,97 @@ export async function recordLevelClear(input: ClearInput): Promise<ClearOutcome 
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
   }
+}
+
+/** 由公開文件欄位組出體力狀態（登入用戶；refundable 只在本次交易記憶體中） */
+function staminaStateFromData(data: Record<string, unknown>, refundable: boolean): StaminaState {
+  const stamina = typeof data.stamina === 'number' ? data.stamina : MAX_STAMINA;
+  let staminaUpdatedAt = Date.now();
+  const v = data.staminaUpdatedAt;
+  if (typeof v === 'number' && Number.isFinite(v)) staminaUpdatedAt = Math.floor(v);
+  else if (v && typeof (v as { toMillis?: () => number }).toMillis === 'function') {
+    const ms = (v as { toMillis: () => number }).toMillis();
+    if (Number.isFinite(ms)) staminaUpdatedAt = Math.floor(ms);
+  }
+  return { stamina, staminaUpdatedAt, staminaRefundable: refundable };
+}
+
+export type StaminaWriteResult =
+  | { ok: true; stamina: number; staminaUpdatedAt: number }
+  | { ok: false; reason: 'insufficient' | 'not-refundable' | 'not-signed-in'; fullInMs?: number };
+
+/**
+ * 入陣扣除體力（在入陣轉場前呼叫）。遊客寫 sessionStorage；登入用戶 transaction。
+ * 成功後客戶端應標記本場可返還（見 StaminaAttemptGuard.charged）。
+ */
+export async function deductUserStamina(): Promise<StaminaWriteResult> {
+  const now = Date.now();
+  if (isGuestAuth()) {
+    const next = deductGuestStamina(now);
+    if (!next) {
+      return { ok: false, reason: 'insufficient', fullInMs: guestStaminaView(now).fullInMs };
+    }
+    return { ok: true, stamina: next.stamina, staminaUpdatedAt: next.staminaUpdatedAt };
+  }
+  const user = authState.status === 'authorized' ? authState.user : null;
+  if (!user) return { ok: false, reason: 'not-signed-in' };
+  const userRef = doc(db, 'users', user.uid);
+  try {
+    return await runTransaction(db, async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists()) throw new Error('個人檔案不存在');
+      const data = snap.data();
+      const plan = planDeduct(staminaStateFromData(data, false), now);
+      if (plan.ok === false) return { ok: false as const, reason: 'insufficient' as const, fullInMs: plan.view.fullInMs };
+      const { next, capped } = plan;
+      tx.update(userRef, {
+        stamina: next.stamina,
+        staminaUpdatedAt: capped ? serverTimestamp() : Timestamp.fromMillis(next.staminaUpdatedAt),
+        updatedAt: serverTimestamp(),
+      });
+      return { ok: true as const, stamina: next.stamina, staminaUpdatedAt: next.staminaUpdatedAt };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+  }
+}
+
+/**
+ * 戰敗返還體力（最多一次）。勝利／中途離開請呼叫 clearStaminaRefundable()，不要呼叫本函式。
+ */
+export async function refundUserStamina(): Promise<StaminaWriteResult> {
+  const now = Date.now();
+  if (isGuestAuth()) {
+    const next = refundGuestStamina(now);
+    if (!next) return { ok: false, reason: 'not-refundable' };
+    return { ok: true, stamina: next.stamina, staminaUpdatedAt: next.staminaUpdatedAt };
+  }
+  // 登入用戶：規則允許 current…current+5；客戶端以 StaminaAttemptGuard 保證只呼叫一次。
+  // 以「可返還」語意：讀取後 +STAMINA_REFUND（planRefund 需 refundable=true）。
+  const user = authState.status === 'authorized' ? authState.user : null;
+  if (!user) return { ok: false, reason: 'not-signed-in' };
+  const userRef = doc(db, 'users', user.uid);
+  try {
+    return await runTransaction(db, async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists()) throw new Error('個人檔案不存在');
+      const data = snap.data();
+      const plan = planRefund(staminaStateFromData(data, true), now);
+      if (plan.ok === false) return { ok: false as const, reason: 'not-refundable' as const };
+      const { next, capped } = plan;
+      tx.update(userRef, {
+        stamina: next.stamina,
+        staminaUpdatedAt: capped ? serverTimestamp() : Timestamp.fromMillis(next.staminaUpdatedAt),
+        updatedAt: serverTimestamp(),
+      });
+      return { ok: true as const, stamina: next.stamina, staminaUpdatedAt: next.staminaUpdatedAt };
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+  }
+}
+
+/** 勝利或中途離開：清除遊客可返還旗標（登入用戶無雲端旗標，只靠 AttemptGuard） */
+export function clearStaminaRefundable(): void {
+  if (isGuestAuth()) clearGuestStaminaRefundable();
 }

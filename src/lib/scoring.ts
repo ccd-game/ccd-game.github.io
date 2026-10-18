@@ -6,7 +6,7 @@
  *   t > 60 秒                        → round(1000 × √(60 / t))，沒有下限（只會趨近 0，不會等於 0）
  *   t < MIN_CLEAR_TIME_SEC           → 無效（防作弊下限），不記錄
  * 總分 ＝ 各關最佳分數之和 ＋ floor(經驗 × 0.3)
- * 經驗 ＝ 每答對一題 +5，每次通關 +50（只在勝利時入帳）
+ * 經驗 ＝ 每次通關 +100（只在勝利時入帳；答對不加經驗）
  *
  * 時間一律以「整數毫秒」計算及儲存（bestTimeMs），分數一律為整數，
  * 所以 firestore.rules 可以用完全相同的算式重算並核對 bestScore。
@@ -61,10 +61,10 @@ export function fastestClearSec(hits: number, answerSec: number = MIN_ANSWER_SEC
  */
 export const MIN_CLEAR_TIME_SEC = 12;
 
-/** 每答對一題獲得的經驗 */
-export const EXP_PER_CORRECT = 5;
+/** 每答對一題獲得的經驗（已停用，保留常數供相容） */
+export const EXP_PER_CORRECT = 0;
 /** 每次通關獲得的經驗 */
-export const EXP_PER_CLEAR = 50;
+export const EXP_PER_CLEAR = 100;
 /** 經驗計入總分的比率：分子／分母（0.3），以整數運算避免浮點誤差 */
 export const EXP_SCORE_NUMERATOR = 3;
 export const EXP_SCORE_DENOMINATOR = 10;
@@ -73,8 +73,8 @@ export const EXP_SCORE_DENOMINATOR = 10;
  * HP 歸零即勝：答錯重答同一題、題目用盡判負，所以一場勝利最多答對 min(題數, ceil(1000 ÷ 最低傷害 10)) ＝ 60 題。
  */
 export const MAX_QUESTIONS_PER_LEVEL = 60;
-/** 單次寫入最多可增加的經驗（＝最多題數 × 5 ＋ 50） */
-export const MAX_EXP_PER_CLEAR = MAX_QUESTIONS_PER_LEVEL * EXP_PER_CORRECT + EXP_PER_CLEAR;
+/** 單次寫入最多可增加的經驗（＝通關獎勵；答對已不加經驗） */
+export const MAX_EXP_PER_CLEAR = EXP_PER_CLEAR;
 /** 單次寫入最多可升的等級數（MAX_EXP_PER_CLEAR 在第 1 級最多升 2 級，留餘量） */
 export const MAX_LEVEL_UPS_PER_WRITE = 3;
 

@@ -58,6 +58,13 @@
             }
         }
 
+        /* letterbox-390: design canvas fixed 390×844; outer black bars; uniform scale */
+        :root {
+            --game-design-w: 390;
+            --game-design-h: 844;
+            --game-scale: 1;
+        }
+
         body {
             font-family: 'LXGW WenKai Mono TC', monospace;
             background-color: #000;
@@ -69,26 +76,32 @@
             align-items: center;
             color: var(--text-main);
             transition: color var(--theme-transition);
+            /* 禁雙指縮放／長按選取干擾（viewport meta 已 user-scalable=no；此為加強） */
+            touch-action: manipulation;
         }
 
         #root {
             position: relative;
-            height: 90dvh;
-            width: calc(90dvh * 0.5625);
-            max-width: 100vw;
-            background-color: transparent; 
-            border-radius: 30px;
-            -webkit-mask-image: -webkit-radial-gradient(white, black);
-            mask-image: radial-gradient(white, black);
-            mask-clip: border-box;
-            overflow: hidden; 
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            /* 以 clip-path 對整個合成結果做一次圓角裁切，避免每一圖層各自抗鋸齒而在圓角處透出底層淺色背景（黃邊） */
-            clip-path: inset(0 round 30px);
+            /* 設計座標固定；視覺尺寸由 --game-scale 等比放大／縮小 */
+            width: calc(var(--game-design-w) * 1px);
+            height: calc(var(--game-design-h) * 1px);
+            flex-shrink: 0;
+            background-color: transparent;
+            overflow: hidden;
             contain: layout paint;
             isolation: isolate;
             transition: background-color var(--theme-transition);
-            transform: translateZ(0);
+            transform: scale(var(--game-scale)) translateZ(0);
+            transform-origin: center center;
+            /* 讓 layout 佔位＝縮放後視覺尺寸，避免 scale>1 被 body overflow 裁切、scale<1 黑邊正確 */
+            margin-inline: calc((var(--game-scale) - 1) * var(--game-design-w) * 1px / 2);
+            margin-block: calc((var(--game-scale) - 1) * var(--game-design-h) * 1px / 2);
+            /* letterbox 外框即黑邊；不再用桌面圓角手機框（電腦／手機同設計座標） */
+            border-radius: 0;
+            box-shadow: none;
+            -webkit-mask-image: none;
+            mask-image: none;
+            clip-path: none;
         }
 
         #root > div:first-child {
@@ -100,16 +113,7 @@
             flex-direction: column;
         }
 
-        @media (max-width: 600px) {
-            #root { 
-                width: 100vw; 
-                height: 100dvh;
-                border-radius: 0; 
-                -webkit-mask-image: none;
-                mask-image: none;
-                clip-path: none;
-            }
-        }
+        /* 原 max-width:600px 滿拉已移除：手機亦走 390×844 letterbox（滿屏時 scale≈1） */
 
         @keyframes tabSlideIn {
             from { transform: translateX(30px); opacity: 0; }
@@ -441,12 +445,13 @@
         .home-lv-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: 1px; opacity: .8; }
         .home-lv-num { font-family: var(--font-display); font-weight: 900; font-size: 20px; line-height: 1.05; }
         /* r9: 名與經驗／體力同字級 GenWan；左緣對齊經驗標 */
-        .home-name { font-family: var(--font-display); font-weight: 400; font-size: 10px; letter-spacing: 1px; color: var(--home-text); line-height: 1; }
-        .home-coin { display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px; border: 1px solid var(--home-line); border-radius: 999px; }
-        .home-coin-label { font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--home-accent); }
+        .home-name { font-family: 'GenWanMin2 TC Display', serif; font-weight: 400; font-size: 10px; letter-spacing: 1px; color: var(--home-text); line-height: 1; }
+        /* r9-jiyuan: 無「機緣」字／無膠囊邊；只金幣＋數字 */
+        .home-coin { display: flex; align-items: center; gap: 4px; padding: 0; border: none; border-radius: 0; background: transparent; }
+        .home-coin-label { display: none !important; }
         .home-coin-icon { width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fbe69a, #d4af37 55%, #8a6a12); box-shadow: inset 0 0 0 2px rgba(0,0,0,.18); position: relative; }
         .home-coin-icon::after { content: ''; position: absolute; inset: 4px; background: rgba(0,0,0,.35); }
-        .home-coin-num { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--home-text); }
+        .home-coin-num { font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--home-text); }
         .home-meter { display: flex; align-items: center; gap: 8px; }
         .home-meter-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; color: var(--home-accent); width: 26px; line-height: 1; }
         .home-meter-label.is-jade { color: #2f6f52; }
@@ -455,6 +460,7 @@
         .home-meter-fill { height: 100%; border-radius: 1px; transition: width .6s ease; }
         .home-meter-fill.is-exp { background: linear-gradient(90deg, #8a6a12, var(--gilt)); }
         .home-meter-fill.is-stamina { background: linear-gradient(90deg, #2f6f52, var(--jade)); }
+        .home-stamina-sub { font-size: 10px; letter-spacing: 0.08em; color: var(--home-muted, #888); padding-left: 2.5rem; }
         .home-meter-val { font-size: 12px; font-weight: 700; color: var(--home-text); min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; line-height: 1; }
 
         .home-nav-btn {
@@ -779,11 +785,22 @@
         /* 首頁：預覽占滿，十二篇章入口為底部抽屜 */
         .home-dungeon {
             --bar-h: 52px;
-            /* peek＝標題列＋前四篇（列高＝展開時 12 列等分：(H − bar − 列表上下 12px − 11 個 4px 間距)/12；四列＋上 2px＋四個間距）
-               = bar + 18px + (H − bar − 56px)/3 = H/3 + 2·bar/3 − 0.67px */
-            /* r9 drawer 分區鎖：chapters 408–618 @390×693 → peek 從底算 (100% - 408/693*100%) */
-            --peek-h: max(calc(100% / 3 + var(--bar-h) * 2 / 3 - 1px), calc(100% - 408 * 100% / 693)); /* drawer-zone-lock-r9 */
+            /* v1.3.15：瀏覽器默認 peek＝標題列＋完整四篇（勿露第5篇上緣）
+               rowH=(H − bar − 56)/12；四列可見高 = 2 + 4·rowH + 3·4
+               peek = bar + 14 + (H−bar−56)/3 = H/3 + 2·bar/3 − 4.667 ≈ −5px
+               去掉 r9 zone-lock max（曾把 peek 抬到露出第5緣） */
+            --peek-h: calc(100% / 3 + var(--bar-h) * 2 / 3 - 5px);
             position: relative; height: 100%; overflow: hidden;
+        }
+        /* standalone／fullscreen：默認 peek 六篇完整（同理勿露第7緣）
+           peek = bar + 2 + 6·rowH + 5·4 = bar + 22 + (H−bar−56)/2 */
+        html.is-standalone .home-dungeon {
+            --peek-h: calc(var(--bar-h) + 22px + (100% - var(--bar-h) - 56px) / 2);
+        }
+        @media (display-mode: standalone), (display-mode: fullscreen) {
+            .home-dungeon {
+                --peek-h: calc(var(--bar-h) + 22px + (100% - var(--bar-h) - 56px) / 2);
+            }
         }
         /* 英雄區下緣＝抽屜上緣（peek／open 時在 peek 線；closed 時在標題列） */
         .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }

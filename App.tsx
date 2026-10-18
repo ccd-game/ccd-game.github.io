@@ -33,10 +33,12 @@ LEVELS_DATA.forEach(level => {
 import InkSplash from './components/InkSplash';
 import BootLoadingMask from './components/BootLoadingMask';
 import AudioManager, { AudioManagerHandle } from './components/AudioManager';
-import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence, recordLevelClear } from './src/lib/firebase';
+import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence, recordLevelClear, deductUserStamina, refundUserStamina, clearStaminaRefundable } from './src/lib/firebase';
 import { useBattleRecorder } from './src/lib/useBattleRecorder';
 import { ENTER_EXIT_ITEM_MS, ENTER_EXIT_MS, ENTER_EXIT_STAGGER_MS, ENTER_REDUCED_FADE_MS, HomeSceneBox, measureHomeScene, preloadBattleImages, prefersReducedMotion, setEnterFreeze, setHomePause, syncHeroAnimations } from './src/lib/enterTransition';
 import EnterModeModal from './components/EnterModeModal';
+import StaminaModal from './components/StaminaModal';
+import { StaminaAttemptGuard } from './src/lib/stamina';
 import type { VictoryClear } from './src/lib/battleRecorder';
 import { ALLOWED_EMAIL_DOMAINS } from './src/config/auth';
 import { loadSettings, updateSettings, subscribeSettings, pushSettingsIfSynced } from './src/lib/settingsStore';
@@ -371,6 +373,12 @@ const App: React.FC = () => {
   const [battleQuestions, setBattleQuestions] = useState<Question[]>([]);
   const battleQuestionsRef = useRef<Question[]>([]);
   const [isQuestionsFetching, setIsQuestionsFetching] = useState(false);
+  /** 體力不足視窗：fullInMs 供文案「約 {time} 後回滿」 */
+  const [staminaModalFullInMs, setStaminaModalFullInMs] = useState<number | null>(null);
+  /** 本場戰敗已實際返還體力（供戰敗畫面一行提示） */
+  const [staminaRefunded, setStaminaRefunded] = useState(false);
+  const staminaGuardRef = useRef(new StaminaAttemptGuard());
+
   const [currentLevel, setCurrentLevel] = useState<LevelConfig | null>(null);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
@@ -498,6 +506,11 @@ const App: React.FC = () => {
     triggeredHpThresholdsRef.current = new Set();
     answerRemainingRef.current = null; setDamagePopup(null);
   }, []);
+  const settleStamina = useCallback((outcome: 'victory' | 'defeat' | 'exit') => {
+    const shouldRefund = staminaGuardRef.current.settle(outcome);
+    if (outcome !== 'defeat') clearStaminaRefundable();
+    return shouldRefund;
+  }, []);
   /** 嘗試取得本回合的結算權；成功時同時停止倒數計時器 */
   const acquireTurnLock = useCallback(() => {
     if (turnLockRef.current || battleEndedRef.current) return false;
@@ -549,6 +562,9 @@ const App: React.FC = () => {
   }, []);
 
   const resetToStart = useCallback(() => {
+    // 驀然回首／還於舊都／孰能無惑：中途離開或離開結算畫面 — 不返還體力
+    settleStamina('exit');
+    setStaminaRefunded(false);
     setIsInkActive(false);
     setIsPlayerHurt(false);
     setIsScreenFadingOut(true);
@@ -591,7 +607,7 @@ const App: React.FC = () => {
         setIsScreenFadingOut(false);
       }, 50);
     }, 200);
-  }, [clearVisualEffects, resetBattleRefs]);
+  }, [clearVisualEffects, resetBattleRefs, settleStamina]);
 
   const triggerBossSpeechAction = useCallback(async (msg: string, id: number) => {
     if (gameInstanceIdRef.current !== id) return;
@@ -664,10 +680,10 @@ const App: React.FC = () => {
     setGameState(p => ({ ...p, isTurnActive: true }));
   }, [skillPanelShown, timeScale, clearVisualEffects]);
 
-  const fetchQuestionsForLevel = async (level: LevelConfig, delayMs = 400) => {
+  const fetchQuestionsForLevel = async (level: LevelConfig, delayMs = 0) => {
     setIsQuestionsFetching(true);
     try {
-      // 模擬加載感，讓轉場更自然（入陣無縫轉場不需要：delayMs = 0）
+      // 入陣小視窗須立刻可按「深入不毛」：預設不再假裝感應延遲（delayMs 可覆寫）
       if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
 
       const filtered: Question[] = FULL_QUESTION_BANK
@@ -749,8 +765,10 @@ const App: React.FC = () => {
     }
     await triggerBossSpeechAction(currentLevel.victorySpeech || "", id);
     if (gameInstanceIdRef.current !== id) return;
+    settleStamina('victory');
+    setStaminaRefunded(false);
     setGameState(p => ({ ...p, status: GameStatus.VICTORY, isTurnActive: false }));
-  }, [currentLevel, triggerBossSpeechAction]);
+  }, [currentLevel, triggerBossSpeechAction, settleStamina]);
 
   /** 戰敗演出：沿用原有戰敗流程（戰敗台詞 → 墨染 → GAME_OVER 畫面） */
   const runDefeatSequence = useCallback(async (id: number) => {
@@ -761,8 +779,19 @@ const App: React.FC = () => {
     setIsInkActive(true);
     await new Promise(r => setTimeout(r, 1750));
     if (gameInstanceIdRef.current !== id) return;
+    let refunded = false;
+    if (settleStamina('defeat')) {
+      try {
+        const r = await refundUserStamina();
+        refunded = r.ok === true;
+      } catch (e) {
+        console.error('體力返還失敗', e);
+      }
+    }
+    if (gameInstanceIdRef.current !== id) return;
+    setStaminaRefunded(refunded);
     setGameState(x => ({ ...x, status: GameStatus.GAME_OVER, isTurnActive: false }));
-  }, [currentLevel]);
+  }, [currentLevel, settleStamina]);
 
   const onCorrectAnswer = useCallback(async () => {
     if (!currentLevel) return;
@@ -772,7 +801,7 @@ const App: React.FC = () => {
     const remainingSeconds = answerRemainingRef.current ?? gameStateRef.current.timer;
     answerRemainingRef.current = null;
     const { damage, multiplier: speedMult } = computeDamageDetail({ baseDamage: CORRECT_ANSWER_DAMAGE, remainingSeconds, totalSeconds: TURN_TIME });
-    battleRecorder.noteCorrectAnswer(); // 經驗 +5（只在勝利時入帳）
+    battleRecorder.noteCorrectAnswer(); // 答對計數（經驗改為通關 +100）
     try {
       setGameState(p => ({ ...p, isTurnActive: false }));
       setIsConverging(true); setIsInputPadExiting(true);
@@ -998,7 +1027,7 @@ const App: React.FC = () => {
     setHomeBox(null);
     setCurrentLevel(l);
     setGameState(p => ({ ...p, status: GameStatus.LOADING }));
-    fetchQuestionsForLevel(l);
+    fetchQuestionsForLevel(l, 0);
     Promise.all([preloadBattleImages(l), preloadBattleChunks()]).then(() => setEnterAssetsReady(true));
   }, [enterPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1012,12 +1041,35 @@ const App: React.FC = () => {
     setGameState(p => ({ ...p, status: GameStatus.MENU }));
   }, [enterPhase]);
 
-  // 深入不毛：主頁維持暫停／凍結（動畫進度在交接時原樣接到戰鬥），開始無縫入陣；狀態轉為 PLAYING 時主頁音樂淡出、戰鬥音樂同時淡入
-  const handleDeepIn = useCallback(() => {
+  // 深入不毛：先扣體力（防連點），再開始無縫入陣；狀態轉為 PLAYING 時主頁音樂淡出、戰鬥音樂同時淡入
+  const handleDeepIn = useCallback(async () => {
     if (enterPhase !== 'idle' || isQuestionsFetching) return;
-    setEnterFreeze(true);
-    setEnterReduced(prefersReducedMotion());
-    setEnterPhase('prep');
+    const attemptId = staminaGuardRef.current.tryBegin();
+    if (attemptId == null) return;
+    try {
+      const result = await deductUserStamina();
+      if (result.ok === false) {
+        staminaGuardRef.current.failed(attemptId);
+        if (result.reason === 'insufficient') {
+          // 關閉入陣小視窗，避免與體力不足視窗兩層 overlay 互擋
+          setHomePause(false);
+          setEnterFreeze(false);
+          setCurrentLevel(null);
+          setLevelQuestions([]);
+          setGameState(p => ({ ...p, status: GameStatus.MENU }));
+          setStaminaModalFullInMs(result.fullInMs ?? 6 * 60 * 1000);
+        }
+        return;
+      }
+      staminaGuardRef.current.charged(attemptId);
+      setStaminaRefunded(false);
+      setEnterFreeze(true);
+      setEnterReduced(prefersReducedMotion());
+      setEnterPhase('prep');
+    } catch (e) {
+      staminaGuardRef.current.failed(attemptId);
+      console.error('體力扣除失敗', e);
+    }
   }, [enterPhase, isQuestionsFetching]);
 
   // 題目＋圖片＋程式碼就緒 → 量測主頁場景 → 戰鬥頁在主頁底下掛好（背景／人物與主頁同位置），開場等交接完成才播
@@ -1204,14 +1256,18 @@ const App: React.FC = () => {
 
       {isLoggedIn && gameState.status === GameStatus.GAME_OVER && (
         <Suspense fallback={<SoftFallback />}>
-          <GameOverScreen onRestart={resetToStart} />
+          <GameOverScreen onRestart={resetToStart} staminaRefunded={staminaRefunded} />
         </Suspense>
       )}
 
       {isLoggedIn && gameState.status === GameStatus.VICTORY && (
         <Suspense fallback={<SoftFallback />}>
-          <VictoryScreen onRestart={resetToStart} />
+          <VictoryScreen onRestart={resetToStart} expGained={100} />
         </Suspense>
+      )}
+
+      {staminaModalFullInMs != null && (
+        <StaminaModal fullInMs={staminaModalFullInMs} onBack={() => setStaminaModalFullInMs(null)} />
       )}
 
       {isLoggedIn && (gameState.status === GameStatus.LOADING || (enterPhase !== 'idle' && enterPhase !== 'done')) && (

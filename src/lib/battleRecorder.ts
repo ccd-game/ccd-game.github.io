@@ -4,7 +4,7 @@
  *   begin(levelId, eligible)  選定關卡、按「深入不毛」開始（測試模式 eligible = false）
  *   startClock()              開場演出及 Boss 開場台詞結束、第一題開始 → 開始計時
  *   sync(...)                 每次暫停／回合／自動作答狀態改變時呼叫
- *   noteCorrectAnswer()       每答對一題（經驗 +5）
+ *   noteCorrectAnswer()       每答對一題（計數保留；經驗改為只按通關 +100）
  *   markVictoryDecided()      最後一擊（勝負已定）→ 停止計時
  *   takeVictoryClear()        進入 VICTORY 畫面時取出一次通關紀錄（只會取出一次）
  *   abandon()                 戰敗、退出或重新開始 → 放棄本場（不記錄）

@@ -57,6 +57,7 @@ const newProfile = (over: Record<string, unknown> = {}) => ({
   jiyuan: 1,
   exp: 0,
   stamina: 100,
+  staminaUpdatedAt: serverTimestamp(),
   score: 0,
   levels: {},
   updatedAt: serverTimestamp(),
@@ -85,7 +86,7 @@ beforeEach(async () => {
     const db = ctx.firestore();
     const seed = (level: number, levels: Record<string, { bestTimeMs: number; bestScore: number }> = {}) => ({
       displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
-      level, jiyuan: 50, exp: 0, stamina: 100,
+      level, jiyuan: 50, exp: 0, stamina: 100, staminaUpdatedAt: anHourAgo(),
       score: Object.values(levels).reduce((a, e) => a + e.bestScore, 0), levels, updatedAt: anHourAgo(),
     });
     await setDoc(doc(db, 'users', ALICE), seed(3));
@@ -275,7 +276,7 @@ describe('排行榜名稱：不可儲存全名，displayLabel 格式', () => {
     await assertSucceeds(
       setDoc(doc(alice(), 'users', ALICE), {
         displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
-        level: 3, jiyuan: 50, exp: 0, stamina: 100, score: 0, levels: {}, updatedAt: serverTimestamp(),
+        level: 3, jiyuan: 50, exp: 0, stamina: 100, staminaUpdatedAt: serverTimestamp(), score: 0, levels: {}, updatedAt: serverTimestamp(),
       }),
     );
     const snap = await assertSucceeds(getDocs(rankQuery(alice())));
@@ -348,7 +349,7 @@ describe('中文姓氏選擇（surnameSource 及 private/surname）', () => {
     await assertSucceeds(
       setDoc(doc(alice(), 'users', ALICE), {
         displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
-        level: 3, jiyuan: 50, exp: 0, stamina: 100, score: 0, levels: {}, updatedAt: serverTimestamp(),
+        level: 3, jiyuan: 50, exp: 0, stamina: 100, staminaUpdatedAt: serverTimestamp(), score: 0, levels: {}, updatedAt: serverTimestamp(),
       }),
     );
   });
@@ -417,10 +418,14 @@ describe('private/settings（主題／BGM 雲端同步）', () => {
 describe('計分改版：機緣 jiyuan 取代 gold（遷移）', () => {
   const oldGoldDoc = { displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto', level: 3, gold: 77, exp: 5, stamina: 90 };
   // 與 syncUserProfile 相同：以 migrateGameFields 推算遊戲欄位，完整覆寫
-  const migrated = () => ({
-    displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
-    ...migrateGameFields(oldGoldDoc).progress, updatedAt: serverTimestamp(),
-  });
+  const migrated = () => {
+    const { progress } = migrateGameFields(oldGoldDoc);
+    const { staminaUpdatedAt: _ms, ...rest } = progress;
+    return {
+      displayLabel: label('陳'), schoolDomain: 'wbss.edu.hk', surname: '陳', surnameSource: 'auto',
+      ...rest, staminaUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    };
+  };
   beforeEach(async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'users', ALICE), { ...oldGoldDoc, updatedAt: Timestamp.now() });
@@ -436,6 +441,7 @@ describe('計分改版：機緣 jiyuan 取代 gold（遷移）', () => {
     const snap = await getDoc(doc(alice(), 'users', ALICE));
     expect(snap.data()).not.toHaveProperty('gold');
     expect(snap.data()?.jiyuan).toBe(77);
+    expect(snap.data()?.stamina).toBe(100);
     expect(snap.data()?.score).toBe(1); // 舊 exp 5 → floor(1.5) = 1；實際舊文件 exp 皆為 0 → 0
     expect(snap.data()?.levels).toEqual({});
   });
@@ -482,13 +488,13 @@ describe('計分：各關最佳紀錄 levels、經驗 exp 與總分 score', () =
   /** 直接寫入指定欄位（用於測試不合法的寫入） */
   const raw = (r: ReturnType<typeof ref>, fields: Record<string, unknown>) => updateDoc(r, { ...fields, updatedAt: serverTimestamp() });
 
-  it('合法的新紀錄可寫入：90 秒 → 816 分；經驗 +5×20+50 = 150；總分 816 + 45', async () => {
+  it('合法的新紀錄可寫入：90 秒 → 816 分；經驗 +100；總分 816 + 30', async () => {
     expect(entry(90000).bestScore).toBe(816);
     await assertSucceeds(clear(ref(), 1, 90000));
     const d = (await getDoc(ref())).data()!;
     expect(d.levels['1']).toEqual({ bestTimeMs: 90000, bestScore: 816 });
-    expect(d.exp).toBe(150);
-    expect(d.score).toBe(816 + 45);
+    expect(d.exp).toBe(100);
+    expect(d.score).toBe(816 + 30);
   });
   it('90 秒的四捨五入：816 接受，817／815 被拒', async () => {
     await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: 90000, bestScore: 817 }, score: 817 }));
@@ -504,8 +510,8 @@ describe('計分：各關最佳紀錄 levels、經驗 exp 與總分 score', () =
     }
     const d = (await getDoc(ref())).data()!;
     expect(d.levels['1'].bestScore).toBe(1000);
-    expect(d.exp).toBe(150 * expected.length);
-    expect(d.score).toBe(1000 + expScore(150 * expected.length));
+    expect(d.exp).toBe(100 * expected.length);
+    expect(d.score).toBe(1000 + expScore(100 * expected.length));
   });
   it('分數與時間不符被拒（以慢時間聲稱滿分）', async () => {
     await assertFails(raw(ref(), { 'levels.1': { bestTimeMs: 300000, bestScore: 1000 }, score: 1000 }));
@@ -529,8 +535,8 @@ describe('計分：各關最佳紀錄 levels、經驗 exp 與總分 score', () =
     await assertSucceeds(clear(bobRef(), 2, 50000, 28));
     const d = (await getDoc(bobRef())).data()!;
     expect(d.levels['2']).toEqual({ bestTimeMs: 60000, bestScore: 1000 });
-    expect(d.exp).toBe(5 * 28 + 50);
-    expect(d.score).toBe(1000 + expScore(190));
+    expect(d.exp).toBe(100);
+    expect(d.score).toBe(1000 + expScore(100));
   });
   it('總分不可下降（刪除關卡紀錄或直接改低）', async () => {
     await assertFails(raw(bobRef(), { score: 900 }));
@@ -586,7 +592,55 @@ describe('計分：各關最佳紀錄 levels、經驗 exp 與總分 score', () =
     await assertSucceeds(clear(ref(), 1, 90000));
     const snap = await assertSucceeds(getDocs(rankQuery(alice())));
     expect(snap.docs.map((d) => d.id)).toEqual([BOB, ALICE]);
-    expect(snap.docs.map((d) => d.data().score)).toEqual([1000, 861]);
+    expect(snap.docs.map((d) => d.data().score)).toEqual([1000, 846]);
+  });
+});
+
+
+describe('體力 stamina／staminaUpdatedAt', () => {
+  const ref = () => doc(alice(), 'users', ALICE);
+  beforeEach(async () => {
+    await env.clearFirestore();
+    await assertSucceeds(setDoc(ref(), newProfile()));
+  });
+  it('入陣扣除 10 成功', async () => {
+    await assertSucceeds(updateDoc(ref(), { stamina: 90, staminaUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+    expect((await getDoc(ref())).data()!.stamina).toBe(90);
+  });
+  it('戰敗返還 +5 成功（90→95）', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE), { stamina: 90, staminaUpdatedAt: anHourAgo(), updatedAt: anHourAgo() });
+    });
+    await assertSucceeds(updateDoc(ref(), { stamina: 95, staminaUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  });
+  it('任意把體力刷到 100 被拒（90→100 超過 +5；起點為現在故無回復）', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE), { stamina: 90, staminaUpdatedAt: Timestamp.now(), updatedAt: Timestamp.now() });
+    });
+    await assertFails(updateDoc(ref(), { stamina: 100, staminaUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  });
+  it('體力超過 100 被拒', async () => {
+    await assertFails(updateDoc(ref(), { stamina: 101, staminaUpdatedAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+  });
+  it('經驗 +100 可寫；+101 被拒', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE), { updatedAt: anHourAgo() });
+    });
+    await assertSucceeds(updateDoc(ref(), { exp: 100, score: expScore(100), updatedAt: serverTimestamp() }));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), 'users', ALICE), { updatedAt: anHourAgo() });
+    });
+    await assertFails(updateDoc(ref(), { exp: 201, score: expScore(201), updatedAt: serverTimestamp() }));
+  });
+  it('缺 staminaUpdatedAt 的舊文件可遷移為滿格', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const r = doc(ctx.firestore(), 'users', ALICE);
+      await setDoc(r, {
+        displayLabel: label('林'), schoolDomain: 'wbss.edu.hk', surname: '林', surnameSource: 'auto',
+        level: 1, jiyuan: 1, exp: 0, stamina: 40, score: 0, levels: {}, updatedAt: anHourAgo(),
+      });
+    });
+    await assertSucceeds(setDoc(ref(), newProfile({ stamina: 100 })));
   });
 });
 

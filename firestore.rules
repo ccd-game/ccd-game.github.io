@@ -39,8 +39,65 @@ service cloud.firestore {
     function maxRecordableTimeMs() { return 3600000; }
     function expScoreNumerator() { return 3; }
     function expScoreDenominator() { return 10; }
-    function maxExpPerClear() { return 350; }
+    function maxExpPerClear() { return 100; }
     function maxLevelUpsPerWrite() { return 3; }
+
+    // ───────── 體力 stamina（與 src/lib/playerData.ts、src/lib/stamina.ts 同步）─────────
+    // 儲存值 + staminaUpdatedAt；讀取時客戶端推算回復。規則只在寫入時核對：
+    //   不變 ｜ 扣除（≤ current−0 且 ≥ current−cost）｜ 返還（≤ current+refund）｜ 遷移（缺欄 → 滿格）
+    // 任意一次寫入體力最多比「推算現值」高 refund（5），防止一次刷滿。
+    function maxStamina() { return 100; }
+    function minInt(a, b) { return a < b ? a : b; }
+    function staminaCost() { return 10; }
+    function staminaRefund() { return 5; }
+    function staminaRegenMs() { return 360000; }
+
+    function prevStamina() { return existing().get('stamina', maxStamina()); }
+    function prevStaminaAt() {
+      return existing().keys().hasAny(['staminaUpdatedAt'])
+        ? existing().staminaUpdatedAt
+        : existing().updatedAt;
+    }
+    function regenPoints(from) {
+      return from > request.time ? 0
+        : (request.time.toMillis() - from.toMillis()) / staminaRegenMs();
+    }
+    function currentStamina() {
+      return prevStamina() >= maxStamina() ? maxStamina()
+        : minInt(maxStamina(), prevStamina() + regenPoints(prevStaminaAt()));
+    }
+    function staminaAnchorOk(at) {
+      return at is timestamp && at <= request.time;
+    }
+    // 體力欄位未改（其他欄位更新時）
+    function staminaUnchanged(d) {
+      return existing().keys().hasAll(['stamina', 'staminaUpdatedAt'])
+        && d.stamina == existing().stamina
+        && d.staminaUpdatedAt == existing().staminaUpdatedAt;
+    }
+    // 舊文件缺 staminaUpdatedAt：只可遷移為滿格 + serverTimestamp
+    function staminaMigrateOk(d) {
+      return !existing().keys().hasAny(['staminaUpdatedAt'])
+        && d.stamina == maxStamina()
+        && d.staminaUpdatedAt == request.time;
+    }
+    // 扣除或返還：新值須落在 [current−cost, min(100, current+refund)]，且起點合法
+    function staminaChangeOk(d) {
+      let cur = currentStamina();
+      return d.stamina is int
+        && d.stamina >= 0
+        && d.stamina <= maxStamina()
+        && d.stamina >= cur - staminaCost()
+        && d.stamina <= minInt(maxStamina(), cur + staminaRefund())
+        && staminaAnchorOk(d.staminaUpdatedAt)
+        && d.staminaUpdatedAt >= prevStaminaAt();
+    }
+    function staminaOk(d) {
+      return d.stamina is int && d.stamina >= 0 && d.stamina <= maxStamina()
+        && d.staminaUpdatedAt is timestamp
+        && (staminaUnchanged(d) || staminaMigrateOk(d) || staminaChangeOk(d));
+    }
+
     function levelIds() { return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']; }
 
     // 通關時間（整數毫秒）→ 分數：60 秒或更快滿分 1000；之後 round(1000 × √(60 / t))，沒有下限
@@ -121,8 +178,8 @@ service cloud.firestore {
     // 機緣 jiyuan 取代舊欄位 gold（gold 不在白名單，故不可再寫入）；score 及 levels 見上方計分函式。
     // ⚠️ 同步點：欄位白名單＝src/lib/playerData.ts PUBLIC_PROFILE_FIELDS；數值範圍＝PLAYER_LIMITS。
     function isValidProfile(d) {
-      return d.keys().hasAll(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'jiyuan', 'exp', 'stamina', 'score', 'levels', 'updatedAt'])
-        && d.keys().hasOnly(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'jiyuan', 'exp', 'stamina', 'score', 'levels', 'updatedAt'])
+      return d.keys().hasAll(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'jiyuan', 'exp', 'stamina', 'staminaUpdatedAt', 'score', 'levels', 'updatedAt'])
+        && d.keys().hasOnly(['displayLabel', 'schoolDomain', 'surname', 'surnameSource', 'level', 'jiyuan', 'exp', 'stamina', 'staminaUpdatedAt', 'score', 'levels', 'updatedAt'])
         && d.schoolDomain == emailDomain()
         && d.surname is string
         && d.surname.matches('^(\\p{Han}{1,2})?$')
@@ -134,7 +191,8 @@ service cloud.firestore {
         && d.level is int && d.level >= 1 && d.level <= 999
         && d.jiyuan is int && d.jiyuan >= 0 && d.jiyuan <= 100000000
         && d.exp is int && d.exp >= 0 && d.exp <= 100000000
-        && d.stamina is int && d.stamina >= 0 && d.stamina <= 1000
+        && d.stamina is int && d.stamina >= 0 && d.stamina <= 100
+        && d.staminaUpdatedAt is timestamp
         && d.levels is map
         && d.score is int && d.score >= 0
         && d.updatedAt == request.time;
@@ -151,6 +209,8 @@ service cloud.firestore {
         && incoming().level == 1
         && incoming().exp == 0
         && incoming().jiyuan <= 100
+        && incoming().stamina == maxStamina()
+        && incoming().staminaUpdatedAt == request.time
         && incoming().score == 0
         && incoming().levels.size() == 0;
 
@@ -163,6 +223,7 @@ service cloud.firestore {
         && levelsOk(incoming().levels, existing().get('levels', {}))
         && expOk(incoming())
         && scoreOk(incoming(), existing().get('levels', {}))
+        && staminaOk(incoming())
         && incoming().level >= existing().level
         && incoming().level <= existing().level + maxLevelUpsPerWrite();
 

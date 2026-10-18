@@ -85,13 +85,13 @@ describe('單關分數：t ≤ 60 秒滿分；之後 round(1000 × √(60 / t))'
 });
 
 describe('經驗及總分', () => {
-  it('經驗：每答對一題 +5，每次通關 +50', () => {
-    expect(EXP_PER_CORRECT).toBe(5);
-    expect(EXP_PER_CLEAR).toBe(50);
-    expect(clearExpGain(20)).toBe(150);
-    expect(clearExpGain(0)).toBe(50);
-    expect(clearExpGain(-3)).toBe(50);
-    expect(clearExpGain(2.5)).toBe(50);
+  it('經驗：每次通關 +100；答對不加經驗', () => {
+    expect(EXP_PER_CORRECT).toBe(0);
+    expect(EXP_PER_CLEAR).toBe(100);
+    expect(clearExpGain(20)).toBe(100);
+    expect(clearExpGain(0)).toBe(100);
+    expect(clearExpGain(-3)).toBe(100);
+    expect(clearExpGain(2.5)).toBe(100);
   });
   it('經驗計入總分：floor(exp × 0.3)，整數運算沒有浮點誤差', () => {
     expect(expScore(0)).toBe(0);
@@ -108,8 +108,8 @@ describe('經驗及總分', () => {
     expect(totalScore([816, 1000, 447], 0)).toBe(2263);
     expect(totalScore([816, 1000, 447], 150)).toBe(2263 + 45);
   });
-  it('單次經驗上限＝最多題數 × 5 ＋ 50；在第 1 級最多升 2 級（規則容許 3 級）', () => {
-    expect(MAX_EXP_PER_CLEAR).toBe(MAX_QUESTIONS_PER_LEVEL * EXP_PER_CORRECT + EXP_PER_CLEAR);
+  it('單次經驗上限＝通關 +100；在第 1 級最多升 1 級（規則容許 3 級）', () => {
+    expect(MAX_EXP_PER_CLEAR).toBe(EXP_PER_CLEAR);
     expect(levelForExp(MAX_EXP_PER_CLEAR) - 1).toBeLessThanOrEqual(MAX_LEVEL_UPS_PER_WRITE);
     expect(getRequiredExpForLevel(1)).toBe(100);
   });

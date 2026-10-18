@@ -15,7 +15,11 @@ import {
   subscribeGuestUserData,
   patchGuestUserData,
   recordGuestClear,
+  deductGuestStamina,
+  refundGuestStamina,
+  clearGuestStaminaRefundable,
 } from './guestSession';
+import { MAX_STAMINA, STAMINA_COST, STAMINA_REFUND } from './playerData';
 
 class MemoryStorage {
   map = new Map<string, string>();
@@ -80,12 +84,18 @@ describe('guestSession', () => {
     const r = recordGuestClear({ levelId: 1, timeMs: 90000, correctAnswers: 20 });
     expect(r.recorded).toBe(true);
     const stored = JSON.parse(storage.getItem(GUEST_DATA_KEY)!);
-    expect(stored).toEqual({ level: 2, jiyuan: 60, exp: 150, stamina: 100, score: 861, levels: { '1': { bestTimeMs: 90000, bestScore: 816 } } });
+    expect(stored.level).toBe(2);
+    expect(stored.jiyuan).toBe(60);
+    expect(stored.exp).toBe(100);
+    expect(stored.stamina).toBe(100);
+    expect(stored.score).toBe(816 + 30);
+    expect(stored.levels).toEqual({ '1': { bestTimeMs: 90000, bestScore: 816 } });
+    expect(typeof stored.staminaUpdatedAt).toBe('number');
     // 模擬重新整理：記憶體回到預設，再由 sessionStorage 恢復
     resetGuestUserData.call(null);
     storage.setItem(GUEST_DATA_KEY, JSON.stringify(stored));
     const restored = restoreGuestUserData();
-    expect(restored.score).toBe(861);
+    expect(restored.score).toBe(846);
     expect(restored.jiyuan).toBe(60);
     expect(restored.name).toBe('歐陽同學');
   });
@@ -95,22 +105,24 @@ describe('guestSession', () => {
     recordGuestClear({ levelId: 1, timeMs: 90000, correctAnswers: 20 });
     recordGuestClear({ levelId: 1, timeMs: 300000, correctAnswers: 20 });
     expect(getGuestUserData().levels['1']).toEqual({ bestTimeMs: 90000, bestScore: 816 });
-    expect(getGuestUserData().exp).toBe(300);
+    expect(getGuestUserData().exp).toBe(200);
     expect(recordGuestClear({ levelId: 1, timeMs: 1000, correctAnswers: 20 }).recorded).toBe(false);
-    expect(getGuestUserData().exp).toBe(300);
+    expect(getGuestUserData().exp).toBe(200);
   });
 
-  it('遷移：新 key 中的舊格式（含 gold）→ jiyuan = gold，並以新格式寫回', () => {
+  it('遷移：新 key 中的舊格式（含 gold、無 staminaUpdatedAt）→ jiyuan = gold、體力滿格', () => {
     persistGuestSession();
     storage.setItem(GUEST_DATA_KEY, JSON.stringify({ level: 1, gold: 33, exp: 0, stamina: 80 }));
     const d = restoreGuestUserData();
     expect(d.jiyuan).toBe(33);
-    expect(d.stamina).toBe(80);
+    expect(d.stamina).toBe(MAX_STAMINA);
     expect(d.score).toBe(0);
     expect(d.levels).toEqual({});
     const stored = JSON.parse(storage.getItem(GUEST_DATA_KEY)!);
     expect(stored).not.toHaveProperty('gold');
     expect(stored.jiyuan).toBe(33);
+    expect(stored.stamina).toBe(MAX_STAMINA);
+    expect(typeof stored.staminaUpdatedAt).toBe('number');
   });
 
   it('遷移：舊版把資料 JSON 存在旗標 key（ccd.guest.v1）→ 視為遊客、遷移資料並把旗標改回 "1"', () => {
@@ -126,11 +138,12 @@ describe('guestSession', () => {
 
   it('遷移冪等：已是新格式的資料再恢復一次不變', () => {
     persistGuestSession();
-    storage.setItem(GUEST_DATA_KEY, JSON.stringify({ level: 1, jiyuan: 20, exp: 0, stamina: 100, score: 0, levels: {} }));
+    storage.setItem(GUEST_DATA_KEY, JSON.stringify({ level: 1, jiyuan: 20, exp: 0, stamina: 100, staminaUpdatedAt: 12345, score: 0, levels: {} }));
     const once = { ...restoreGuestUserData() };
     const twice = restoreGuestUserData();
-    expect(twice).toEqual(once);
-    expect(readStoredGuestProgress()).toEqual({ level: 1, jiyuan: 20, exp: 0, stamina: 100, score: 0, levels: {} });
+    expect(twice.jiyuan).toBe(once.jiyuan);
+    expect(twice.staminaUpdatedAt).toBe(12345);
+    expect(readStoredGuestProgress()).toMatchObject({ level: 1, jiyuan: 20, exp: 0, stamina: 100, staminaUpdatedAt: 12345, score: 0, levels: {} });
   });
 
   it('沒有資料或資料損壞 → 預設值', () => {
@@ -146,5 +159,35 @@ describe('guestSession', () => {
     clearGuestSessionStorage();
     expect(storage.getItem(GUEST_SESSION_KEY)).toBeNull();
     expect(storage.getItem(GUEST_DATA_KEY)).toBeNull();
+  });
+
+  it('遊客入陣扣 10、戰敗返還 5；勝利／離開不返還', () => {
+    persistGuestSession();
+    resetGuestUserData();
+    const before = getGuestUserData().stamina;
+    expect(before).toBe(MAX_STAMINA);
+    expect(deductGuestStamina()).not.toBeNull();
+    expect(getGuestUserData().stamina).toBe(MAX_STAMINA - STAMINA_COST);
+    expect(getGuestUserData().staminaRefundable).toBe(true);
+    expect(refundGuestStamina()).not.toBeNull();
+    expect(getGuestUserData().stamina).toBe(MAX_STAMINA - STAMINA_COST + STAMINA_REFUND);
+    expect(getGuestUserData().staminaRefundable).toBe(false);
+    expect(refundGuestStamina()).toBeNull();
+  });
+
+  it('體力不足不可扣除', () => {
+    persistGuestSession();
+    resetGuestUserData();
+    patchGuestUserData({ stamina: 5, staminaUpdatedAt: Date.now(), staminaRefundable: false });
+    expect(deductGuestStamina()).toBeNull();
+    expect(getGuestUserData().stamina).toBe(5);
+  });
+
+  it('clearGuestStaminaRefundable 後不可返還', () => {
+    persistGuestSession();
+    resetGuestUserData();
+    deductGuestStamina();
+    clearGuestStaminaRefundable();
+    expect(refundGuestStamina()).toBeNull();
   });
 });
