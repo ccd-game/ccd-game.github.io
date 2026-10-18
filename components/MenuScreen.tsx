@@ -7,7 +7,6 @@ import { subscribeToUser, TEST_USER_ID, UserData, watchAuthState } from '../src/
 import { getRequiredExpForLevel, expIntoLevel } from '../src/lib/levelSystem';
 import { MAX_STAMINA } from '../src/lib/playerData';
 import { staminaAt } from '../src/lib/stamina';
-import { STAMINA_COPY } from '../src/config/staminaCopy';
 
 // Default tab (dungeon) stays eager; other tabs + codex detail are lazy.
 const CharacterTab = lazy(() => import('./tabs/CharacterTab'));
@@ -137,6 +136,13 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
     { stamina: playerData.stamina, staminaUpdatedAt: playerData.staminaUpdatedAt || nowMs },
     nowMs,
   );
+  // r4：滿格强制 100%（禁浮點 99.x）；與顯示值同源 staminaView.stamina / maxStamina
+  const staPct =
+    staminaView.full || staminaView.stamina >= playerData.maxStamina
+      ? 100
+      : playerData.maxStamina > 0
+        ? Math.min(100, (staminaView.stamina / playerData.maxStamina) * 100)
+        : 0;
 
   const handleNavClick = (tab: MenuTab) => {
     if (viewingCharacter) onBackFromDetail();
@@ -298,12 +304,9 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
             <div className="home-meter">
               <span className="home-meter-label is-jade">體力</span>
               <div className="home-meter-track" role="progressbar" aria-label="體力" aria-valuemin={0} aria-valuemax={playerData.maxStamina} aria-valuenow={staminaView.stamina}>
-                <div className="home-meter-fill is-stamina" style={{ width: `${(staminaView.stamina / playerData.maxStamina) * 100}%` }}></div>
+                <div className="home-meter-fill is-stamina" style={{ width: `${staPct}%` }}></div>
               </div>
               <span className="home-meter-val" data-testid="stamina-val">{staminaView.stamina}/{playerData.maxStamina}</span>
-            </div>
-            <div className="home-stamina-sub text-[10px] tracking-wider opacity-70 -mt-1" data-testid="stamina-next">
-              {staminaView.full ? STAMINA_COPY.full : STAMINA_COPY.nextPoint(staminaView.nextPointInMs)}
             </div>
           </div>
         </div>

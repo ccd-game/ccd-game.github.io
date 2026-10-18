@@ -452,15 +452,61 @@
         .home-coin-icon { width: 13px; height: 13px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fbe69a, #d4af37 55%, #8a6a12); box-shadow: inset 0 0 0 2px rgba(0,0,0,.18); position: relative; }
         .home-coin-icon::after { content: ''; position: absolute; inset: 4px; background: rgba(0,0,0,.35); }
         .home-coin-num { font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--home-text); }
-        .home-meter { display: flex; align-items: center; gap: 8px; }
+        /* r4／r10d：條旁文字向下對齊（bottom）；禁為已滿文案擠行距 */
+        .home-meter { display: flex; align-items: flex-end; gap: 8px; }
         .home-meter-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; color: var(--home-accent); width: 26px; line-height: 1; }
         .home-meter-label.is-jade { color: #2f6f52; }
         .dark-mode .home-meter-label.is-jade { color: var(--jade); }
-        .home-meter-track { flex: 1; height: 5px; background: var(--home-track); border-radius: 1px; overflow: hidden; }
-        .home-meter-fill { height: 100%; border-radius: 1px; transition: width .6s ease; }
-        .home-meter-fill.is-exp { background: linear-gradient(90deg, #8a6a12, var(--gilt)); }
-        .home-meter-fill.is-stamina { background: linear-gradient(90deg, #2f6f52, var(--jade)); }
-        .home-stamina-sub { font-size: 10px; letter-spacing: 0.08em; color: var(--home-muted, #888); padding-left: 2.5rem; }
+        /* meter-liquid-r5b→r4：經驗暖金刷紋 bar14＋CSS 光掃；體力 sta-fill-bar14；禁 flow gif */
+        .home-meter-track { flex: 1; height: 7px; border-radius: 1px; overflow: hidden; background-color: transparent; background-repeat: repeat-x; background-position: left center; background-size: auto 100%; }
+        .home-meter:has(.home-meter-fill.is-exp) .home-meter-track { background-color: #3c2c14; background-image: url('/resources/ui/chrome/meters/exp-track-tile.png'); }
+        .home-meter:has(.home-meter-fill.is-stamina) .home-meter-track { background-color: #1c3330; background-image: url('/resources/ui/chrome/meters/sta-track-tile.png'); }
+        .home-meter-fill { height: 100%; border-radius: 1px; transition: width .6s ease; position: relative; overflow: hidden; }
+        .home-meter-fill.is-exp {
+            background-color: transparent;
+            background-image: url('/resources/ui/chrome/meters/exp-fill-bar14.png');
+            background-repeat: repeat-x;
+            background-size: auto 100%;
+            background-position: left center;
+        }
+        /* r3：純 CSS 反光光掃（linear-gradient）；禁 flow-exp.gif／禁紋理卷動 */
+        .home-meter-fill.is-exp::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background-image: linear-gradient(
+                105deg,
+                transparent 0%,
+                transparent 40%,
+                rgba(255, 250, 235, 0.15) 46%,
+                rgba(255, 245, 210, 0.55) 49.5%,
+                rgba(255, 236, 180, 0.65) 50.5%,
+                rgba(255, 245, 210, 0.4) 52%,
+                transparent 58%,
+                transparent 100%
+            );
+            background-size: 220% 100%;
+            background-repeat: no-repeat;
+            background-position: 120% 0;
+            mix-blend-mode: soft-light;
+            opacity: 0.9;
+            animation: home-meter-exp-shine 3.2s ease-in-out infinite;
+        }
+        @keyframes home-meter-exp-shine {
+            0% { background-position: 120% 0; }
+            100% { background-position: -40% 0; }
+        }
+        /* 經驗不再疊 flow-exp.gif（雜色馬賽克源）；體力改 bar14 對齊經驗接法 */
+        /* r4：體力 fill 對齊經驗 bar14（repeat-x／auto 100%／left center）；滿格視覺頂到槽右緣 */
+        .home-meter-fill.is-stamina {
+            background-color: transparent;
+            background-image: url('/resources/ui/chrome/meters/sta-fill-bar14.png');
+            background-repeat: repeat-x;
+            background-size: auto 100%;
+            background-position: left center;
+        }
+        /* r4：主頁已刪 .home-stamina-sub（禁「體力已滿／下一點」）；不足視窗另用 STAMINA_COPY */
         .home-meter-val { font-size: 12px; font-weight: 700; color: var(--home-text); min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; line-height: 1; }
 
         .home-nav-btn {
@@ -866,6 +912,11 @@
             .home-breathe, .home-scene-breathe, .home-saber, .home-saber-float, .home-saber-idle, .home-embers span { animation: none !important; }
             .home-saber.is-back { opacity: 0 !important; }
             .home-meter-fill, .home-slip, .home-nav-icon { transition: none !important; }
+            .home-meter-fill.is-exp::after {
+                animation: none !important;
+                background-position: 40% 0 !important;
+                opacity: 0.55;
+            }
         }
 
 /* ───────────── 遊客模式（Guest mode） ─────────────
