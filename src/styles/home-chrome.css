@@ -162,19 +162,22 @@
   object-fit: fill;
   object-position: bottom center;
 }
-/* standalone／fullscreen：整圖關、三段開（吃 sat 中段拉伸） */
-html.is-standalone .home-chrome-shell-full {
-  display: none !important;
+/* standalone-black-sat r1b：standalone／fullscreen 亦用整圖 plate（同 browser）；三段永隱藏
+   禁三段拉伸吃 sat；sat 改由上方黑邊 letterbox 承擔（見下方 black-sat 段） */
+html.is-standalone .home-chrome-shell-full,
+html.is-standalone .home-chrome-shell img.home-chrome-shell-full {
+  display: block !important;
 }
 html.is-standalone .home-chrome-shell-segs {
-  display: block;
+  display: none !important;
 }
 @media (display-mode: standalone), (display-mode: fullscreen) {
-  .home-chrome-shell-full {
-    display: none !important;
+  .home-chrome-shell-full,
+  .home-chrome-shell img.home-chrome-shell-full {
+    display: block !important;
   }
   .home-chrome-shell-segs {
-    display: block;
+    display: none !important;
   }
 }
 
@@ -409,32 +412,45 @@ html.is-standalone .home-chrome-shell-segs {
 }
 
 
-/* ===== v1.3.15 r3：standalone sat／雲底／五鍵錨76／玉佩 bdb8529 量度 ===== */
+/* ===== standalone-black-sat r1b：上方黑邊吃 sat；頂欄布局＝browser v1.3.15（禁拉殼／禁三段／禁改玉佩錨） ===== */
 .home-bar-top.home-chrome-shell-host,
 .home-chrome-shell-host.home-bar-top {
   overflow: visible !important;
 }
+
+/* 黑邊：#root::before 高＝--sat（或 env sat）；內容整體下移；匾殼本身不拉高 */
+html.is-standalone #root::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--sat, env(safe-area-inset-top, 0px));
+  background: #000;
+  z-index: 10000;
+  pointer-events: none;
+}
+
 @media (max-width: 600px) {
+  /* 頂欄 host＝browser 88；top 下移 sat；禁 calc(88+sat) 拉高 */
   html.is-standalone .home-bar-top.home-chrome-shell-host {
-    height: calc(88px + env(safe-area-inset-top, 0px));
+    top: var(--sat, env(safe-area-inset-top, 0px)) !important;
+    height: 88px !important;
+    /* 黑邊已吃 sat：殼內勿再墊 env(sat)（index.css .home-bar-top 預設會墊） */
+    padding-top: 2px !important;
     box-sizing: border-box;
   }
+  /* shell 定高 98 同 browser；禁 calc(100%+10)／禁 mid 拉伸 */
   html.is-standalone .home-chrome-shell--top {
-    /* 100% 吃 sat 中段 + 10px 雲底突出（對齊 browser 98−88） */
-    height: calc(100% + 10px);
+    height: 98px;
     overflow: visible;
   }
   html.is-standalone .home-bar-top.home-chrome-shell-host ~ main {
-    padding-top: calc(88px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: calc(88px + var(--sat, env(safe-area-inset-top, 0px))) !important;
   }
-  /* standalone 玉佩錨暫不改（r4 browser-only）；仍 left/bottom 6.5/7 */
-  html.is-standalone .home-lv-jade-wrap {
-    left: 6.5px;
-    bottom: 7px;
-    top: auto;
-  }
+  /* 玉佩：沿用 browser r10d left:19.27 bottom:13.15；禁 standalone 6.5/7 覆寫 */
 
-  /* HUD 文字／玉佩字：standalone 亦 bottom 錨，勿 top 飛 */
+  /* HUD 文字／玉佩字：bottom 錨，勿 top 飛（與 browser 同 88 高內布局） */
   html.is-standalone .home-hud-mid {
     justify-content: stretch;
     padding-top: 11px;
@@ -451,7 +467,7 @@ html.is-standalone .home-chrome-shell-segs {
     bottom: 0;
     height: 100%;
   }
-  /* 五鍵層始終貼殼：sab 加大 nav 時不抬鍵；仍 0.9× 寬 */
+  /* 五鍵層始終貼殼：sab 加大 nav 時不抬鍵；仍 0.9× 寬（底 letterbox 不動） */
   html.is-standalone .home-nav-keys-layer {
     left: 5%;
     width: 90%;
@@ -466,22 +482,32 @@ html.is-standalone .home-chrome-shell-segs {
 }
 @media (max-width: 600px) and (display-mode: standalone),
        (max-width: 600px) and (display-mode: fullscreen) {
+  /* 與 .is-standalone 同源：原生 display-mode 後備（黑邊＋88 不下拉殼） */
+  #root::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--sat, env(safe-area-inset-top, 0px));
+    background: #000;
+    z-index: 10000;
+    pointer-events: none;
+  }
   .home-bar-top.home-chrome-shell-host {
-    height: calc(88px + env(safe-area-inset-top, 0px));
+    top: var(--sat, env(safe-area-inset-top, 0px)) !important;
+    height: 88px !important;
+    padding-top: 2px !important;
     box-sizing: border-box;
   }
   .home-chrome-shell--top {
-    height: calc(100% + 10px);
+    height: 98px;
     overflow: visible;
   }
   .home-bar-top.home-chrome-shell-host ~ main {
-    padding-top: calc(88px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: calc(88px + var(--sat, env(safe-area-inset-top, 0px))) !important;
   }
-  .home-lv-jade-wrap {
-    left: 6.5px;
-    bottom: 7px;
-    top: auto;
-  }
+  /* 玉佩：不覆寫 → browser r10d */
   .home-hud-mid {
     justify-content: stretch;
     padding-top: 11px;

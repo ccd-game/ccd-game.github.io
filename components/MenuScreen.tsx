@@ -47,11 +47,11 @@ const NavIconImg: React.FC<{ tab: MenuTab; active: boolean }> = ({ tab, active }
   return <img className="home-nav-icon-img" src={src} alt="" draggable={false} width={28} height={28} />;
 };
 
-/** 主頁圖殼資產（v1.3.15 r10b：browser 整圖匾殼／standalone 三段拉伸＋獨立玉佩 PNG） */
+/** 主頁圖殼資產（v1.3.15 r10b＋standalone-black-sat：browser／standalone 皆整圖匾殼＋獨立玉佩 PNG） */
 const CHROME_BASE = `${import.meta.env.BASE_URL}resources/ui/chrome`;
 /** browser：整張高清匾殼 PNG（禁三片拼／禁 webp） */
 const TOP_SHELL_FULL = `${CHROME_BASE}/top-hud-shell-plate.png`;
-/** standalone：三段拉伸吃 sat（PNG only；mid 自 ≥2400 原圖切，禁 2px 預烘焙） */
+/** 三段資產保留但 CSS 永隱藏（standalone 改上方黑邊吃 sat，禁中段拉伸） */
 const TOP_SHELL_TOPCAP = `${CHROME_BASE}/top-hud-shell-topcap.png`;
 const TOP_SHELL_MID = `${CHROME_BASE}/top-hud-shell-mid.png`;
 const TOP_SHELL_BOTTOM = `${CHROME_BASE}/top-hud-shell-bottom.png`;
@@ -259,7 +259,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
 
       {/* 標題欄：玩家牌 */}
       <header className={`home-bar home-bar-top home-chrome-shell-host absolute top-0 left-0 right-0 h-[88px] flex items-center z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
-        {/* r10b: browser＝整張 plate PNG；standalone＝三段拉伸吃 sat；禁 webp */}
+        {/* r10b＋black-sat：browser／standalone 皆整張 plate PNG；segs display:none；禁 webp */}
         <div className="home-chrome-shell home-chrome-shell--top" aria-hidden="true">
           <img className="home-chrome-shell-full" src={TOP_SHELL_FULL} alt="" draggable={false} />
           <div className="home-chrome-shell-segs">
@@ -274,7 +274,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
             </div>
           </div>
         </div>
-        {/* 玉佩：r10d wrap 60.71 left:19.27 bottom:13.15（自 r10c＋5）；底／w／standalone 6.5/7 不動 */}
+        {/* 玉佩：r10d wrap 60.71 left:19.27 bottom:13.15；standalone 同錨（禁 6.5/7 覆寫） */}
         <div className="home-lv-jade-wrap" aria-hidden="false">
           <img className="home-lv-jade" src={TOP_HUD_JADE} alt="" draggable={false} width={61} height={62} />
           <div className="home-lv-jade-text" aria-label={`等級 ${playerData.level}`}>
