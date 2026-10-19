@@ -8,7 +8,7 @@
 
 /* App custom styles (migrated from index.html <style>; keep visual look identical) */
         :root {
-            --app-bg: #f4f1ea;
+            --app-bg: #f4f0e8; /* xuan-shanshui-page-bg-r11 宣紙基色 */
             --panel-bg: rgba(235, 230, 220, 0.85);
             --panel-border: rgba(184, 134, 11, 0.25);
             --text-main: #2c2c2c;
@@ -437,7 +437,7 @@
             --cinnabar: #b5322a;
             --jade: #5fa585;
             /* 主題對應（淺色＝宣紙） */
-            --home-surface: #f4f1ea;
+            --home-surface: #f4f0e8; /* 對齊宣紙山水頁底 r11 */
             --home-text: #2a241c;
             --home-muted: #6b6152;
             --home-accent: #7a5c0f;
@@ -468,6 +468,8 @@
             --home-track: rgba(237, 228, 208, 0.1);
         }
         .home-surface { background-color: var(--home-surface); color: var(--home-text); }
+        /* home-xuan-r11-tryfit：主頁殼已鋪宣紙全頁圖，子面改透以免再蓋死白底 */
+        .home-menu-shell .home-surface { background-color: transparent; }
         .home-focus:focus-visible { outline: 2px solid var(--gilt); outline-offset: 3px; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
@@ -479,7 +481,16 @@
             -webkit-backdrop-filter: none;
             box-shadow: none;
         }
-        .home-bar-top { border-bottom: 1px solid var(--home-line);
+        /* home-xuan-r11-tryfit-r3 定稿 A：頂欄全透明透山水（≡css/A-topbar.css）；B frost 已否決見 css/B-topbar.css */
+        .home-bar.home-bar-top,
+        .home-bar-top.home-hud-vnext-host {
+            background: transparent;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            box-shadow: none;
+            border-bottom: none;
+        }
+        .home-bar-top { border-bottom: none; /* r3：去硬切縫線（原 1px var(--home-line)） */
             /* r9: Dynamic Island 緊湊避開；僅小幅 padding-top，勿大塊 sat 空白 */
             padding-top: max(2px, env(safe-area-inset-top, 0px));
             box-sizing: border-box;
@@ -627,28 +638,33 @@
 
         /* 英雄區 */
 
-        /* ===== home-shanshui-only-r1：單圖滿幅山水（抽屜以上→頂；蓋陀螺露底）——不動頂欄／底欄／HUD ===== */
+        /* ===== home-xuan-r11-tryfit：宣紙山水（full844）取代舊 HOME_SHANSHUI——不動頂欄／底欄／HUD／柳錨 ===== */
+        /* r3：根因＝hero overflow:hidden 裁掉 top:-88 上延，hero 頂緣顯示圖頂而 shell 顯示 y≈zone 切片 → 硬切縫。
+           修：shanshui 盒貼 hero；img 以 shell 頂為原點、高 100dvh/844 與 shell bg 同 stretch，裁切窗內切片連續。 */
         .home-shanshui {
             position: absolute;
             left: 0;
             right: 0;
-            /* 上伸進頂欄懸浮區，使 letterbox 內頂至抽屜頂皆為山水 */
-            top: -88px;
+            top: 0;
             bottom: 0;
-            z-index: 0;
+            z-index: 0; /* 底紙／山水；立繪 z3；chrome z50 */
             overflow: hidden;
             pointer-events: none;
-            background: #e8ebe3; /* 載入前近山水紙色，防露 --ink 黑 */
+            background: transparent; /* 勿再墊紙色／勿與 shell 雙層錯色；載入前靠 shell #f4f0e8 */
         }
         .home-shanshui img {
             display: block;
+            position: absolute;
+            left: 0;
             width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center center;
-            /* 併 ink-wash-gyro-cover：略放大，邊緣不露底 */
-            transform: scale(1.082);
-            transform-origin: center center;
+            /* 與 .home-menu-shell 同原點：自 shell 頂起算 full844，與 background-size:100% 100% 對齊 */
+            top: calc(-1 * var(--hud-vnext-zone-h));
+            height: 100dvh; /* shell 即視口高（390×844 框）；與 shell 同拉伸 */
+            min-height: 844px;
+            object-fit: fill; /* ≡ shell background-size: 100% 100% */
+            object-position: center top;
+            transform: none; /* r3：去 scale(1.082) 以免與 shell 錯位 */
+            transform-origin: center top;
             pointer-events: none;
             user-select: none;
             -webkit-user-drag: none;
@@ -668,7 +684,8 @@
         .home-scene-fig-frame { z-index: 3; }
 
         /* home-right-white-line-r1：預覽區深色墊底（對齊 .battle-scene-layer），縫隙／AA 時勿透 --app-bg；主因另見 .home-menu-shell overflow-x:clip */
-        .home-hero { height: 100%; background: #0a0a0a; color: var(--paper); isolation: isolate; overflow: hidden; }
+        /* r3：勿用 #0a0a0a 墊底——頂欄／hero 交界若露縫會成硬黑線；宣紙試套改透，靠 shell／shanshui */
+        .home-hero { height: 100%; background: transparent; color: var(--paper); isolation: isolate; overflow: hidden; }
         /* 落地場景：cover 填滿篇名線以上預覽區（無上下黑邊）；腳底對齊篇名區下緣；多出的從上方／兩側裁 */
         .home-hero { container-type: size; }
         .home-scene {
@@ -759,26 +776,17 @@
             opacity: 0 !important;
             pointer-events: none !important;
         }
-        /* 底部羽化：純 backdrop blur，以漸層遮罩讓模糊由上而下逐漸增強；無任何暗色／黑色層 */
-        .home-scene-feather {
-            position: absolute; left: 0; right: 0; bottom: 0;
-            height: calc(var(--ui, 190px) + 100px);
-            pointer-events: none; z-index: 5;
-            background: transparent;
-            -webkit-backdrop-filter: blur(18px);
-            backdrop-filter: blur(18px);
-            -webkit-mask-image: linear-gradient(to top, #000 0%, #000 30%, rgba(0,0,0,.6) 60%, transparent 100%);
-            mask-image: linear-gradient(to top, #000 0%, #000 30%, rgba(0,0,0,.6) 60%, transparent 100%);
-        }
-        /* 第 2 關：羽化只在 UI 區（不模糊岩頂上的靴子） */
-        /* 第 2 關：羽化往上蓋過橫排篇名；篇名上方清晰 → 底部全模糊（仍為純 backdrop blur） */
+        /* 正式移除：主頁預覽羽化遮罩（原 .home-scene-feather ＋ mask blur）；DOM 可殘留但永不顯示 */
+        .home-scene-feather,
         .home-scene-feather.is-l2 {
-            height: calc(var(--ui, 190px) + 36px);
-            -webkit-mask-image: linear-gradient(to top, #000 0%, #000 34%, rgba(0,0,0,.8) 55%, rgba(0,0,0,.5) 72%, rgba(0,0,0,.2) 88%, transparent 100%);
-            mask-image: linear-gradient(to top, #000 0%, #000 34%, rgba(0,0,0,.8) 55%, rgba(0,0,0,.5) 72%, rgba(0,0,0,.2) 88%, transparent 100%);
-        }
-        @media (prefers-reduced-transparency: reduce) {
-            .home-scene-feather { -webkit-backdrop-filter: none; backdrop-filter: none; }
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            background: none !important;
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+            -webkit-mask-image: none !important;
+            mask-image: none !important;
         }
         .home-hero-fig { filter: drop-shadow(0 12px 28px rgba(0,0,0,.6)); }
         @keyframes homeBreathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
@@ -827,10 +835,16 @@
             font-synthesis: none;
         }
         /* 第 2 關：朱印移到右上、人物身旁，不擠篇名 */
-        /* 第 2 關：篇名／頭像列／入陣間距（入陣距抽屜 18px 由 pb 控制） */
-        .l2-title-row { margin-top: 26px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        /* 第 2 關：篇名／‹ ›／入陣間距（入陣距抽屜由 pb 控制）
+           r3：中間距偏大 → 略收（title-row 26→12；cta 20→10；≈−24px 總垂直空隙） */
+        .l2-title-row { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .l2-title-row .home-htitle { margin-top: 0; flex: 1 1 auto; min-width: 0; }
-        .l2-cta { margin-top: 20px; }
+        .l2-cta { margin-top: 10px; } /* 覆蓋 Tailwind mt-4；勿改 CTA 尺寸／HERO 幾何 */
+        /* r3：非 L2 控條（頭像列／入陣）mt-4(16)→10；L2 已由上列覆蓋 */
+        .home-hero .home-cta.mt-4:not(.l2-cta) { margin-top: 10px; }
+        .home-hero .relative.z-10 > div.mt-4 { margin-top: 10px; }
+        /* r3：L2 文字層 pb 18→12（內聯 style 被 !important 蓋）；整組控條微下貼抽屜 */
+        .home-hero > .relative.z-10 { padding-bottom: 12px !important; }
         .home-seal-l2 { position: absolute; right: 18px; top: 38%; z-index: 2; } /* 朱印 > 水墨（父層 z-10） */
         /* 矮英雄區（抽屜 peek）：朱印移到右上，不壓篇名／頭像列 */
         @container (max-height: 420px) { .home-seal-l2 { top: 14px; } }
@@ -853,7 +867,7 @@
         .home-thumb:hover { opacity: 1; }
         /* 入陣 CTA＝雙軸平移＋反向遮罩展開（≡ scroll-unroll-ref-r2）。槽位＠390：247×97 點擊區；卷圖 1114:631 等比置中（禁 scaleX 拉伸畫心） */
         .home-cta {
-            position: relative; z-index: 2; /* 入陣卷軸 > 水墨（父層 .relative.z-10） */
+            position: relative; z-index: 6; /* r3 試套：高於原 feather(z5)，入陣卷軸不被糊 */
             display: flex; align-items: center; justify-content: center;
             width: min(100%, 247px); height: 97px; margin-inline: auto; /* r4/r9: 高×0.9 vs r3 108；點擊區不變（禁改 HERO 幾何） */
             padding: 0; border: 0; background: transparent; clip-path: none;
@@ -986,6 +1000,18 @@
         .home-menu-shell {
             overflow-x: clip !important; /* 蓋過曾用之 overflow-hidden utility */
             overflow-y: hidden !important;
+            /* home-xuan-r11-tryfit：全站頁底＝宣紙山水 full844（底 76 淨紙給底欄叠；不搶 HUD） */
+            background-color: #f4f0e8;
+            background-image: image-set(
+                url('/resources/background/xuan-shanshui-page-bg-r11-full844.png') 1x,
+                url('/resources/background/xuan-shanshui-page-bg-r11-full844@2x.png') 2x
+            );
+            background-size: 100% 100%;
+            background-position: center top;
+            background-repeat: no-repeat;
+        }
+        .dark-mode .home-menu-shell {
+            background-image: none;
         }
 
         /* hud-drawer-zone-lock-r1：鎖區佔位（viewport top:0；pointer-events:none；debug outline 可開） */
@@ -1010,8 +1036,8 @@
         .home-dungeon {
             --bar-h: 52px;
             --drawer-min-rows: 4;
-            /* 最低 N=4：bar+14+(H−bar−56)/3 */
-            --peek-h: calc(var(--bar-h) + 14px + (100% - var(--bar-h) - 56px) / 3);
+            /* align-chrome-greenbar：抽屜頂（peek 分界）＝戰鬥綠線頂 Y=495；peek-h＝100%−(495−zone) */
+            --peek-h: calc(100% - (495px - var(--hud-vnext-zone-h)));
             --scroll-p: 1; /* 進頁默認 open＝卷合上 */
             position: relative; height: 100%; overflow: hidden;
             /* ≈smoothstep；時長 ≡ scroll-unroll-ref-r2 1.60s */
@@ -1024,21 +1050,32 @@
         /* 可選 N=6：data-min-rows="6" → bar+22+(H−bar−56)/2（舊最低） */
         .home-dungeon[data-min-rows="6"] {
             --drawer-min-rows: 6;
-            --peek-h: calc(var(--bar-h) + 22px + (100% - var(--bar-h) - 56px) / 2);
+            --peek-h: calc(100% - (495px - var(--hud-vnext-zone-h)));
         }
         .home-dungeon[data-min-rows="4"] {
             --drawer-min-rows: 4;
-            --peek-h: calc(var(--bar-h) + 14px + (100% - var(--bar-h) - 56px) / 3);
+            --peek-h: calc(100% - (495px - var(--hud-vnext-zone-h)));
         }
         /* 英雄區下緣＝抽屜上緣（peek／open 皆貼 peek 線；不再有 closed＝只露 bar） */
         .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }
         .home-drawer {
             position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column;
-            background: var(--home-surface); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
+            /* home-xuan-r11-tryfit-r3：抽屜 frost 更不透（字穩）；alpha 0.30→0.80；blur 維持 20 */
+            background: rgba(244, 240, 232, 0.80);
+            -webkit-backdrop-filter: blur(20px); /* 先寫 -webkit-：Safari／iOS */
+            backdrop-filter: blur(20px);
+            box-shadow: 0 -10px 24px rgba(0,0,0,.28);
             transform: translate3d(0, calc(100% - var(--bar-h)), 0);
             transition: transform .48s cubic-bezier(.22,1,.36,1);
             will-change: transform;
             touch-action: pan-y;
+        }
+        .dark-mode .home-drawer {
+            background: rgba(13, 11, 9, 0.88); /* ≈0.42×(0.80/0.38) */
+        }
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            .home-drawer { background: rgba(244, 240, 232, 0.96); }
+            .dark-mode .home-drawer { background: rgba(13, 11, 9, 0.96); }
         }
         .home-drawer.is-peek { transform: translate3d(0, calc(100% - var(--peek-h)), 0); }
         .home-drawer.is-open { transform: translate3d(0, 0, 0); }
@@ -1059,7 +1096,16 @@
         /* 已無 closed 段；保留選擇器以免舊類殘留時列表消失 */
         .home-drawer.is-closed .home-drawer-list { opacity: 0; pointer-events: none; }
         .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }
-        .home-drawer-list .home-slip { flex: 1; min-width: 0; min-height: 0; padding: 0 8px 0 0; }
+        .home-drawer-list .home-slip { flex: 1; min-width: 0; min-height: 0; padding: 0 8px 0 0;
+            /* r3：隨抽屜 alpha 0.80 等比跟高（約 ×0.80/0.38）；字更穩 */
+            background: rgba(235, 229, 216, 0.38);
+            background-image: none;
+        }
+        .home-drawer-list .home-slip.is-open { background: rgba(251, 248, 241, 0.59); background-image: none; }
+        .home-drawer-list .home-slip.is-active { background: rgba(251, 248, 241, 0.72); background-image: none; }
+        .dark-mode .home-drawer-list .home-slip { background: rgba(20, 17, 14, 0.46); background-image: none; }
+        .dark-mode .home-drawer-list .home-slip.is-open,
+        .dark-mode .home-drawer-list .home-slip.is-active { background: rgba(30, 26, 22, 0.67); background-image: none; }
         /*
          * 單行篇名＋作者：永不截斷／省略號。十二篇共用同一字級，隨抽屜內容區寬（cqw）縮放，
          * 使最長項（《廉頗藺相如列傳》（節錄）司馬遷）在窄屏仍一行內完整顯示。

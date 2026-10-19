@@ -52,8 +52,9 @@ export interface HeroScene {
 const BG = `${import.meta.env.BASE_URL}resources/background`;
 /** 水墨遮罩（邊緣墨暈壓背景、中心較透）；主頁預覽用（圖鑑內頁已去水墨）。z：山景 → 此層 → 立繪 → UI */
 export const INK_WASH_MASK = `${import.meta.env.BASE_URL}resources/effect/ink_wash_mask.webp`;
-/** 主頁山水單圖（用戶定稿）：抽屜以上滿幅；PNG 原檔禁 WebP／禁再壓 */
-export const HOME_SHANSHUI = `${import.meta.env.BASE_URL}resources/background/shanshui-full-above-drawer.png`;
+/** 主頁宣紙山水全頁底（art-xuan-shanshui-page-bg-r11 試套）：滿幅蓋白底＋取代舊 HOME_SHANSHUI；PNG 原檔禁 WebP／禁再壓 */
+export const HOME_SHANSHUI = `${import.meta.env.BASE_URL}resources/background/xuan-shanshui-page-bg-r11-full844.png`;
+export const HOME_SHANSHUI_2X = `${import.meta.env.BASE_URL}resources/background/xuan-shanshui-page-bg-r11-full844@2x.png`;
 /** 入陣卷軸（art2 定稿）。主頁 .home-cta：雙軸＋畫心 PNG 切分（≡ scroll-unroll-ref-r2；禁 scaleX）。 */
 export const SCROLL_ENTER_OPEN = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/open.webp`;
 export const SCROLL_ENTER_CLOSED = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/closed-axles-filled.webp`;

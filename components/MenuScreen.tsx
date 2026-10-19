@@ -280,7 +280,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
   const renderActiveTabContent = () => {
     const style = { '--slide-offset': slideDirection === 'right' ? '40px' : '-40px' } as any;
     return (
-      <div key={activeTab} className="w-full h-full tab-slide-dynamic" style={style}>
+      <div key={activeTab} className="w-full h-full tab-slide-dynamic" style={style} onAnimationEnd={(e) => { if (e.target === e.currentTarget) e.currentTarget.classList.add('is-settled'); }}>
         <Suspense fallback={<TabFallback />}>
         {(() => {
           switch (activeTab) {
@@ -372,8 +372,10 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
       <style>{`
         @keyframes dynamicTabSlide {
           from { transform: translateX(var(--slide-offset)); opacity: 0; filter: blur(4px); }
-          to { transform: translateX(0); opacity: 1; filter: blur(0); }
+          99% { transform: translateX(0); opacity: 1; filter: blur(0.01px); }
+          to { transform: translateX(0); opacity: 1; filter: none; }
         }
+        .tab-slide-dynamic.is-settled { filter: none !important; }
         .tab-slide-dynamic {
           animation: dynamicTabSlide 0.55s cubic-bezier(0.2, 1, 0.3, 1) forwards;
           width: 100%;

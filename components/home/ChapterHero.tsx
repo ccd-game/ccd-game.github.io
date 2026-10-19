@@ -4,7 +4,7 @@ import { LevelConfig } from '../../types';
 import { portraitKey, LAYERED_PORTRAITS } from '../../data/portraits';
 import { anchorStyle, chapterLabel, faceCircleStyle, type Target } from './heroUtils';
 import { useGyroParallax, type GyroLayer } from './useGyroParallax';
-import { HERO_SCENES, SCENE_TILES, INK_WASH_MASK, HOME_SHANSHUI, SCROLL_ENTER_AXLE_LEFT, SCROLL_ENTER_PAPER, SCROLL_ENTER_AXLE_RIGHT, computeHeroFit, heroFigStyle, pct, sceneVars } from './heroScene';
+import { HERO_SCENES, SCENE_TILES, INK_WASH_MASK, HOME_SHANSHUI, HOME_SHANSHUI_2X, SCROLL_ENTER_AXLE_LEFT, SCROLL_ENTER_PAPER, SCROLL_ENTER_AXLE_RIGHT, computeHeroFit, heroFigStyle, pct, sceneVars } from './heroScene';
 
 /**
  * 英雄區立繪目標（相對於立繪框 .home-fig-stage：寬 100%、高寬比 47:39，置頂；
@@ -154,9 +154,16 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
       onMouseDown={e => e.stopPropagation()}
       onMouseUp={e => e.stopPropagation()}
     >
-      {/* home-shanshui-only-r1：滿幅山水（內容頂→抽屜頂；略放大蓋陀螺露底）；人物／卷軸／HUD 在上 */}
+      {/* home-xuan-r11-tryfit：宣紙山水全頁底（full844）；人物／卷軸／HUD 在上；底欄叠淨紙 */}
       <div className="home-shanshui" aria-hidden="true">
-        <img src={HOME_SHANSHUI} alt="" draggable={false} width={1280} height={720} />
+        <img
+          src={HOME_SHANSHUI}
+          srcSet={`${HOME_SHANSHUI} 1x, ${HOME_SHANSHUI_2X} 2x`}
+          alt=""
+          draggable={false}
+          width={390}
+          height={844}
+        />
       </div>
       {/* 第一層：篇章場景（外框承載陀螺儀位移） */}
       {/* 無落地場景時才鋪篇章底圖；有 scene 時不再鋪 under-scene 模糊暗底（等同 wash） */}
@@ -231,9 +238,6 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
         </motion.div>
       </AnimatePresence>
       </div>
-
-      {/* 底部羽化：柔焦漸層（非硬黑邊、非舊墨黑 fade） */}
-      {scene && <div className={`home-scene-feather${isL2 ? ' is-l2' : ''}`} aria-hidden="true" />}
 
       {/* 第三層：火星（純裝飾；減少動態時隱藏） */}
       {!reduce && (
