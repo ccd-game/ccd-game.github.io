@@ -4,22 +4,33 @@
  * - 按下入陣：跳出小視窗選「深入不毛／驀然回首」（同時開始讀題庫、預載並解碼戰鬥所需圖片與程式碼）；
  * - 深入不毛：凍結主頁陀螺儀視差（保留當下位移），量測主頁場景，戰鬥頁在主頁底下掛好（同一場景），
  *   並把主頁的動畫進度（呼吸、飛劍路徑／浮動）原樣接到戰鬥頁（syncHeroAnimations），
- *   之後頂欄上滑出畫面、抽屜與底部導覽下滑出畫面（translateY，ease-in），篇名列與入陣鈕隨抽屜淡出下移；
- *   滑出完成即撤下主頁（下面已是相同畫面），再依原順序播戰鬥開場（金線 → 名字 → HP 條 → 題目／鍵盤）。
- * - 減少動態：不滑動，主頁整層淡出（下面即戰鬥畫面，不會閃白）。
+ *   之後兩段：① 先淡出主頁場景底（山水／gyro／hero-bg）露出戰鬥；② 再頂欄上滑、抽屜與底欄下滑，
+ *   篇名列與入陣鈕隨之淡出下移；完成即撤下主頁，再依原順序播戰鬥開場。
+ * - 減少動態：仍先場景後 HUD；時長縮短（不改順序）。
  */
 import type { LevelConfig } from '../../types';
 import { HERO_SCENES } from '../../components/home/heroScene';
 import { portraitKey } from '../../data/portraits';
 
-/** 主頁 UI 滑出的總時長（v1.3.3 的 460ms × 2）：頂欄 → 篇名列 → 入陣 → 抽屜 → 底部導覽依序錯開 */
+/** 段①：主頁場景底（山水／gyro／hero-bg／羽化／火星）opacity 淡出時長 */
+export const ENTER_SCENE_FADE_MS = 400;
+/** 段②：主頁 UI 滑出的總時長（頂欄 → 篇名列 → 入陣 → 抽屜 → 底部導覽依序錯開；delay＝場景淡出） */
 export const ENTER_EXIT_MS = 920;
 /** 錯開的間隔（5 組，最後一組在 4 × 間隔後開始） */
 export const ENTER_EXIT_STAGGER_MS = 100;
-/** 每一組自己的滑出時長：最後一組結束＝ENTER_EXIT_MS */
+/** 每一組自己的滑出時長：最後一組結束＝ENTER_EXIT_MS（自 HUD 開始算） */
 export const ENTER_EXIT_ITEM_MS = ENTER_EXIT_MS - 4 * ENTER_EXIT_STAGGER_MS;
-/** 減少動態：主頁整層淡出時長 */
+/** 減少動態：場景淡出時長（仍先於 HUD） */
+export const ENTER_REDUCED_SCENE_FADE_MS = 150;
+/** 減少動態：主頁整層淡出時長（接在場景淡出之後） */
 export const ENTER_REDUCED_FADE_MS = 300;
+
+/** 入陣 exit 總時長（場景淡出 + HUD／整層淡出） */
+export function enterExitTotalMs(reduced: boolean): number {
+  return reduced
+    ? ENTER_REDUCED_SCENE_FADE_MS + ENTER_REDUCED_FADE_MS
+    : ENTER_SCENE_FADE_MS + ENTER_EXIT_MS;
+}
 
 export function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);

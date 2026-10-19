@@ -319,15 +319,24 @@
         }
         .shake-active { animation: global-shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
 
-        /* 暫停頁與入陣小視窗共用的全頁模糊半透明遮罩 */
+        /* 暫停頁與入陣小視窗共用的全頁遮罩
+         * pause-overlay-edge-r1：原 rgba(10,10,10,0.95)+backdrop-filter 在 #root letterbox scale／
+         * 次像素緣會透出底層（戰鬥底區 --app-bg 宣紙色／場景），左右成 ≈1px 微線。
+         * 改實色 #0a0a0a，並 inset:-2px 蓋過 fringe（#root overflow:hidden 裁齊外緣）；
+         * 入陣窗同因同修（Tailwind inset-0 以 !important 蓋過）。未動 Boss／一源／HERO。 */
         .pause-overlay, .enter-modal-overlay {
-            background: rgba(10, 10, 10, 0.95); /* 0.75 → 0.95：底下的題目／文字幾乎看不清 */
+            background: #0a0a0a;
             -webkit-backdrop-filter: blur(24px); /* 先寫 -webkit-：寫在後面時建置只保留它，Chrome 模糊失效 */
             backdrop-filter: blur(24px);
+            inset: -2px !important; /* 蓋 scale／backdrop 左右微縫；勿改戰鬥幾何常數 */
+        }
+        /* 遮罩開啟時 #root 深墊，letterbox 外緣 AA 對黑邊勿混出宣紙亮縫 */
+        #root:has(.pause-overlay),
+        #root:has(.enter-modal-overlay) {
+            background-color: #0a0a0a;
         }
         .pause-overlay {
             position: absolute;
-            inset: 0;
             z-index: 99999;
             display: flex;
             flex-direction: column;
@@ -930,11 +939,7 @@
             /* 自中心外擴：p=1→inset 50%（全遮）；p=0→inset 0（全露）；禁改 width／scaleX */
             clip-path: inset(0 calc(var(--scroll-p, 1) * 50%) 0 calc(var(--scroll-p, 1) * 50%));
         }
-        /* :active 合上閃現：軸併攏＋畫心全遮 */
-        .home-cta:active .home-cta-scroll { --scroll-p: 1; }
-        .home-cta:active .home-cta-axle-left { transform: translateX(532.954545%); }
-        .home-cta:active .home-cta-axle-right { transform: translateX(-532.954545%); }
-        .home-cta:active .home-cta-paper { clip-path: inset(0 50% 0 50%); }
+        /* :active 勿覆寫 --scroll-p／軸／clip／label（點入陣開窗時展開態會被強制合上閃跳） */
         .home-cta-label {
             /* r8/r9: 「入陣」水平＋光學垂直置中（cy_up≈6；無紙底 backing） */
             position: absolute; inset: 0; z-index: 3;
@@ -951,7 +956,7 @@
             opacity: calc(1 - var(--scroll-p, 1));
             transition: none; /* 跟 --scroll-p 同鐘，無另跑 opacity 緩動 */
         }
-        .home-cta:active .home-cta-label { opacity: 0; } /* 合上態無紙面字 */
+        /* 保留輕微按下回饋；勿改卷軸幾何 */
         .home-cta:hover { filter: brightness(1.06); }
         .home-cta:active { transform: scale(.98); }
         .home-cta:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; filter: brightness(1.1); border-radius: 8px; }
@@ -1036,8 +1041,8 @@
         .home-dungeon {
             --bar-h: 52px;
             --drawer-min-rows: 4;
-            /* align-chrome-greenbar：抽屜頂（peek 分界）＝戰鬥綠線頂 Y=495；peek-h＝100%−(495−zone) */
-            --peek-h: calc(100% - (495px - var(--hud-vnext-zone-h)));
+            /* home-drawer-top-green-r1：可見紙緣＝綠線495；rect鎖493.5（frost頂→不透明紙≈+1.5）；禁信宣紙左右亮帶≈450 */
+            --peek-h: calc(100% - (493.5px - var(--hud-vnext-zone-h)));
             --scroll-p: 1; /* 進頁默認 open＝卷合上 */
             position: relative; height: 100%; overflow: hidden;
             /* ≈smoothstep；時長 ≡ scroll-unroll-ref-r2 1.60s */
@@ -1050,11 +1055,11 @@
         /* 可選 N=6：data-min-rows="6" → bar+22+(H−bar−56)/2（舊最低） */
         .home-dungeon[data-min-rows="6"] {
             --drawer-min-rows: 6;
-            --peek-h: calc(100% - (495px - var(--hud-vnext-zone-h)));
+            --peek-h: calc(100% - (493.5px - var(--hud-vnext-zone-h)));
         }
         .home-dungeon[data-min-rows="4"] {
             --drawer-min-rows: 4;
-            --peek-h: calc(100% - (495px - var(--hud-vnext-zone-h)));
+            --peek-h: calc(100% - (493.5px - var(--hud-vnext-zone-h)));
         }
         /* 英雄區下緣＝抽屜上緣（peek／open 皆貼 peek 線；不再有 closed＝只露 bar） */
         .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }
@@ -1249,27 +1254,34 @@ html[data-cinematic="1"] .btl-saber,
 html[data-cinematic="1"] .btl-saber-float,
 html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !important; }
 /* ── 入陣無縫轉場（src/lib/enterTransition.ts）──
-   戰鬥頁已在主頁底下掛好（背景／人物與主頁預覽同一位置），主頁只把 UI 滑走：
-   頂欄上滑出畫面、抽屜與底部導覽下滑出畫面（ease-in），篇名列／入陣鈕隨抽屜淡出下移；
+   戰鬥頁已在主頁底下掛好（背景／人物與主頁預覽同一位置）。兩段時序：
+   ① 先淡出主頁場景底（山水／gyro／hero-bg／羽化／火星）露出底下戰鬥場景；
+   ② 完成後才錯開滑走頂欄／篇名／入陣／抽屜／底欄 HUD。
    主頁底色改透明，被滑開的區域直接露出下面的戰鬥畫面（不閃白／米色）。 */
 .enter-busy { pointer-events: none !important; }
 .enter-exit, .enter-exit > *, .enter-exit .home-dungeon, .enter-exit main, .enter-exit .home-hero { background: transparent !important; background-color: transparent !important; }
-/* 錯開滑出（總長 --ee-dur＝920ms）：頂欄上滑 → 篇名列 → 入陣 → 抽屜 → 底部導覽下滑，每組延遲 --ee-step、各自長 --ee-item */
+/* 段① 場景淡出（--ee-scene；禁一進 enter-exit 就 visibility:hidden） */
 .enter-exit { --ee-ease: cubic-bezier(.55, 0, .8, .25); }
-.enter-exit .home-bar-top { animation: eeUp var(--ee-item, 520ms) var(--ee-ease) 0ms both; }
-.enter-exit .home-hero > .relative.z-10 > :not(.home-cta) { animation: eeFadeDown var(--ee-item, 520ms) var(--ee-ease) var(--ee-step, 100ms) both; }
-.enter-exit .home-hero > .relative.z-10 > .home-cta { animation: eeFadeDown var(--ee-item, 520ms) var(--ee-ease) calc(2 * var(--ee-step, 100ms)) both; }
-.enter-exit :is(.home-drawer, .home-drawer-chev) { animation: eeDown var(--ee-item, 520ms) var(--ee-ease) calc(3 * var(--ee-step, 100ms)) both; }
-.enter-exit .home-bar-bottom { animation: eeDown var(--ee-item, 520ms) var(--ee-ease) calc(4 * var(--ee-step, 100ms)) both; }
-.enter-exit :is(.home-scene-feather, .home-embers) { animation: eeFade var(--ee-dur, 920ms) ease-in forwards; }
-/* 主頁場景（背景／人物／飛劍）在滑出開始時（仍在選擇小視窗的模糊遮罩底下）換成下面同位置、同動畫進度的戰鬥場景 */
-:is(.enter-exit, .enter-exit-reduced) .home-hero :is(.home-gyro-layer, .home-hero-bg) { visibility: hidden; }
+.enter-exit .home-hero :is(.home-shanshui, .home-gyro-layer, .home-hero-bg),
+.enter-exit :is(.home-scene-feather, .home-embers) {
+  animation: eeFade var(--ee-scene, 400ms) ease-in both;
+}
+/* 段② HUD 錯開滑出：delay＝場景淡出時長；總 HUD 窗＝--ee-dur（920ms） */
+.enter-exit .home-bar-top { animation: eeUp var(--ee-item, 520ms) var(--ee-ease) var(--ee-scene, 400ms) both; }
+.enter-exit .home-hero > .relative.z-10 > :not(.home-cta) { animation: eeFadeDown var(--ee-item, 520ms) var(--ee-ease) calc(var(--ee-scene, 400ms) + var(--ee-step, 100ms)) both; }
+.enter-exit .home-hero > .relative.z-10 > .home-cta { animation: eeFadeDown var(--ee-item, 520ms) var(--ee-ease) calc(var(--ee-scene, 400ms) + 2 * var(--ee-step, 100ms)) both; }
+.enter-exit :is(.home-drawer, .home-drawer-chev) { animation: eeDown var(--ee-item, 520ms) var(--ee-ease) calc(var(--ee-scene, 400ms) + 3 * var(--ee-step, 100ms)) both; }
+.enter-exit .home-bar-bottom { animation: eeDown var(--ee-item, 520ms) var(--ee-ease) calc(var(--ee-scene, 400ms) + 4 * var(--ee-step, 100ms)) both; }
 @keyframes eeUp { to { translate: 0 calc(-100% - 8px); } }
 @keyframes eeDown { to { translate: 0 calc(100% + 40px); } }
 @keyframes eeFadeDown { to { translate: 0 56px; opacity: 0; } }
 @keyframes eeFade { to { opacity: 0; } }
-/* 減少動態：不滑動，主頁整層淡出（下面即相同場景的戰鬥畫面） */
-.enter-exit-reduced { animation: eeFade var(--ee-dur, 300ms) linear forwards; }
+/* 減少動態：仍先場景後 HUD；時長縮短 */
+.enter-exit-reduced .home-hero :is(.home-shanshui, .home-gyro-layer, .home-hero-bg),
+.enter-exit-reduced :is(.home-scene-feather, .home-embers) {
+  animation: eeFade var(--ee-scene, 150ms) ease-in both;
+}
+.enter-exit-reduced { animation: eeFade var(--ee-dur, 300ms) linear var(--ee-scene, 150ms) both; }
 
 /* 入陣小視窗開著：主頁預覽動畫（呼吸、飛劍、佩刀浮動、火星…）原地暫停，取消後由同一位置繼續；陀螺儀另以 data-enter-freeze 凍結 */
 html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { animation-play-state: paused !important; }

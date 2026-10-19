@@ -35,7 +35,7 @@ import BootLoadingMask from './components/BootLoadingMask';
 import AudioManager, { AudioManagerHandle, applyVolumeToTracks } from './components/AudioManager';
 import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence, recordLevelClear, deductUserStamina, refundUserStamina, clearStaminaRefundable } from './src/lib/firebase';
 import { useBattleRecorder } from './src/lib/useBattleRecorder';
-import { ENTER_EXIT_ITEM_MS, ENTER_EXIT_MS, ENTER_EXIT_STAGGER_MS, ENTER_REDUCED_FADE_MS, HomeSceneBox, measureHomeScene, preloadBattleImages, prefersReducedMotion, setEnterFreeze, setHomePause, syncHeroAnimations } from './src/lib/enterTransition';
+import { ENTER_EXIT_ITEM_MS, ENTER_EXIT_MS, ENTER_EXIT_STAGGER_MS, ENTER_REDUCED_FADE_MS, ENTER_REDUCED_SCENE_FADE_MS, ENTER_SCENE_FADE_MS, enterExitTotalMs, HomeSceneBox, measureHomeScene, preloadBattleImages, prefersReducedMotion, setEnterFreeze, setHomePause, syncHeroAnimations } from './src/lib/enterTransition';
 import EnterModeModal from './components/EnterModeModal';
 import StaminaModal from './components/StaminaModal';
 import { StaminaAttemptGuard } from './src/lib/stamina';
@@ -1120,7 +1120,7 @@ const App: React.FC = () => {
         if (cancelled) return;
         // 主頁動畫進度（呼吸、飛劍路徑／浮動）原樣接到戰鬥頁，之後同一 timeline 同速前進
         syncHeroAnimations(appRootRef.current?.querySelector('.home-hero') ?? null, battleClipRef.current);
-        // 主頁場景此刻已換成同位置的戰鬥場景（主頁場景隱藏），解除暫停好讓主頁 UI 的錯開滑出動畫播放
+        // 戰鬥已掛好並對齊相位；解除暫停，進入 exit：先場景淡出再 HUD 滑走
         setHomePause(false);
         setEnterPhase('exit');
       });
@@ -1137,7 +1137,7 @@ const App: React.FC = () => {
       const raf = requestAnimationFrame(() => {
         const anims = document.getAnimations().filter(an => names.has((an as Animation & { animationName?: string }).animationName ?? ''));
         const all = Promise.all(anims.map(an => an.finished.catch(() => undefined)));
-        const cap = new Promise(r => setTimeout(r, (enterReduced ? ENTER_REDUCED_FADE_MS : ENTER_EXIT_MS) + 600));
+        const cap = new Promise(r => setTimeout(r, enterExitTotalMs(enterReduced) + 600));
         Promise.race([all, cap]).then(() => { if (!cancelled) setEnterPhase('done'); });
       });
       return () => { cancelled = true; cancelAnimationFrame(raf); };
@@ -1253,7 +1253,7 @@ const App: React.FC = () => {
 
       {isAuthorized && (
       <div className={`absolute inset-0 transition-opacity ${enterPhase !== 'idle' ? 'duration-0' : 'duration-700'} ${showMenuScreen ? 'z-[500] opacity-100 pointer-events-auto' : 'z-0 opacity-0 pointer-events-none'}${enterPhase !== 'idle' ? ' enter-busy' : ''}${enterPhase === 'exit' ? (enterReduced ? ' enter-exit-reduced' : ' enter-exit') : ''}`}
-        style={enterPhase === 'exit' ? { '--ee-dur': `${enterReduced ? ENTER_REDUCED_FADE_MS : ENTER_EXIT_MS}ms`, '--ee-item': `${ENTER_EXIT_ITEM_MS}ms`, '--ee-step': `${ENTER_EXIT_STAGGER_MS}ms` } as React.CSSProperties : undefined}>
+        style={enterPhase === 'exit' ? { '--ee-dur': `${enterReduced ? ENTER_REDUCED_FADE_MS : ENTER_EXIT_MS}ms`, '--ee-item': `${ENTER_EXIT_ITEM_MS}ms`, '--ee-step': `${ENTER_EXIT_STAGGER_MS}ms`, '--ee-scene': `${enterReduced ? ENTER_REDUCED_SCENE_FADE_MS : ENTER_SCENE_FADE_MS}ms` } as React.CSSProperties : undefined}>
         <Suspense fallback={<SoftFallback />}>
         <MenuScreen
           levels={LEVELS_DATA}
