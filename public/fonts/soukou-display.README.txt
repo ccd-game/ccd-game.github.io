@@ -1,0 +1,14 @@
+蒼景明朝／装甲明朝 SoukouMincho（Flop Design；基於 Adobe 源ノ明朝 Source Han Serif）
+授權：SIL OFL 1.1（保留字型名 SoukouMincho／装甲明朝；本子集 CSS 名為 Soukou Mincho Display，未使用保留名）
+來源：用戶提供之 SoukouMincho.ttf（OFL）
+本檔為子集 woff2：以 pyftsubset 由原檔產生；字形未經修改。
+
+hud-vnext-hollow-home-r9-soukou：HUD 專用子集（含歐陽同學／校名／銅錢／全形與半形數字／EXP）。
+
+soukou-display-expand-r1（本輪）：
+- 既有 cmap 與 HUD 標籤字（歐陽同學、等級、EXP、體力、銅錢、同學、全形／半形數字與標點等）做 union，禁止縮小。
+- 併入 school-email-domain-map.csv 全部 22 校 zh_name（含佛教沈香林紀念中學等），以及 SCHOOLS_BY_EMAIL_DOMAIN 之救世軍卜維廉中學。
+- 另含示意暱稱「林同學」。
+- 覆蓋優先於舊 ≤150KB 目標；本檔約 120KB（122368 bytes）。
+- 源字型缺「銶」（順德聯誼總會梁銶琚中學）；其餘校名漢字皆在子集內。
+- CSS 暱稱／校名皆 font-weight:400（原字僅 Regular，禁合成粗體）。

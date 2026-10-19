@@ -7,6 +7,8 @@ import { subscribeToUser, TEST_USER_ID, UserData, watchAuthState } from '../src/
 import { getRequiredExpForLevel, expIntoLevel } from '../src/lib/levelSystem';
 import { MAX_STAMINA } from '../src/lib/playerData';
 import { staminaAt } from '../src/lib/stamina';
+import { SCHOOLS_BY_EMAIL_DOMAIN, schoolNameForEmail } from '../src/config/auth';
+import { shortLabelFor } from '../src/lib/displayLabel';
 
 // Default tab (dungeon) stays eager; other tabs + codex detail are lazy.
 const CharacterTab = lazy(() => import('./tabs/CharacterTab'));
@@ -49,14 +51,40 @@ const NavIconImg: React.FC<{ tab: MenuTab; active: boolean }> = ({ tab, active }
 
 /** 主頁圖殼資產（v1.3.15 r10b＋standalone-black-sat：browser／standalone 皆整圖匾殼＋獨立玉佩 PNG） */
 const CHROME_BASE = `${import.meta.env.BASE_URL}resources/ui/chrome`;
-/** browser：整張高清匾殼 PNG（禁三片拼／禁 webp） */
-const TOP_SHELL_FULL = `${CHROME_BASE}/top-hud-shell-plate.png`;
-/** 三段資產保留但 CSS 永隱藏（standalone 改上方黑邊吃 sat，禁中段拉伸） */
-const TOP_SHELL_TOPCAP = `${CHROME_BASE}/top-hud-shell-topcap.png`;
-const TOP_SHELL_MID = `${CHROME_BASE}/top-hud-shell-mid.png`;
-const TOP_SHELL_BOTTOM = `${CHROME_BASE}/top-hud-shell-bottom.png`;
-/** 等級玉佩獨立 PNG（禁 webp）；定位用 CSS bottom+left（量自 bdb8529） */
-const TOP_HUD_JADE = `${CHROME_BASE}/top-hud-level-jade.png`;
+/* r4：頂欄素殼已移除（懸浮 HUD） */
+/** hud-vnext-hollow-home-r9：懸浮；真刪素殼；量測 r2；短匣；單字族＋全形數值；EXP 弧下間隙 */
+const HUD_VNEXT_ORB_ARC = `${CHROME_BASE}/hud-vnext-orb-arc.png`;
+const HUD_VNEXT_ARC_FILL = `${CHROME_BASE}/hud-vnext-exp-arc-fill.png`;
+const HUD_VNEXT_STA_SHORT = `${CHROME_BASE}/hud-vnext-sta-short.png`;
+const HUD_VNEXT_COIN_SHORT = `${CHROME_BASE}/hud-vnext-coin-short.png`;
+/** r9：數值用全形數字，與「歐陽同學」同 face 明體字形（禁半形拉丁數字視覺異體） */
+const fwDigits = (n: number | string) =>
+  String(n).replace(/[0-9]/g, (d) => String.fromCharCode(0xff10 + Number(d)));
+/** HUD 名列：優先 profile.name（＝shortLabelFor(surname)）；示意 fallback 可覆寫 */
+function resolveHudName(data: Pick<UserData, 'name' | 'surname'>): string {
+  if (data.name && data.name !== '文言修煉者' && data.name !== '同學') return data.name;
+  if (data.surname) return shortLabelFor(data.surname);
+  return '歐陽同學';
+}
+/** HUD 校列：schoolDomain→SCHOOLS／displayLabel 拆分／email；示意 fallback 可覆寫 */
+function resolveHudSchool(
+  data: Pick<UserData, 'displayLabel' | 'schoolDomain'> & { schoolName?: string },
+  email?: string | null,
+): string {
+  if (typeof data.schoolName === 'string' && data.schoolName.trim()) return data.schoolName.trim();
+  const dom = data.schoolDomain;
+  if (typeof dom === 'string' && Object.prototype.hasOwnProperty.call(SCHOOLS_BY_EMAIL_DOMAIN, dom)) {
+    return SCHOOLS_BY_EMAIL_DOMAIN[dom];
+  }
+  const fromEmail = schoolNameForEmail(email);
+  if (fromEmail) return fromEmail;
+  const label = data.displayLabel;
+  if (typeof label === 'string') {
+    const m = label.match(/^(.+?)\s+\S*同學$/u);
+    if (m?.[1]?.trim()) return m[1].trim();
+  }
+  return '救世軍卜維廉中學';
+}
 const BOTTOM_SHELL_SRC = {
   webp: `${CHROME_BASE}/bottom-bar-shell.webp`,
   png: `${CHROME_BASE}/bottom-bar-shell.png`,
@@ -91,7 +119,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
 
-  const [playerData, setPlayerData] = useState<UserData & { maxStamina: number, maxExp: number }>({
+  const [playerData, setPlayerData] = useState<UserData & { maxStamina: number; maxExp: number; schoolName: string }>({
     name: "歐陽同學",
     level: 1,
     jiyuan: 0,
@@ -102,29 +130,37 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
     maxStamina: MAX_STAMINA,
     exp: 0,
     maxExp: 100,
+    schoolName: "救世軍卜維廉中學",
+    schoolDomain: "wbss.edu.hk",
     updatedAt: null
   });
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => watchAuthState((s) => {
     setIsGuest(s.status === 'guest' || s.isGuest === true);
+    setAuthEmail(s.user?.email ?? null);
   }), []);
 
   useEffect(() => {
     const unsubscribe = subscribeToUser(TEST_USER_ID, (data) => {
       if (data) {
-        setPlayerData(prev => ({
-          ...prev,
-          ...data,
-          name: (!data.name || data.name === "文言修煉者") ? "歐陽同學" : data.name,
-          maxStamina: MAX_STAMINA,
-          exp: expIntoLevel(data.level, data.exp), // exp 為累計值；經驗條只顯示本級內的進度
-          maxExp: getRequiredExpForLevel(data.level)
-        }));
+        setPlayerData(prev => {
+          const merged = { ...prev, ...data } as UserData & { schoolName?: string };
+          return {
+            ...prev,
+            ...data,
+            name: resolveHudName(data),
+            schoolName: resolveHudSchool(merged, authEmail),
+            maxStamina: MAX_STAMINA,
+            exp: expIntoLevel(data.level, data.exp), // 累計→本級內；EXP％同源
+            maxExp: getRequiredExpForLevel(data.level),
+          };
+        });
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [authEmail]);
 
   // 體力條：讀取時推算回復；至少每分鐘刷新一次倒數
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -258,55 +294,49 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
       `}</style>
 
       {/* 標題欄：玩家牌 */}
-      <header className={`home-bar home-bar-top home-chrome-shell-host absolute top-0 left-0 right-0 h-[88px] flex items-center z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
-        {/* r10b＋black-sat：browser／standalone 皆整張 plate PNG；segs display:none；禁 webp */}
-        <div className="home-chrome-shell home-chrome-shell--top" aria-hidden="true">
-          <img className="home-chrome-shell-full" src={TOP_SHELL_FULL} alt="" draggable={false} />
-          <div className="home-chrome-shell-segs">
-            <div className="home-chrome-shell-seg home-chrome-shell-seg--topcap">
-              <img src={TOP_SHELL_TOPCAP} alt="" draggable={false} />
+      <header className={`home-bar home-bar-top home-hud-vnext-host absolute top-0 left-0 right-0 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
+        {/* r6：真刪頂欄素殼；懸浮；量測 measure-tophud-r2 */}
+        <div className="home-hud-vnext" data-testid="home-hud-vnext">
+          <div className="home-hud-vnext-orb" aria-label={`等級 ${playerData.level}`}>
+            <div className="home-hud-vnext-orb-stack" aria-hidden="true">
+              <img className="home-hud-vnext-orb-img" src={HUD_VNEXT_ORB_ARC} alt="" draggable={false} width={690} height={634} />
+              <img className="home-hud-vnext-arc-fill" src={HUD_VNEXT_ARC_FILL} alt="" draggable={false} width={690} height={634} />
             </div>
-            <div className="home-chrome-shell-seg home-chrome-shell-seg--mid">
-              <img src={TOP_SHELL_MID} alt="" draggable={false} />
+            <div className="home-hud-vnext-orb-text">
+              <span className="home-hud-vnext-lv-label">等級</span>
+              <span className="home-hud-vnext-lv-num">{fwDigits(playerData.level)}</span>
             </div>
-            <div className="home-chrome-shell-seg home-chrome-shell-seg--bottom">
-              <img src={TOP_SHELL_BOTTOM} alt="" draggable={false} />
+            <svg className="home-hud-vnext-exp-svg" viewBox="0 0 100 100" aria-hidden="true">
+              <defs>
+                {/* r9＋exp-name-tighten-r1：path 維持；垂直上移 4px 見 CSS translateY */}
+                <path id="hud-vnext-exp-arc-path" d="M 14 108 A 42 18 0 0 0 86 108" fill="none" />
+              </defs>
+              <text
+                className="home-hud-vnext-exp-text" data-testid="hud-exp-text"
+                style={{ fontFamily: 'var(--hud-vnext-font)', fontWeight: 700 }}
+              >
+                <textPath href="#hud-vnext-exp-arc-path" startOffset="50%" textAnchor="middle" dy="4">
+                  {`EXP ${Math.max(0, Math.min(100, Math.round((playerData.exp / Math.max(1, playerData.maxExp)) * 100)))}%`}
+                </textPath>
+              </text>
+            </svg>
+          </div>
+          <div className="home-hud-vnext-mid">
+            <span className="home-hud-vnext-name" data-testid="hud-name">{playerData.name || '歐陽同學'}</span>
+            <span className="home-hud-vnext-school" data-testid="hud-school">{playerData.schoolName || '救世軍卜維廉中學'}</span>
+          </div>
+          <div className="home-hud-vnext-row home-hud-vnext-row--sta">
+            <span className="home-hud-vnext-row-label">體力</span>
+            <div className="home-hud-vnext-box home-hud-vnext-box--sta" aria-label={`體力 ${staminaView.stamina}／${playerData.maxStamina}`}>
+              <img className="home-hud-vnext-short" src={HUD_VNEXT_STA_SHORT} alt="" draggable={false} />
+              <span className="home-hud-vnext-box-val" data-testid="stamina-val">{staminaView.stamina}/{playerData.maxStamina}</span>
             </div>
           </div>
-        </div>
-        {/* 玉佩：r10d wrap 60.71 left:19.27 bottom:13.15；standalone 同錨（禁 6.5/7 覆寫） */}
-        <div className="home-lv-jade-wrap" aria-hidden="false">
-          <img className="home-lv-jade" src={TOP_HUD_JADE} alt="" draggable={false} width={61} height={62} />
-          <div className="home-lv-jade-text" aria-label={`等級 ${playerData.level}`}>
-            <span className="home-lv-label" aria-hidden="true">等級</span>
-            <span className="home-lv-num" aria-hidden="true">{playerData.level}</span>
-          </div>
-        </div>
-        <div className="flex-1 min-w-0 home-hud-mid">
-          {/* r9-jiyuan: 金幣＋數與名同列靠右；右緣對齊 meters（含右內距） */}
-          <div className="home-hud-stack">
-            <div className="home-hud-name-row">
-              <span className="home-name truncate">{playerData.name || '歐陽同學'}</span>
-              {/* r9-jiyuan: 只留金幣＋數字；無「機緣」字／膠囊邊 */}
-              <div className="home-coin" aria-label={`機緣 ${playerData.jiyuan}`}>
-                <span className="home-coin-icon" aria-hidden="true"></span>
-                <span className="home-coin-num" aria-hidden="true">{playerData.jiyuan.toLocaleString()}</span>
-              </div>
-            </div>
-            {/* r9: home HUD 無「遊客」標 */}
-            <div className="home-meter">
-              <span className="home-meter-label">經驗</span>
-              <div className="home-meter-track" role="progressbar" aria-label="經驗" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor((playerData.exp / playerData.maxExp) * 100)}>
-                <div className="home-meter-fill is-exp" style={{ width: `${Math.min(100, (playerData.exp / playerData.maxExp) * 100)}%` }}></div>
-              </div>
-              <span className="home-meter-val">{Math.floor((playerData.exp / playerData.maxExp) * 100)}%</span>
-            </div>
-            <div className="home-meter">
-              <span className="home-meter-label is-jade">體力</span>
-              <div className="home-meter-track" role="progressbar" aria-label="體力" aria-valuemin={0} aria-valuemax={playerData.maxStamina} aria-valuenow={staminaView.stamina}>
-                <div className="home-meter-fill is-stamina" style={{ width: `${staPct}%` }}></div>
-              </div>
-              <span className="home-meter-val" data-testid="stamina-val">{staminaView.stamina}/{playerData.maxStamina}</span>
+          <div className="home-hud-vnext-row home-hud-vnext-row--coin">
+            <span className="home-hud-vnext-row-label">銅錢</span>
+            <div className="home-hud-vnext-box home-hud-vnext-box--coin" aria-label={`銅錢 ${playerData.jiyuan}`}>
+              <img className="home-hud-vnext-short" src={HUD_VNEXT_COIN_SHORT} alt="" draggable={false} />
+              <span className="home-hud-vnext-box-val">{playerData.jiyuan}</span>
             </div>
           </div>
         </div>

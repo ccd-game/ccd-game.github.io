@@ -34,9 +34,11 @@ export interface HeroScene {
   topPad?: number;
   /** 疊在人物之上的前景層（與人物同框、同尺寸、逐像素對齊；例：孔子的雙馬＝武器層）。順序：背景 → 人物 → front */
   front?: string;
+  /** figScale 變換原點 Y（場景原圖像素）；缺省用 foot。設為眼線可使縮臉時眼位不動，便於對齊孔子內頁眼高 */
+  figOy?: number;
 }
 const BG = `${import.meta.env.BASE_URL}resources/background`;
-/** 水墨遮罩（邊緣墨暈壓背景、中心較透）；首頁預覽與圖鑑落地場景共用。z：山景 → 此層 → 立繪 → UI */
+/** 水墨遮罩（邊緣墨暈壓背景、中心較透）；主頁預覽用（圖鑑內頁已去水墨）。z：山景 → 此層 → 立繪 → UI */
 export const INK_WASH_MASK = `${import.meta.env.BASE_URL}resources/effect/ink_wash_mask.webp`;
 /** 主頁山水單圖（用戶定稿）：抽屜以上滿幅；PNG 原檔禁 WebP／禁再壓 */
 export const HOME_SHANSHUI = `${import.meta.env.BASE_URL}resources/background/shanshui-full-above-drawer.png`;
@@ -48,17 +50,26 @@ export const HERO_SCENES: Record<string, HeroScene> = {
   // zoomout bg：cover＋貼底（不露墨黑）；靴底（人物層 975,633）落在岩丘頂 (948,429.5)（受光岩緣 y≈426、實岩 y≈429–430，逐欄量測）
   // figScale 0.64（相對新背景）＝螢幕上與先前 0.8 版同大小；靴底 (948,429.5) 踩岩丘；bgZoom 1.14 @ x995 底邊讓岩台寬到膝下（跪坐在岩上）
   // fit 'headTop'：抽屜半開時英雄區變矮 → 人物大小不變，背景＋人物下移到帽頂留白 12px，下半身可被 UI／抽屜遮
-  liu_zong_yuan: { bg: `${BG}/bg_level_2.png`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 867, X: 0.53, head: 19, foot: 633, footX: 975, k: 1.62, breathe: '64.8% 79.9%', figScale: 0.64, fill: 'coverBottom', rest: [948, 429.5], bgZoom: [1.14, 995], fit: 'headTop' },
+  // ax＝face.cx（820）、X:0.5；figScale 0.758＝外頁 faceH 0.1949/0.126 換算（螢幕臉≈45）；figOy＝眼線；連動主頁
+  liu_zong_yuan: { bg: `${BG}/bg_level_2.png`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 820, X: 0.5, head: 19, foot: 633, footX: 975, k: 1.62, breathe: '64.8% 79.9%', figScale: 0.758, figOy: 125, fill: 'coverBottom', rest: [948, 429.5], bgZoom: [1.14, 995], fit: 'headTop' },
   // 坐於車中，放大約一成半；車輪著地，馬匹向右出框
   // v3 三層（1280×720 逐像素對齊）：kong_zi_bg → kong_zi_character（人物＋戰車）→ kong_zi_weapon（雙馬，疊在人物上）
   // head＝車蓋頂飾 y149.5；foot＝前輪著地 y640.9（後輪 623.2、馬蹄 659–705，皆在同一張背景的路面上；雙馬向右下出框）
   // v1.3.7：foot 705→640.9（全身入框改以「車蓋頂～前輪著地」為準）→ 場景放大、整體上移：390×844 背景頂高出畫面、不露鏡像，
-  //   且螢幕臉高（faceH 35）＝柳宗元（faceH 52×figScale 0.64）≈29px；ax 533→508（＝face.cx）讓內頁臉水平置中於 host 中線
+  //   且螢幕臉高（faceH 35）＝柳宗元（faceH 52×figScale 0.64）≈29px（髮際→頦 68 量法下約 38，見 NOTES 待決）；ax＝face.cx、X:0.5 置中
   // breathe 原點＝輪／蹄著地線（y≈662＝92%），呼吸時輪蹄不離地
-  kong_zi: { bg: `${BG}/kong_zi_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 508, X: 0.5, head: 149.5, foot: 640.9, k: 2.28, breathe: '45% 92%', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
-  // 立於殿前木棧（欄杆右側的地板），雙足踏地
+  // face-lock：figScale 1.548＝0.1949/0.126、figOy＝眼線 271（螢幕臉≈45、眼位維持）；連動主頁；戰鬥 heroSync 僅用 computeHeroFit（不受 figScale）
+  kong_zi: { bg: `${BG}/kong_zi_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 508, X: 0.5, head: 149.5, foot: 640.9, k: 2.28, breathe: '45% 92%', figScale: 1.548, figOy: 271, front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
+  // 廉藺 solo：ax＝face.cx、X:0.5；figScale 使螢幕臉高≈孔子 29.04；front＝各自虎層（青／金）
+  // 藺相如＝左文士＋青虎；廉頗＝右武將＋金虎
+  // headTop＋figOy=眼線：figScale 縮臉高≈29；眼位對齊孔子內頁 eyeY≈112.8＠host
+  // face-lock：figScale＝r2×(0.1949/0.126) 使內頁臉高隨外頁標註放大；figOy＝眼線鎖眼位；連動主頁
+  // 同 lian_lin_bg、ax 分左右 → 可見窗不同裁（藺 vis≈左、廉 vis≈右）；禁同框同裁
+  // 外頁頭框改動勿動此內頁基線（X:0.5／head:52.4／figScale:0.888）
+  lin_xiang_ru: { bg: `${BG}/lian_lin_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 482, X: 0.5, head: 52.4, foot: 600, k: 2.75, breathe: '37.7% 83%', figScale: 0.888, figOy: 168, fit: 'headTop', front: `${import.meta.env.BASE_URL}resources/avatar/lin_xiang_ru/lin_xiang_ru_weapon.png` },
+  lian_po: { bg: `${BG}/lian_lin_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 848, X: 0.5, head: 44.4, foot: 560, k: 2.75, breathe: '66.3% 78%', figScale: 0.737, figOy: 160, fit: 'headTop', front: `${import.meta.env.BASE_URL}resources/avatar/lian_po/lian_po_weapon.png` },
+  // 暫留：levels／主頁仍引用立繪；圖鑑外頁已無藝（完整刪檔待 levels／battle 同批）
   zhu_ge_liang: { bg: `${BG}/bg_level_9.jpeg`, w: 1408, h: 768, fig: [860, 140, 320, 560], ax: 1020, X: 0.52, head: 152, foot: 712, k: 2.31, breathe: '50% 99%' },
-  // 立於月下岩台
   li_bai: { bg: `${BG}/bg_level_11_1.png`, w: 2760, h: 1504, fig: [804, 270, 985, 900], ax: 1380, X: 0.5, head: 329, foot: 1200, k: 2.97, breathe: '50% 100%' },
 };
 // 只做左右鏡射補滿；下方不鏡射、無墨黑淡出／wash（zoomout bg 直通）
@@ -95,12 +106,13 @@ export const heroPeekHeight = (D: number, bar: number = DRAWER_BAR_H) => D - ((D
 
 /** 立繪框（.home-scene-fig）在場景中的位置＋靴底對岩頂的平移縮放 */
 export function heroFigStyle(scene: HeroScene): React.CSSProperties {
+  const oy = scene.figOy ?? scene.foot;
   return {
     left: pct(scene.fig[0], scene.w), top: pct(scene.fig[1], scene.h),
     width: pct(scene.fig[2], scene.w), height: pct(scene.fig[3], scene.h),
     ...((scene.figScale ?? 1) !== 1 || scene.rest ? {
       transform: `${scene.rest ? `translate(${pct(scene.rest[0] - (scene.footX ?? scene.ax), scene.fig[2])}, ${pct(scene.rest[1] - scene.foot, scene.fig[3])}) ` : ''}scale(${scene.figScale ?? 1})`,
-      transformOrigin: `${((scene.footX ?? scene.ax) - scene.fig[0]) / scene.fig[2] * 100}% ${(scene.foot - scene.fig[1]) / scene.fig[3] * 100}%`,
+      transformOrigin: `${((scene.footX ?? scene.ax) - scene.fig[0]) / scene.fig[2] * 100}% ${(oy - scene.fig[1]) / scene.fig[3] * 100}%`,
     } : {}),
   };
 }

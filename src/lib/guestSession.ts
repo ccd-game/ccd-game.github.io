@@ -30,6 +30,9 @@ export interface GuestUserData extends PlayerProgress {
   name?: string;
   surname?: string;
   surnameSource?: string | null;
+  /** 校名列（可覆寫）；預設示意字串 */
+  schoolName?: string;
+  schoolDomain?: string | null;
   updatedAt: null;
   /** 本場入陣後可戰敗返還一次（只存記憶體，不寫 sessionStorage） */
   staminaRefundable?: boolean;
@@ -49,6 +52,8 @@ export const GUEST_DEFAULT_USER_DATA: Readonly<GuestUserData> = Object.freeze({
   name: '歐陽同學',
   surname: '',
   surnameSource: null,
+  schoolName: '救世軍卜維廉中學',
+  schoolDomain: 'wbss.edu.hk',
   updatedAt: null,
   staminaRefundable: false,
 });

@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CHARACTER_DETAILS } from '../data/characters';
 import { portraitStyle, portraitKey, LAYERED_PORTRAITS } from '../data/portraits';
-import { HERO_SCENES, SCENE_TILES, INK_WASH_MASK, computeHeroFit, heroBgFrameStyle, heroFigStyle, heroPeekHeight, sceneVars } from './home/heroScene';
+import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, heroPeekHeight, sceneVars } from './home/heroScene';
+import { hasBossVoice, playBossVoice } from '../src/lib/bossVoice';
 
 /** 背景底部羽化的長度（px）：羽化在「名字」那一行結束 */
 const CODEX_FADE_PX = 140;
@@ -127,9 +128,6 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
                    style={i || j ? { left: `${i * 100}%`, top: `${j * 100}%`, transform: `scale(${i ? -1 : 1}, ${j ? -1 : 1})` } : undefined} />
                ))}
              </div>
-             <div className="home-ink-wash" aria-hidden="true">
-               <img src={INK_WASH_MASK} alt="" draggable="false" />
-             </div>
              <div className="home-scene home-scene-fig-frame is-fit" style={sceneVars(scene)}>
                <div className="home-scene-fig" style={heroFigStyle(scene)}>
                  <div className="codex-layer codex-fig-in" style={{ animation: `characterSlideIn ${animDuration} ${animTiming} forwards` }}>
@@ -226,6 +224,15 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
          </div>}
          
          {!scene && <div className="absolute inset-0 z-15 bg-gradient-to-b from-transparent via-transparent to-[var(--app-bg)] pointer-events-none"></div>}
+
+         {hasBossVoice(char.id) && (
+           <button
+             type="button"
+             aria-label="播放語音"
+             className="absolute inset-0 z-40 cursor-pointer bg-transparent border-0 p-0"
+             onClick={() => { playBossVoice(char.id); }}
+           />
+         )}
       </div>
 
       <div className="relative z-20 px-5 flex flex-col gap-0.5 pb-12" style={{ marginTop: '-12px' }}>

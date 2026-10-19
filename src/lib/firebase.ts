@@ -413,6 +413,8 @@ export interface UserData {
   /** 中文姓氏（可為空字串） */
   surname?: string;
   surnameSource?: SurnameSource | null;
+  /** 電郵網域（小寫）；對照 SCHOOLS_BY_EMAIL_DOMAIN → 校名列 */
+  schoolDomain?: string | null;
   updatedAt: { seconds: number; nanoseconds: number } | null | any;
 }
 
@@ -683,6 +685,7 @@ function toPublicUserData(raw: Record<string, unknown>): UserData {
     name: shortLabelFor(typeof raw.surname === 'string' ? raw.surname : ''),
     surname: sanitizeSurname(typeof raw.surname === 'string' ? raw.surname : ''),
     surnameSource: validSource(raw.surnameSource) ? raw.surnameSource : null,
+    schoolDomain: typeof raw.schoolDomain === 'string' ? raw.schoolDomain : null,
     updatedAt: raw.updatedAt ?? null,
   };
 }

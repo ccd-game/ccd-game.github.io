@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BATTLE_ANCHORS, BATTLE_SCENES, HOME_NAV_H, HOME_TOP_BAR_H, battleAnchorKey, bossNameSlotY, computeGroundedBattle } from '../../data/battleLayout';
 import { HERO_SCENES, computeHeroFit, heroPeekHeight } from '../../components/home/heroScene';
+import { PORTRAIT_ANCHORS } from '../../data/portraits';
 import { LEVELS_DATA } from '../../data/levels';
 
 describe('孔子 v3 三層場景（第 6 關）', () => {
@@ -49,7 +50,9 @@ describe('孔子 v3 三層場景（第 6 關）', () => {
     expect(kz.top + 149.5 * kz.s).toBeGreaterThanOrEqual(11.9);    // 車蓋頂飾不出框
     const r = computeGroundedBattle(BATTLE_ANCHORS[key], BATTLE_SCENES[key], W, H)!;
     expect(r.sceneBox.mirrorTiles).toBe(false);
-    const kzFace = 35 * kz.s, lzFace = 52 * lz.s * (HERO_SCENES.liu_zong_yuan.figScale ?? 1);
+    // face-lock：螢幕臉高＝ANCHOR.faceH × fit.s × figScale（孔 35／柳 68；±5%）
+    const kzFace = PORTRAIT_ANCHORS.kong_zi.faceH * kz.s * (HERO_SCENES.kong_zi.figScale ?? 1);
+    const lzFace = PORTRAIT_ANCHORS.liu_zong_yuan.faceH * lz.s * (HERO_SCENES.liu_zong_yuan.figScale ?? 1);
     expect(Math.abs(kzFace / lzFace - 1)).toBeLessThan(0.05);
   });
 });

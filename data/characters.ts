@@ -5,7 +5,25 @@ export const CHARACTER_DETAILS: Record<number, {
   leaderSkill: { name: string, desc: string },
   activeSkills: { name: string, desc: string }[] 
 }> = {
-  2: { 
+  1: {
+    bio: "【待文案】戰國趙之上卿。完璧歸趙、澠池之會，以先國家之急而後私讎，終與廉頗為刎頸之交。",
+    stats: { hp: 880, atk: 82 },
+    leaderSkill: { name: "先國家之急【待文案】", desc: "【隊長技】全隊防禦提升 25%，答對時額外回復少量生命。【待文案】" },
+    activeSkills: [
+      { name: "完璧歸趙【待文案】", desc: "本回合答題正確時，額外造成一次傷害。【待文案】" }
+    ]
+  },
+  // 廉＝02（原 17 方案作廢）；柳原佔 2，遷至 18
+  2: {
+    bio: "【待文案】戰國趙之名將。負荊請罪，以勇氣聞於諸侯；與藺相如為刎頸之交，共保趙國。",
+    stats: { hp: 1100, atk: 95 },
+    leaderSkill: { name: "負荊請罪【待文案】", desc: "【隊長技】全隊攻擊提升 30%；生命低於半時防禦提高。【待文案】" },
+    activeSkills: [
+      { name: "一飯斗米【待文案】", desc: "對敵方造成高額傷害，並短暫降低其防禦。【待文案】" }
+    ]
+  },
+  // 柳暫 id＝18（原 2 讓予廉），待主管若要改回
+  18: { 
     bio: "唐代大文學家，謫居永州期間發現西山之美，體悟物我合一之境。其文筆洗鍊，風格峻潔。",
     stats: { hp: 850, atk: 78 },
     leaderSkill: { name: "萬化冥合", desc: "【隊長技】全隊文言題攻擊力提升 50%，無視 20% 防禦。" },

@@ -366,6 +366,12 @@
             src: url('/fonts/genwan-display.woff2') format('woff2');
             font-weight: 100 900; font-style: normal; font-display: block;
         }
+        /* hud-vnext：裝甲明朝（僅頂 HUD 經 --hud-vnext-font 引用；底欄美人篆不動） */
+        @font-face {
+            font-family: 'Soukou Mincho Display';
+            src: url('/fonts/soukou-display.woff2') format('woff2');
+            font-weight: 100 900; font-style: normal; font-display: block;
+        }
         /* 主頁朱印：王漢宗印篆體（GPL v2 自由字型子集）。 */
         @font-face {
             font-family: 'Wang InJang Seal';

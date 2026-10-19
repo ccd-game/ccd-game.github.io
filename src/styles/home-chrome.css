@@ -214,7 +214,7 @@ html.is-standalone .home-chrome-shell-segs {
 }
 
 /* 內容／按鈕在殼之上；金框 z=1，內容須蓋過金框不透明玉心才能見「地城」
-   注意：.home-lv-jade-text 必須保持 absolute 叠在玉佩上，勿列入 relative */
+   （舊玉佩／home-hud-mid 頂欄結構已刪於 r3） */
 .home-chrome-shell-host > .flex-1,
 .home-chrome-shell-host > .home-nav-btn,
 .home-nav-keys-layer > .home-nav-btn {
@@ -222,139 +222,18 @@ html.is-standalone .home-chrome-shell-segs {
   z-index: 2;
 }
 
-/* 玉佩 wrap：r8＝r7×0.95 右上縮；left/bottom 錨（r10d＝19.27／13.15；自 r10c＋5）
-   wrapW=60.71；禁 top 錨；standalone 錨仍 6.5/7 不動 */
-.home-lv-jade-wrap {
-  position: absolute;
-  left: 19.27px;
-  bottom: 13.15px;
-  top: auto;
-  width: 60.71px;
-  height: auto;
-  aspect-ratio: 1024 / 1039;
-  z-index: 2;
-  pointer-events: none;
-}
-.home-lv-jade {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-/* 等級文字：bottom 錨填滿 wrap（禁 top）；r8 translateY 光學置中 */
-.home-lv-jade-text {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  top: auto; /* 硬鎖：文字禁 top 錨 */
-  width: auto;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  pointer-events: none;
-  z-index: 3;
-  color: var(--ink, #2a2418);
-  background: none;
-  clip-path: none;
-  padding: 0;
-  box-sizing: border-box;
-  /* r8：wrap×0.95；translateY≈0.72 光學置中（勿動 wrap left/bottom） */
-  transform: translateY(0.72px);
-}
-.home-lv-jade-text .home-lv-label {
-  font-family: var(--font-display);
-  font-size: 9.5px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 1px;
-  opacity: 0.9;
-  margin: 0;
-  padding: 0;
-  text-align: center;
-  width: 100%;
-}
-.home-lv-jade-text .home-lv-num {
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 19px;
-  line-height: 1.05;
-  margin: 0;
-  padding: 0;
-  text-align: center;
-  width: 100%;
-}
+/* 舊等級玉佩 CSS 已刪（hud-vnext-hollow-home-r3） */
 
 /* r9: 中欄左緣＝經驗標左緣（≈96 @390）；頂欄圖殼玉佩佔左 */
 .home-bar-top.home-chrome-shell-host {
-  padding-left: 96px !important;
-  padding-right: 28px !important; /* r9-jiyuan: meters／金幣離殼內右緣留明顯空隙 */
+  /* r3：舊玉佩左墊已廢；有 .home-hud-vnext 時由 :has 覆寫 */
+  padding-left: 4px !important;
+  padding-right: 8px !important;
   gap: 0 !important;
   box-sizing: border-box;
-  /* chrome-min-r2: 雲底可向下超出分區；勿裁 */
   overflow: visible !important;
 }
-/* HUD 文字方案 A：三行略上移＋行距均分，離 tophud 底留空；bottom 錨（禁 top／margin-top） */
-.home-hud-mid {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  justify-content: stretch;
-  align-items: stretch;
-  min-width: 0;
-  align-self: stretch;
-  height: 100%;
-  padding-top: 10px; /* 離匾頂內緣 */
-  padding-bottom: 10px; /* 離匾底內緣；三數均分占高 */
-  box-sizing: border-box;
-}
-/* r9-jiyuan: 名＋金幣數同列靠右；經驗／體力 gap 均分；右緣＝meters 右緣 */
-.home-hud-stack {
-  /* r10d：三行等分占高 → 金幣／0%／100⁄100 右側垂直均分（勿 flex gap 擠堆） */
-  display: grid;
-  grid-template-rows: 1fr 1fr 1fr;
-  align-items: center;
-  justify-items: stretch;
-  gap: 0;
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-  width: 100%;
-  height: 100%;
-  padding-right: 0;
-  margin-top: 0;
-  margin-bottom: 0;
-}
-.home-hud-name-row {
-  display: flex;
-  flex-direction: row;
-  align-items: center; /* r9-jiyuan: 與名同行／同頂緣感 */
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  min-width: 0;
-}
-.home-hud-name-row .home-name {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.home-hud-name-row .home-coin {
-  flex: 0 0 auto;
-  position: static;
-  top: auto;
-  right: auto;
-  z-index: auto;
-  margin: 0;
-  /* r9-jiyuan: 無膠囊；靠右與名同列 */
-  align-self: center;
-}
+/* 舊 home-hud-mid／stack／name-row 已隨頂欄 DOM 刪除 */
 
 /* 金線 PNG 圖示 */
 .home-nav-icon-img {
@@ -448,25 +327,6 @@ html.is-standalone #root::before {
   html.is-standalone .home-bar-top.home-chrome-shell-host ~ main {
     padding-top: var(--hud-vnext-zone-h) !important; /* zone-lock-r1：已含 sat */
   }
-  /* 玉佩：沿用 browser r10d left:19.27 bottom:13.15；禁 standalone 6.5/7 覆寫 */
-
-  /* HUD 文字／玉佩字：bottom 錨，勿 top 飛（與 browser 同 88 高內布局） */
-  html.is-standalone .home-hud-mid {
-    justify-content: stretch;
-    padding-top: 11px;
-    padding-bottom: 12px;
-  }
-  html.is-standalone .home-hud-stack {
-    margin-top: 0;
-    margin-bottom: 0;
-    gap: 0;
-    align-content: stretch;
-  }
-  html.is-standalone .home-lv-jade-text {
-    top: auto;
-    bottom: 0;
-    height: 100%;
-  }
   /* 五鍵層始終貼殼：sab 加大 nav 時不抬鍵；仍 0.9× 寬（底 letterbox 不動） */
   html.is-standalone .home-nav-keys-layer {
     left: 5%;
@@ -507,23 +367,6 @@ html.is-standalone #root::before {
   .home-bar-top.home-chrome-shell-host ~ main {
     padding-top: var(--hud-vnext-zone-h) !important; /* zone-lock-r1：已含 sat */
   }
-  /* 玉佩：不覆寫 → browser r10d */
-  .home-hud-mid {
-    justify-content: stretch;
-    padding-top: 11px;
-    padding-bottom: 12px;
-  }
-  .home-hud-stack {
-    margin-top: 0;
-    margin-bottom: 0;
-    gap: 0;
-    align-content: stretch;
-  }
-  .home-lv-jade-text {
-    top: auto;
-    bottom: 0;
-    height: 100%;
-  }
   .home-nav-keys-layer {
     left: 5%;
     width: 90%;
@@ -540,4 +383,253 @@ html.is-standalone #root::before {
 /* 殊遇（visit／gacha）：質量心偏左 ≈4.5px@128 → 顯示約 +1px 右移（r5：相對 r4 左移 3px）與字光學置中 */
 .home-nav-btn[data-tab="gacha"] .home-nav-icon-img {
   transform: translateX(1px);
+}
+
+
+/* ===== hud-vnext-hollow-home-r9：單一 --hud-vnext-font（禁 GenWanMin2）；全形數值；EXP 弧下間隙 ===== */
+/* 量測同 r6/r7：珠 center(53.8,59.5)；體力(281,39.5)92.2×26.5；銅錢(281.5,76)91.8×26.5 */
+
+.home-bar-top.home-hud-vnext-host {
+  --hud-vnext-font: 'Soukou Mincho Display', serif;
+  height: 118px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  pointer-events: none;
+  font-family: var(--hud-vnext-font) !important;
+}
+
+.home-hud-vnext {
+  --hud-vnext-font: 'Soukou Mincho Display', serif;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 390px;
+  height: 118px;
+  pointer-events: none;
+  z-index: 2;
+  font-family: var(--hud-vnext-font) !important;
+}
+
+/* 硬鎖：所有文字節點（含 SVG）family 與「歐陽同學」完全一致；子元素禁另開 font-family */
+.home-hud-vnext,
+.home-hud-vnext *,
+.home-hud-vnext text,
+.home-hud-vnext textPath {
+  font-family: var(--hud-vnext-font) !important;
+  font-synthesis: none;
+  font-variant-numeric: normal;
+}
+
+.home-hud-vnext-orb {
+  position: absolute;
+  left: 53.8px;
+  top: 59.5px;
+  width: 78px;
+  height: auto;
+  aspect-ratio: 690 / 634;
+  transform: translate(-50%, -42%);
+  margin: 0;
+  z-index: 3;
+  overflow: visible;
+}
+.home-hud-vnext-orb-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 690 / 634;
+}
+.home-hud-vnext-orb-img,
+.home-hud-vnext-arc-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.home-hud-vnext-orb-img {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 2px 3px rgba(40, 30, 10, 0.3));
+}
+.home-hud-vnext-arc-fill {
+  /* hollow：靜態弧填圖（資產全透明）；禁進度填滿／conic／動態 clip；預設未填滿 */
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  opacity: 0; /* 未填滿／無進度填滿 */
+}
+.home-hud-vnext-orb-text {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  /* 等級／1 下移 5px；珠圖／弧／fill 不動 */
+  transform: translate(-50%, calc(-50% + 5px));
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #2a2418;
+  width: 58%;
+  pointer-events: none;
+  font-family: var(--hud-vnext-font) !important;
+}
+.home-hud-vnext-lv-label {
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.8px;
+  opacity: 0.92;
+}
+.home-hud-vnext-lv-num {
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1.05;
+  margin-top: 0;
+}
+/* EXP：textPath 在弧槽外緣之下 */
+.home-hud-vnext-exp-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 4;
+  pointer-events: none;
+  overflow: visible;
+  font-family: var(--hud-vnext-font) !important;
+}
+.home-hud-vnext-exp-text {
+  font-size: 8.5px; /* exp-name-tighten-r3 */
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  fill: #3a3228;
+  font-family: var(--hud-vnext-font) !important;
+  filter: drop-shadow(0 0 1.5px rgba(255,255,255,0.95));
+  /* r4：8.5px 維持；間隙≈0.3–0.5；試 -6.85→0.79／-7.2→0.54／-7.35→0.43(但50%觸邊)，定 -7.25；path/dy／名／校／匣／zone 不動 */
+  transform: translateY(-7.25px);
+}
+
+.home-hud-vnext-mid {
+  position: absolute;
+  left: 106px; /* r2：相對 r1 右移 8 */
+  top: 58.47px; /* name-school-align-coin-r3：school.midY≈coinLabel.midY；left／字級／hright 禁動 */
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  z-index: 3;
+  overflow: visible;
+  font-family: var(--hud-vnext-font) !important;
+}
+.home-hud-vnext-name {
+  font-weight: 400;
+  font-size: 18px; /* exp-name-tighten-r2 */
+  letter-spacing: 0.4px;
+  color: #2a2418;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 0 0 4px rgba(255,255,255,0.9);
+  font-family: var(--hud-vnext-font) !important;
+}
+.home-hud-vnext-school {
+  font-weight: 400;
+  font-size: 12px; /* exp-name-tighten-r2 */
+  letter-spacing: 0.1px;
+  color: #2a2418;
+  opacity: 0.88;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  text-shadow: 0 0 3px rgba(255,255,255,0.85);
+  font-family: var(--hud-vnext-font) !important;
+}
+
+.home-hud-vnext-row {
+  position: absolute;
+  z-index: 3;
+  font-family: var(--hud-vnext-font) !important;
+}
+.home-hud-vnext-row--sta {
+  left: 281px;
+  top: 39.5px;
+  width: 92.2px;
+  height: 26.5px;
+}
+.home-hud-vnext-row--coin {
+  left: 281.5px;
+  top: 76px;
+  width: 91.8px;
+  height: 26.5px;
+}
+.home-hud-vnext-row-label {
+  position: absolute;
+  right: 100%;
+  margin-right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: #2a2418;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 0 3px rgba(255,255,255,0.9);
+  font-family: var(--hud-vnext-font) !important;
+}
+.home-hud-vnext-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(40, 30, 10, 0.22));
+}
+.home-hud-vnext-box--sta,
+.home-hud-vnext-box--coin {
+  width: 100%;
+  height: 100%;
+}
+.home-hud-vnext-short {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left center;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.home-hud-vnext-box-val {
+  position: absolute;
+  left: 28%;
+  right: 6%;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: normal;
+  /* nums-tracking-r1：全形數字收緊；對準 approved-r2/02 trough；禁改匣尺寸 */
+  letter-spacing: 0; /* nums-halfwidth-qijic-r1 A：半形 100/100；＠zone-lock 實測 pad≥2、／Δx≈-0.18 */
+  color: #2a2418;
+  text-align: center;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  font-family: var(--hud-vnext-font) !important;
+}
+/* sta-coin-hright-r2：置右＋右多留白 padR≈5.5＠390（sta tx 8.0／coin tx 19.6） */
+.home-hud-vnext-row--sta .home-hud-vnext-box-val {
+  transform: translate(8.0px, -50%); /* hright-r2：padR≈5.51 */
+}
+.home-hud-vnext-row--coin .home-hud-vnext-box-val {
+  transform: translate(19.6px, -50%); /* hright-r2：padR≈5.48 */
 }

@@ -8,53 +8,92 @@ interface CharacterTabProps {
   onShowDetail: (char: any) => void;
 }
 
+type CodexEntry = {
+  id: number;
+  name: string;
+  title: string;
+  /** 關聯戰鬥關卡（取 bg）；廉／藺共用 level 1 */
+  levelId: number;
+  img?: string;
+  /** 外頁可選虎／武器層（與人物同幅，同 portraitStyle） */
+  weaponImg?: string;
+  /** 外頁卡背景（缺省用 level.bgImg） */
+  bgImg?: string;
+  /** 外頁 bg object-position（同關 bg 分裁：藺偏左、廉偏右） */
+  bgObjectPosition?: string;
+};
+
+/**
+ * 圖鑑格：原「廉頗&藺相如」合併格拆為兩人。
+ * 廉＝id 2；柳暫 id＝18（原 2 讓予廉），levelId 仍 2。
+ * 顯示順序：藺 → 廉 → 柳 → …
+ * 諸葛（09）／李白（12）：無立繪圖（資產已刪）。
+ */
+const AV = `${import.meta.env.BASE_URL}resources/avatar`;
+const BG = `${import.meta.env.BASE_URL}resources/background`;
+const CODEX_ENTRIES: CodexEntry[] = [
+  { id: 1,  name: '藺相如', title: '《廉頗藺相如列傳》', levelId: 1,
+    img: `${AV}/lin_xiang_ru/lin_xiang_ru_character.png`,
+    weaponImg: `${AV}/lin_xiang_ru/lin_xiang_ru_weapon.png`,
+    bgImg: `${BG}/lian_lin_bg.webp`,
+    bgObjectPosition: '37.7% 45%' },  // faceX 482/1280 — 偏左景
+  { id: 2,  name: '廉頗',   title: '《廉頗藺相如列傳》', levelId: 1,
+    img: `${AV}/lian_po/lian_po_character.png`,
+    weaponImg: `${AV}/lian_po/lian_po_weapon.png`,
+    bgImg: `${BG}/lian_lin_bg.webp`,
+    bgObjectPosition: '66.3% 45%' },  // faceX 848/1280 — 偏右景
+  { id: 18, name: '柳宗元', title: '《始得西山宴遊記》', levelId: 2,
+    img: `${AV}/liu_zong_yuan/liu_zong_yuan.png` },
+  { id: 3,  name: '范仲淹', title: '《岳陽樓記》', levelId: 3 },
+  { id: 4,  name: '韓愈',   title: '《師說》', levelId: 4 },
+  { id: 5,  name: '荀子',   title: '《勸學》', levelId: 5,
+    img: `${AV}/kong_zi/kong_zi_character.webp` },
+  { id: 6,  name: '孔子',   title: '《論仁、論孝、論君子》', levelId: 6,
+    img: `${AV}/kong_zi/kong_zi_character.webp` },
+  { id: 7,  name: '孟子',   title: '《魚我所欲也》', levelId: 7 },
+  { id: 8,  name: '莊子',   title: '《逍遙遊》', levelId: 8 },
+  { id: 9,  name: '諸葛亮', title: '《出師表》', levelId: 9 },
+  { id: 10, name: '蘇洵',   title: '《六國論》', levelId: 10 },
+  { id: 11, name: '王維',   title: '《山居秋暝》', levelId: 11 },
+  { id: 12, name: '李白',   title: '《月下獨酌》', levelId: 11 },
+  { id: 13, name: '杜甫',   title: '《登樓》', levelId: 11 },
+  { id: 14, name: '蘇軾',   title: '《念奴嬌．赤壁懷古》', levelId: 12 },
+  { id: 15, name: '李清照', title: '《聲聲慢．秋情》', levelId: 12 },
+  { id: 16, name: '辛棄疾', title: '《青玉案．元夕》', levelId: 12 },
+];
+
+/**
+ * 解鎖：廉／藺暫開；柳改認 id 18；既有 6／9／12 邏輯保留。
+ */
+function isCodexUnlocked(id: number, levels: LevelConfig[]): boolean {
+  if (id === 1 || id === 2) return true; // 廉／藺暫開，待關卡邏輯定案
+  if (id === 18 || id === 6 || id === 9) return true;
+  if (id === 12 && levels.find(l => l.id === 11)?.locked === false) return true;
+  if (id === 11 || id === 13) return false;
+  return false;
+}
+
 const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => {
-  const DEFAULT_IMG = `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan.png`;
 
   const allCharacters = useMemo(() => {
-    const SPECIAL_MAP: Record<number, { name: string; title: string; img?: string }> = {
-      1: { name: "廉頗&藺相如", title: "《廉頗藺相如列傳》", img: `${import.meta.env.BASE_URL}resources/avatar/liu_zong_yuan/liu_zong_yuan.png` },
-      5: { name: "荀子", title: "《勸學》", img: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_character.webp` },
-      6: { name: "孔子", title: "《論仁、論孝、論君子》", img: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_character.webp` },
-      9: { name: "諸葛亮", title: "《出師表》", img: `${import.meta.env.BASE_URL}resources/avatar/zhu_ge_liang/zhu_ge_liang.png` },
-      11: { name: "王維", title: "《山居秋暝》", img: DEFAULT_IMG },
-      12: { name: "李白", title: "《月下獨酌》", img: `${import.meta.env.BASE_URL}resources/avatar/li_bai/li_bai.png` },
-      13: { name: "杜甫", title: "《登樓》", img: DEFAULT_IMG },
-      14: { name: "蘇軾", title: "《念奴嬌．赤壁懷古》" },
-      15: { name: "李清照", title: "《聲聲慢．秋情》" },
-      16: { name: "辛棄疾", title: "《青玉案．元夕》" }
-    };
-
-    return Array.from({ length: 16 }, (_, i) => {
-      const id = i + 1;
-      let levelData: LevelConfig | undefined;
-      if (id <= 10) levelData = levels.find(l => l.id === id);
-      else if (id <= 13) levelData = levels.find(l => l.id === 11); 
-      else levelData = levels.find(l => l.id === 12);              
-
-      let isUnlocked = (id === 2 || id === 6 || id === 9); 
-      if (id === 12 && levels.find(l => l.id === 11)?.locked === false) isUnlocked = true;
-      if (id === 11 || id === 13) isUnlocked = false; 
-
-      const charInfo = SPECIAL_MAP[id] || {
-        name: levelData?.bossName || "未具名聖賢",
-        title: levelData?.title ? `《${levelData.title.replace(/[《》]/g, '')}》` : "《秘傳篇章》"
-      };
-
-      const bgOpacity = 0.32; 
-      const bgFilter = "grayscale(0.7) contrast(1.6) brightness(1.15)";
-      const mixBlendMode = "normal";
-
+    return CODEX_ENTRIES.map((entry) => {
+      const levelData = levels.find(l => l.id === entry.levelId);
+      const unlocked = isCodexUnlocked(entry.id, levels);
+      // 諸葛／李白等無 img：不回落 DEFAULT，避免殘圖
+      const img = entry.img ?? (entry.id === 9 || entry.id === 12 ? undefined : (levelData?.bossImg || undefined));
       return {
-        id,
-        name: charInfo.name,
-        img: charInfo.img || levelData?.bossImg || DEFAULT_IMG,
-        bgImg: levelData?.bgImg,
-        unlocked: isUnlocked,
-        title: charInfo.title,
-        bgOpacity,
-        bgFilter,
-        mixBlendMode
+        id: entry.id,
+        name: entry.name,
+        img: img || '',
+        weaponImg: entry.weaponImg,
+        bgImg: entry.bgImg || levelData?.bgImg,
+        bgObjectPosition: entry.bgObjectPosition,
+        unlocked,
+        title: entry.title,
+        bgOpacity: 0.6,
+        bgFilter: '',  // OFF：無 grayscale／contrast／brightness
+        mixBlendMode: 'normal' as const,
+        hasArt: Boolean(img),
       };
     });
   }, [levels]);
@@ -73,7 +112,7 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
         {allCharacters.map((char) => (
           <div 
             key={char.id} 
-            onClick={() => char.unlocked && onShowDetail(char)}
+            onClick={() => char.unlocked && char.hasArt && onShowDetail(char)}
             className={`
               aspect-[3/4.6] relative rounded-lg transition-all duration-700 overflow-hidden
               ${char.unlocked 
@@ -86,7 +125,7 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
               border: char.unlocked ? '1.5px solid #c5a059' : '1px solid #d1d1d1',
             }}
           >
-            {char.unlocked && char.bgImg && (
+            {char.unlocked && char.bgImg && char.hasArt && (
               <div 
                 className="absolute inset-0 z-0 pointer-events-none"
                 style={{ opacity: char.bgOpacity, mixBlendMode: char.mixBlendMode as any }}
@@ -95,12 +134,14 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
                   src={char.bgImg} 
                   alt="" 
                   className="w-full h-full object-cover"
-                  style={{ filter: char.bgFilter }}
+                  style={{
+                    filter: char.bgFilter,
+                    objectPosition: char.bgObjectPosition || '50% 50%',
+                  }}
                 />
               </div>
             )}
-            
-            <div className="absolute inset-0 z-[1] bg-[#e8e2d5] opacity-50" style={{ background: 'radial-gradient(circle at center, transparent 0%, #e8e2d5 90%)' }}></div>
+            {/* 米色徑向遮罩已刪：外頁背景只留關卡 bg 一層（opacity 0.6） */}
             <div className={`absolute inset-[6px] border border-[#c5a059]/30 pointer-events-none rounded-sm z-10`}></div>
 
             <div 
@@ -122,13 +163,25 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
             </div>
 
             <div className="absolute inset-0 z-10 flex items-center justify-center overflow-hidden">
-              {char.unlocked ? (
-                <img 
-                  src={char.img} 
-                  alt="" 
-                  className="filter drop-shadow(0 12px 15px rgba(0,0,0,0.4))"
-                  style={portraitStyle(char.img, 'outer')}
-                />
+              {char.unlocked && char.hasArt ? (
+                <>
+                  {char.weaponImg && (
+                    <img
+                      src={char.weaponImg}
+                      alt=""
+                      className="pointer-events-none"
+                      style={portraitStyle(char.img, 'outer')}
+                      draggable={false}
+                    />
+                  )}
+                  <img 
+                    src={char.img} 
+                    alt="" 
+                    className="filter drop-shadow(0 12px 15px rgba(0,0,0,0.4))"
+                    style={portraitStyle(char.img, 'outer')}
+                    draggable={false}
+                  />
+                </>
               ) : (
                 <span 
                   className="text-[24px] font-black select-none pointer-events-none"
@@ -150,7 +203,7 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
             </div>
 
             <div className="absolute bottom-0 left-0 w-full z-20 pointer-events-none">
-              <div className="h-28 bg-gradient-to-t from-[#e8e2d5] via-[#e8e2d5]/90 to-transparent"></div>
+              <div className="h-16 bg-gradient-to-t from-[#e8e2d5]/95 via-[#e8e2d5]/50 to-transparent"></div>
               <div className="absolute bottom-0 left-0 w-full pb-2.5 pt-2 flex flex-col items-center">
                 <div className={`w-6 h-[1px] mb-2 bg-[#c5a059] ${char.unlocked ? 'opacity-50' : 'opacity-20'}`}></div>
                 
@@ -177,7 +230,7 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
               </div>
             </div>
 
-            {!char.unlocked && (
+            {(!char.unlocked || !char.hasArt) && (
               <div className="absolute inset-0 z-[25] bg-black/[0.02] pointer-events-none"></div>
             )}
           </div>
