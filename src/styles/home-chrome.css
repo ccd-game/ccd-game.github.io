@@ -459,6 +459,115 @@ html.is-standalone #root::before {
   -webkit-mask-position: center;
   mask-position: center;
 }
+/* exp-sheen-tip-wire-r1：半透明＋羽化平行四邊形；掃向／角規同 live 西→東；禁 orb 斜掃；峰 α 0.68 */
+.home-hud-vnext-sheen {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  /* mask-image 由 inline＝trough-alpha PNG（tip-mask-r4 裁窗） */
+}
+.home-hud-vnext-sheen-band {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: none;
+  transform-origin: var(--exp-arc-cx, 49.933%) var(--exp-arc-cy, 46.543%);
+  transform: rotate(0deg);
+  opacity: 0;
+  will-change: transform, opacity;
+  /* 週期 9s；0–13% ≈1.17s 掃過；其餘 hold → 間隔 ≈7.8s */
+  animation: home-hud-vnext-sheen-arc 9s ease-in-out infinite;
+}
+/*
+ * 平行四邊形光帶：自弧心沿徑向伸出；skewX 斜切；linear 多段透明＝半透明＋羽化。
+ * 相對父層固定瞄準「rotate(0)＝西 tip」方向（CSS conic 276° → 元素 +x 對齊用 186°＝276−90）。
+ * 父層 rotate(0→−192deg) 帶它西 tip→東 tip。峰 α 0.68（相對 r3 CSS 0.42 等比放大）。
+ */
+.home-hud-vnext-sheen-band::before {
+  content: "";
+  position: absolute;
+  left: var(--exp-arc-cx, 49.933%);
+  top: var(--exp-arc-cy, 46.543%);
+  width: 70%;
+  height: 46%;
+  pointer-events: none;
+  transform-origin: 0% 50%;
+  transform: translateY(-50%) rotate(186deg) skewX(-38deg);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 248, 220, 0.10) 8%,
+    rgba(255, 252, 235, 0.29) 20%,
+    rgba(255, 255, 245, 0.52) 38%,
+    rgba(255, 255, 250, 0.68) 50%,
+    rgba(255, 252, 235, 0.52) 62%,
+    rgba(255, 248, 220, 0.26) 80%,
+    rgba(255, 255, 255, 0.08) 92%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.12) 10%,
+    rgba(0, 0, 0, 0.45) 28%,
+    rgba(0, 0, 0, 0.8) 42%,
+    rgba(0, 0, 0, 0.8) 58%,
+    rgba(0, 0, 0, 0.45) 72%,
+    rgba(0, 0, 0, 0.12) 90%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.12) 10%,
+    rgba(0, 0, 0, 0.45) 28%,
+    rgba(0, 0, 0, 0.8) 42%,
+    rgba(0, 0, 0, 0.8) 58%,
+    rgba(0, 0, 0, 0.45) 72%,
+    rgba(0, 0, 0, 0.12) 90%,
+    transparent 100%
+  );
+}
+@keyframes home-hud-vnext-sheen-arc {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  1.5% {
+    transform: rotate(0deg);
+    opacity: 1;
+  }
+  13% {
+    /* 0 → -192deg＝西 tip→東 tip（EXP_ARC_SPAN_DEG） */
+    transform: rotate(calc(-1 * var(--hud-sheen-span, 192deg)));
+    opacity: 1;
+  }
+  14% {
+    transform: rotate(calc(-1 * var(--hud-sheen-span, 192deg)));
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(calc(-1 * var(--hud-sheen-span, 192deg)));
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-hud-vnext-sheen-band {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
 .home-hud-vnext-orb-text {
   position: absolute;
   left: 50%;

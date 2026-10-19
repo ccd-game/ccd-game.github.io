@@ -5,7 +5,15 @@ import { LevelConfig } from '../types';
 import DungeonTab from './tabs/DungeonTab';
 import { subscribeToUser, TEST_USER_ID, UserData, watchAuthState } from '../src/lib/firebase';
 import { getRequiredExpForLevel, expIntoLevel } from '../src/lib/levelSystem';
-import { clamp01, expArcConicMaskImage } from '../src/lib/hudExpArc';
+import {
+  clamp01,
+  expArcConicMaskImage,
+  EXP_ARC_CENTER_X_PCT,
+  EXP_ARC_CENTER_Y_PCT,
+  EXP_ARC_END_PILLOW_DEG,
+  EXP_ARC_SPAN_DEG,
+  pillowToCssConicDeg,
+} from '../src/lib/hudExpArc';
 import {
   buildExpArcAnimPlan,
   easeOutCubic,
@@ -66,6 +74,8 @@ const CHROME_BASE = `${import.meta.env.BASE_URL}resources/ui/chrome`;
 const HUD_VNEXT_ORB_ARC = `${CHROME_BASE}/hud-vnext-orb-arc.png`;
 /** exp-west-east-r1：材質×trough（無玉框）；runtime conic 西→東 clip */
 const HUD_VNEXT_TROUGH_FILL = `${CHROME_BASE}/hud-vnext-exp-trough-fill.png`;
+/** tip-mask-r4：弧槽 α（裁至 orb 690×634）；sheen／tip 對齊遮罩 */
+const HUD_VNEXT_TROUGH_ALPHA = `${CHROME_BASE}/hud-vnext-exp-trough-alpha.png`;
 const HUD_VNEXT_STA_SHORT = `${CHROME_BASE}/hud-vnext-sta-short.png`;
 const HUD_VNEXT_COIN_SHORT = `${CHROME_BASE}/hud-vnext-coin-short.png`;
 /** r9：數值用全形數字，與「歐陽同學」同 face 明體字形（禁半形拉丁數字視覺異體） */
@@ -390,6 +400,22 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
                   maskImage: expArcMask,
                 }}
               />
+              {/* exp-sheen-tip-wire-r1：半透明羽化平行四邊形；只亮 trough；西 tip→東 tip；峰 α 0.68 */}
+              <div
+                className="home-hud-vnext-sheen"
+                aria-hidden="true"
+                data-testid="hud-exp-sheen"
+                style={{
+                  WebkitMaskImage: `url(${HUD_VNEXT_TROUGH_ALPHA})`,
+                  maskImage: `url(${HUD_VNEXT_TROUGH_ALPHA})`,
+                  ['--exp-arc-cx' as string]: `${EXP_ARC_CENTER_X_PCT}%`,
+                  ['--exp-arc-cy' as string]: `${EXP_ARC_CENTER_Y_PCT}%`,
+                  ['--hud-sheen-from' as string]: `${pillowToCssConicDeg(EXP_ARC_END_PILLOW_DEG)}deg`,
+                  ['--hud-sheen-span' as string]: `${EXP_ARC_SPAN_DEG}deg`,
+                }}
+              >
+                <span className="home-hud-vnext-sheen-band" />
+              </div>
             </div>
             <div className="home-hud-vnext-orb-text">
               <span className="home-hud-vnext-lv-label">等級</span>

@@ -56,7 +56,7 @@ describe('BattleRecorder：只在 VICTORY 記錄', () => {
     recorder.markVictoryDecided();
     expect(recorder.takeVictoryClear()).toBeNull();
   });
-  it('本場曾開啟自動作答（即使之後關閉）不記錄', () => {
+  it('本場曾開啟自動作答（即使之後關閉）仍入帳', () => {
     const { recorder, advance, idle } = setup();
     recorder.begin(1, true);
     recorder.startClock();
@@ -65,7 +65,17 @@ describe('BattleRecorder：只在 VICTORY 記錄', () => {
     recorder.sync(idle);
     advance(50_000);
     recorder.markVictoryDecided();
-    expect(recorder.takeVictoryClear()).toBeNull();
+    expect(recorder.takeVictoryClear()).toEqual({ levelId: 1, timeMs: 51_000, correctAnswers: 0 });
+  });
+  it('AUTO 開啟中標勝利亦入帳（eligible 不因 isAutoPlaying 作廢）', () => {
+    const { recorder, advance, idle } = setup();
+    recorder.begin(2, true);
+    recorder.startClock();
+    recorder.sync({ ...idle, isAutoPlaying: true });
+    advance(60_000);
+    recorder.noteCorrectAnswer();
+    recorder.markVictoryDecided();
+    expect(recorder.takeVictoryClear()).toEqual({ levelId: 2, timeMs: 60_000, correctAnswers: 1 });
   });
   it('未經最後一擊而進入 VICTORY（調試 WIN）不記錄', () => {
     const { recorder, advance } = setup();

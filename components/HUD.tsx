@@ -154,7 +154,7 @@ const HUD: React.FC<HUDProps> = React.memo(({
             </div>
           </div>
 
-          {/* AUTO 開啟時才顯示：倍數／WIN／LOSE（AUTO 開過的這場不計分、不入排行，見 battleRecorder eligible） */}
+          {/* AUTO 開啟時才顯示：倍數／WIN／LOSE（AUTO 不再作廢經驗入帳；測試模式 begin(eligible=false) 仍不入帳） */}
           {isAutoPlaying && (
             <>
               <button 

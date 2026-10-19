@@ -9,8 +9,9 @@
  *   takeVictoryClear()        進入 VICTORY 畫面時取出一次通關紀錄（只會取出一次）
  *   abandon()                 戰敗、退出或重新開始 → 放棄本場（不記錄）
  *
- * 不記錄的情況：測試模式（WIN／LOSE 調試鍵）、本場曾開啟自動作答（AUTO）、
+ * 不記錄的情況：測試模式（WIN／LOSE 調試鍵）、
  * 未經最後一擊而直接進入 VICTORY（例如調試 WIN）、戰敗。
+ * （曾開啟 AUTO 仍可入帳；正式版不再設 AUTO，測時亦可加經驗。）
  */
 import { BattleClock } from './battleClock';
 import { toTimeMs } from './scoring';
@@ -66,7 +67,7 @@ export class BattleRecorder {
 
   sync(state: BattleSyncState): void {
     this.lastSync = { ...state };
-    if (state.isAutoPlaying && this.session) this.session.eligible = false;
+    // AUTO 不再作廢 eligible：測時開 AUTO 通關仍入帳經驗
     this.clock.setFrozen(BattleRecorder.isFrozen(state));
   }
 
