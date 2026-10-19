@@ -240,7 +240,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
 
   return (
     <div
-      className="absolute inset-0 flex flex-col overflow-hidden z-[500] select-none"
+      className="home-menu-shell absolute inset-0 flex flex-col overflow-hidden z-[500] select-none"
       style={{ backgroundColor: 'var(--app-bg)' }}
     >
       <style>{`
@@ -320,7 +320,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         style={{
-          paddingTop: isSummoning ? 0 : '88px',
+          paddingTop: isSummoning ? 0 : 'var(--hud-vnext-zone-h)', /* zone-lock-r1：內容區 top＝HUD 鎖區高 */
           paddingBottom: isSummoning ? 0 : 'calc(76px + env(safe-area-inset-bottom))',
           touchAction: 'pan-y', // 允許系統接管垂直滾動
           overflow: 'hidden'

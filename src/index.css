@@ -26,6 +26,17 @@
             --theme-transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             --sab: env(safe-area-inset-bottom);
             --sat: env(safe-area-inset-top);
+            /* hud-drawer-zone-lock-r1：虛擬 top HUD 佔位高（css px＠390 letterbox）
+               實測 max(銅錢底 102.5, EXP文字底 113.844) + 8 = 121.844 → 寫死 121.8 */
+            --hud-vnext-zone-h: 121.8px;
+        }
+        html.is-standalone {
+            --hud-vnext-zone-h: calc(121.8px + env(safe-area-inset-top, 0px));
+        }
+        @media (display-mode: standalone), (display-mode: fullscreen) {
+            :root {
+                --hud-vnext-zone-h: calc(121.8px + env(safe-area-inset-top, 0px));
+            }
         }
 
         .dark-mode {
@@ -880,6 +891,18 @@
             inherits: true;
             initial-value: 1;
         }
+        /* hud-drawer-zone-lock-r1：鎖區佔位（viewport top:0；pointer-events:none；debug outline 可開） */
+        .home-menu-shell::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: var(--hud-vnext-zone-h);
+            pointer-events: none;
+            z-index: 40;
+            box-sizing: border-box;
+            /* outline: 1px dashed rgba(255, 80, 80, 0.45); */
+        }
+
         /* 首頁：預覽占滿，十二篇章入口為底部抽屜
            進頁默認＝open（十二關全見，--drawer-p:1→卷軸卷起）。
            收合下限 peek＝標題列＋完整 N 篇（--drawer-min-rows，最低 4；勿露第5緣）。
