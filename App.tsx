@@ -1163,6 +1163,8 @@ const App: React.FC = () => {
     isBooting ? '#0a0a0a' :
     (!isLoggedIn && !isLoginExiting) ? '#0f0f0f' :
     (isLoggedIn && gameState.status === GameStatus.GAME_OVER) ? '#1a0000' :
+    // 戰鬥中改深色墊：speech／attack dim 的 filter 若貼 --app-bg 宣紙色，右緣會抗鋸齒出 ≈1px 亮縫
+    (isLoggedIn && (gameState.status === GameStatus.PLAYING || enterHold)) ? '#0a0a0a' :
     'var(--app-bg)';
 
   return (
@@ -1198,7 +1200,7 @@ const App: React.FC = () => {
       <div className={`absolute inset-0 z-[8000] pointer-events-none transition-opacity duration-150 ${isScreenFlash ? 'opacity-50 bg-red-600' : 'opacity-0'}`} />
 
       {/* 戰鬥頁容器（入陣轉場時用來確認已畫好；不建立堆疊環境） */}
-      <div ref={battleClipRef} className="battle-clip absolute inset-0 overflow-hidden">
+      <div ref={battleClipRef} className="battle-clip absolute inset-0 overflow-hidden" style={{ backgroundColor: (gameState.status === GameStatus.PLAYING || enterHold) ? '#0a0a0a' : undefined }}>
       {/* 無落地場景資料時，沿用舊式獨立背景；有 BATTLE_SCENES 時改由 BattleArea 與立繪共用容器 */}
       {!battleScene && (
         <div className={`global-scene-bg battle-scene-layer absolute top-0 left-0 w-full h-[62%] z-[0] ${((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed) ? 'bg-attack-dim' : ''}`}

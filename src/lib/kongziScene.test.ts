@@ -41,15 +41,17 @@ describe('孔子 v3 三層場景（第 6 關）', () => {
     expect(r.layout.scale).toBeCloseTo(0.7339, 6);
   });
 
-  it('390×844：背景頂高出畫面（三頁皆不露鏡像）；孔 figScale 缺省＝1（v1.3.15）', () => {
+  it('390×844：孔場景頂≈peek（hud-vnext 121.8）；figScale 缺省＝1（v1.3.15）', () => {
     const W = 390, H = 844, D = H - HOME_TOP_BAR_H - HOME_NAV_H, Hp = heroPeekHeight(D);
     const kz = computeHeroFit(HERO_SCENES.kong_zi, W, Hp, D);
     const lz = computeHeroFit(HERO_SCENES.liu_zong_yuan, W, Hp, D);
-    expect(HOME_TOP_BAR_H + kz.top).toBeLessThan(0);              // 戰鬥頁（同幾何、自畫面頂起算）
+    // one-source-geom-battle-r2b＋peek-h：HOME_TOP_BAR_H＝121.8＋CSS peek → 場景頂≈+15.51（舊式 peek 曾≈16.63）
+    expect(HOME_TOP_BAR_H + kz.top).toBeCloseTo(15.51, 1);
     expect(kz.top + 720 * kz.s).toBeGreaterThanOrEqual(Hp - 0.5); // 首頁／圖鑑底不露
     expect(kz.top + 149.5 * kz.s).toBeGreaterThanOrEqual(11.9);    // 車蓋頂飾不出框
     const r = computeGroundedBattle(BATTLE_ANCHORS[key], BATTLE_SCENES[key], W, H)!;
-    expect(r.sceneBox.mirrorTiles).toBe(false);
+    expect(r.sceneBox.top).toBeCloseTo(HOME_TOP_BAR_H + kz.top, 6);
+    expect(r.sceneBox.mirrorTiles).toBe(true); // 頂隙 >0.5 → 鏡射補滿
     // align-v1315-home-r1：孔無 figScale（缺省 1）、柳 0.64；不再要求臉高 ±5% face-lock（1.548 時代）
     expect(HERO_SCENES.kong_zi.figScale).toBeUndefined();
     expect(HERO_SCENES.kong_zi.figOy).toBeUndefined();
@@ -66,7 +68,8 @@ describe('關主名字＋圖標固定槽位（BOSS_NAME_SLOT）', () => {
     const ys = Object.keys(BATTLE_SCENES).map(k => computeGroundedBattle(BATTLE_ANCHORS[k], BATTLE_SCENES[k], W, H)!.layout);
     for (const l of ys) { expect(l.headX).toBe(W / 2); expect(l.headY).toBe(bossNameSlotY(W, H)); }
   });
-  it('柳宗元 390×844 位置不變（v1.3.6：標籤底 y≈89.49）', () => {
-    expect(bossNameSlotY(390, 844)).toBeCloseTo(89.494, 2);
+  it('柳宗元 390×844：名字槽隨 heroSync 帽頂（one-source-geom-battle-r2）', () => {
+    // 廢 homeSync 後帽頂下移 → 槽位 y 隨準源 peek 幾何（≈122.78＠390×844）
+    expect(bossNameSlotY(390, 844)).toBeCloseTo(122.779, 2);
   });
 });

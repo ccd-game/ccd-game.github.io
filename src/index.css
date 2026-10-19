@@ -210,7 +210,9 @@
         }
         .bg-attack-dim { filter: brightness(0.2) contrast(1.1) !important; }
 
-        /* 戰鬥場景層：深色墊底，避免 speech／dim 時 --app-bg 淺色自右緣／縫隙透出 */
+        /* 戰鬥場景層：深色墊底，避免 speech／dim 時 --app-bg 淺色自右緣／縫隙透出。
+         * 僅本層不夠：filter(bg-attack-dim) 邊緣會與淺色父層抗鋸齒成亮縫；
+         * 父層 .battle-clip／frameBg 於 PLAYING 亦須同色深墊（見 App.tsx）。 */
         .battle-scene-layer {
             background-color: #0a0a0a;
         }
@@ -665,7 +667,8 @@
         /* 立繪仍在山水之上 */
         .home-scene-fig-frame { z-index: 3; }
 
-        .home-hero { height: 100%; background: transparent; color: var(--paper); isolation: isolate; overflow: hidden; }
+        /* home-right-white-line-r1：預覽區深色墊底（對齊 .battle-scene-layer），縫隙／AA 時勿透 --app-bg；主因另見 .home-menu-shell overflow-x:clip */
+        .home-hero { height: 100%; background: #0a0a0a; color: var(--paper); isolation: isolate; overflow: hidden; }
         /* 落地場景：cover 填滿篇名線以上預覽區（無上下黑邊）；腳底對齊篇名區下緣；多出的從上方／兩側裁 */
         .home-hero { container-type: size; }
         .home-scene {
@@ -848,55 +851,93 @@
         .home-thumb { position: relative; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: #2a231b; border: 2px solid rgba(237,228,208,.25); opacity: .7; transition: opacity .25s, border-color .25s, transform .25s; }
         .home-thumb.is-on { opacity: 1; border-color: var(--gilt); transform: scale(1.1); box-shadow: 0 0 14px rgba(212,175,55,.45); }
         .home-thumb:hover { opacity: 1; }
-        /* 入陣 CTA＝art2 卷軸（打开為默認面；合上在 :active 閃現）。槽位參考＠390：247×75→高×1.10≈83 */
+        /* 入陣 CTA＝雙軸平移＋反向遮罩展開（≡ scroll-unroll-ref-r2）。槽位＠390：247×97 點擊區；卷圖 1114:631 等比置中（禁 scaleX 拉伸畫心） */
         .home-cta {
             position: relative; z-index: 2; /* 入陣卷軸 > 水墨（父層 .relative.z-10） */
             display: flex; align-items: center; justify-content: center;
-            width: min(100%, 247px); height: 97px; margin-inline: auto; /* r4/r9: 高×0.9 vs r3 108 */
+            width: min(100%, 247px); height: 97px; margin-inline: auto; /* r4/r9: 高×0.9 vs r3 108；點擊區不變（禁改 HERO 幾何） */
             padding: 0; border: 0; background: transparent; clip-path: none;
             font-family: var(--font-display); font-weight: 600; font-size: 20px;
             letter-spacing: 0; text-indent: 0; /* letter-spacing 改由 .home-cta-label 處理以利置中 */
             color: var(--ink);
             transition: filter .2s, transform .15s;
         }
+        /*
+         * 卷軸組裝（原生 1114×631＝左軸88＋畫心938＋右軸88）：
+         * --scroll-p 1＝合上／0＝展開；gap = paper * (1−p)；軸用 translateX（非 scaleX）；
+         * 畫心層固定寬高 1:1，僅 clip-path 自中心外擴露出。單層不透明，無雙圖 ghost。
+         */
         .home-cta-scroll {
-            position: absolute; inset: 0; pointer-events: none;
-            /* r2: 禁止 drop-shadow／黑底；卷圖僅靠自身 RGBA alpha */
+            position: absolute;
+            left: 50%; top: 50%;
+            height: 100%;
+            width: auto;
+            aspect-ratio: 1114 / 631;
+            max-width: 100%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            /* 軸位移：translateX % 相對軸自身寬 88；469/88≈5.329545 → 合上時各移半紙寬 */
+            --axle-shift: calc(var(--scroll-p, 1) * 532.954545%);
         }
-        .home-cta-scroll img {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            object-fit: fill; /* 對齊示意槽 247×83（高×1.10；非原生比例） */
-            opacity: 0;
-            /* 跟抽屜同一時鐘：.48s cubic-bezier(.22,1,.36,1)；拖曳時父層清 transition */
-            transition: opacity .48s cubic-bezier(.22,1,.36,1);
+        .home-cta-axle,
+        .home-cta-paper {
+            position: absolute;
+            top: 0; bottom: 0;
+            display: block;
+            overflow: hidden;
             background: transparent;
         }
-        /* 卷軸開合＝1−drawer-p：收合(p=0)展開；上拉開(p→1)卷起。繼承自 .home-dungeon --drawer-p */
-        .home-cta-scroll img.home-cta-scroll-open { opacity: calc(1 - var(--drawer-p, 0)); }
-        .home-cta-scroll img.home-cta-scroll-closed {
-            /* 合上資產為豎長雙軸：置中contain，避免拉扁 */
-            object-fit: contain; object-position: center;
-            opacity: var(--drawer-p, 0);
+        .home-cta-axle img,
+        .home-cta-paper img {
+            display: block;
+            width: 100%; height: 100%;
+            object-fit: fill; /* 盒本身已是原比例裁片 → 無橫向拉伸 */
+            background: transparent;
+            pointer-events: none;
         }
-        .home-cta:active .home-cta-scroll img.home-cta-scroll-open { opacity: 0; transition-duration: .18s; }
-        .home-cta:active .home-cta-scroll img.home-cta-scroll-closed { opacity: 1; transition-duration: .18s; }
+        .home-cta-axle-left {
+            left: 0;
+            width: calc(88 / 1114 * 100%);
+            transform: translateX(var(--axle-shift));
+            will-change: transform;
+            z-index: 2;
+        }
+        .home-cta-axle-right {
+            left: calc(1026 / 1114 * 100%);
+            width: calc(88 / 1114 * 100%);
+            transform: translateX(calc(-1 * var(--axle-shift)));
+            will-change: transform;
+            z-index: 2;
+        }
+        .home-cta-paper {
+            left: calc(88 / 1114 * 100%);
+            width: calc(938 / 1114 * 100%);
+            z-index: 1;
+            /* 自中心外擴：p=1→inset 50%（全遮）；p=0→inset 0（全露）；禁改 width／scaleX */
+            clip-path: inset(0 calc(var(--scroll-p, 1) * 50%) 0 calc(var(--scroll-p, 1) * 50%));
+        }
+        /* :active 合上閃現：軸併攏＋畫心全遮 */
+        .home-cta:active .home-cta-scroll { --scroll-p: 1; }
+        .home-cta:active .home-cta-axle-left { transform: translateX(532.954545%); }
+        .home-cta:active .home-cta-axle-right { transform: translateX(-532.954545%); }
+        .home-cta:active .home-cta-paper { clip-path: inset(0 50% 0 50%); }
         .home-cta-label {
             /* r8/r9: 「入陣」水平＋光學垂直置中（cy_up≈6；無紙底 backing） */
-            position: absolute; inset: 0; z-index: 1;
+            position: absolute; inset: 0; z-index: 3;
             display: flex; align-items: center; justify-content: center;
             letter-spacing: 0.4em;
             text-indent: 0;
             padding-left: 0.4em; /* 與 letter-spacing 對稱，光學置中 */
-            transform: translateY(-6px); /* optical vertical nudge */
+            transform: translateY(-6px); /* optical vertical nudge；禁 scaleX */
             box-sizing: border-box;
             font-synthesis: none;
             text-shadow: none; /* 無紙底／無軟襯 */
             pointer-events: none;
             background: transparent;
-            opacity: calc(1 - var(--drawer-p, 0));
-            transition: opacity .48s cubic-bezier(.22,1,.36,1);
+            opacity: calc(1 - var(--scroll-p, 1));
+            transition: none; /* 跟 --scroll-p 同鐘，無另跑 opacity 緩動 */
         }
-        .home-cta:active .home-cta-label { opacity: 0; transition-duration: .18s; } /* 合上態無紙面字 */
+        .home-cta:active .home-cta-label { opacity: 0; } /* 合上態無紙面字 */
         .home-cta:hover { filter: brightness(1.06); }
         .home-cta:active { transform: scale(.98); }
         .home-cta:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; filter: brightness(1.1); border-radius: 8px; }
@@ -930,12 +971,23 @@
         .home-lv-num, .home-lv-label, .home-coin-label, .home-meter-label, .home-vtitle, .home-chapter-no, .home-seal,
         .home-cta, .home-section-title, .home-slip-no, .home-slip-title { font-synthesis: none; }
 
-        /* 入陣卷軸⇄抽屜進度：可動畫自訂屬性；0＝收合（卷展開）／1＝全開（卷卷起） */
-        @property --drawer-p {
+        /* 入陣卷軸進度（與抽屜無關）：可動畫；0＝卷展開／1＝卷合上。抽屜仍用 .is-peek／.is-open transform .48s */
+        @property --scroll-p {
             syntax: '<number>';
             inherits: true;
             initial-value: 1;
         }
+        /*
+         * home-right-white-line-r1：底欄 .home-nav-gold-frame（673px）等絕對層撐大
+         * scrollWidth；點篇章時 scrollIntoView 把 .home-menu-shell scrollLeft 推到 ~16，
+         * 預覽右緣露出 --app-bg（#f4f1ea）豎條。overflow:hidden 仍可被程式／scrollIntoView
+         * 橫移；overflow-x:clip 取消橫向捲動容器。勿改戰鬥檔。
+         */
+        .home-menu-shell {
+            overflow-x: clip !important; /* 蓋過曾用之 overflow-hidden utility */
+            overflow-y: hidden !important;
+        }
+
         /* hud-drawer-zone-lock-r1：鎖區佔位（viewport top:0；pointer-events:none；debug outline 可開） */
         .home-menu-shell::before {
             content: '';
@@ -949,28 +1001,25 @@
         }
 
         /* 首頁：預覽占滿，十二篇章入口為底部抽屜
-           進頁默認＝open（十二關全見，--drawer-p:1→卷軸卷起）。
+           進頁默認＝open（十二關全見；--scroll-p:1→卷合上）。
            收合下限 peek＝標題列＋完整 N 篇（--drawer-min-rows，最低 4；勿露第5緣）。
            rowH=(H − bar − 56)/12；N 列可見高 = 2 + N·rowH + (N−1)·4
            peek = bar + 2 + (N−1)·4 + N·(H−bar−56)/12
-           禁止再收到只露標題列（無 is-closed 段）。 */
+           禁止再收到只露標題列（無 is-closed 段）。
+           卷軸由 JS 寫 --scroll-p（獨立 ~1.6s；雙軸 translate＋clip-path，禁 scaleX／禁雙圖半透）；抽屜 transform 維持 .48s，互不卡等。 */
         .home-dungeon {
             --bar-h: 52px;
             --drawer-min-rows: 4;
             /* 最低 N=4：bar+14+(H−bar−56)/3 */
             --peek-h: calc(var(--bar-h) + 14px + (100% - var(--bar-h) - 56px) / 3);
-            --drawer-p: 1; /* 進頁默認 open */
+            --scroll-p: 1; /* 進頁默認 open＝卷合上 */
             position: relative; height: 100%; overflow: hidden;
-            transition: --drawer-p .48s cubic-bezier(.22,1,.36,1);
+            /* ≈smoothstep；時長 ≡ scroll-unroll-ref-r2 1.60s */
+            transition: --scroll-p 1.6s cubic-bezier(.45,.05,.55,.95);
         }
-        .home-dungeon.is-peek { --drawer-p: 0; }
-        .home-dungeon.is-open { --drawer-p: 1; }
-        .home-dungeon.is-drawer-dragging {
-            transition: none;
-        }
-        .home-dungeon.is-drawer-dragging .home-cta-scroll img,
-        .home-dungeon.is-drawer-dragging .home-cta-label {
-            transition: none;
+        /* 雙 rAF 先合再展：短暫關掉 --scroll-p transition，強制合上態寫入 */
+        .home-dungeon.is-scroll-snap {
+            transition: none !important;
         }
         /* 可選 N=6：data-min-rows="6" → bar+22+(H−bar−56)/2（舊最低） */
         .home-dungeon[data-min-rows="6"] {
@@ -1041,7 +1090,7 @@
 
         @media (prefers-reduced-motion: reduce) {
             .home-drawer, .home-drawer-chev, .home-hero-slot, .home-dungeon { transition: none !important; }
-            .home-cta-scroll img, .home-cta-label { transition: none !important; }
+            .home-cta-scroll img, .home-cta-label, .home-cta-axle, .home-cta-paper { transition: none !important; }
             .home-drawer-list { transition: opacity .15s linear; }
             .home-breathe, .home-scene-breathe, .home-saber, .home-saber-float, .home-saber-idle, .home-embers span { animation: none !important; }
             .home-saber.is-back { opacity: 0 !important; }

@@ -47,7 +47,7 @@ const TRACKS: Record<Track, { el: HTMLAudioElement; fader: TrackFader }> = {
 let wanted: Track | null = null;
 
 /**
- * 同步套用使用者音量至雙軌。
+ * 同步套用使用者音量至雙軌（遊戲內音量；只寫 HTMLAudioElement，不碰系統／硬體音量）。
  * 若 wanted 軌正在播且仍在淡變／gain<1，取消 fade 並 snap gain=1，
  * 讓拖動時 el.volume 直接＝user（不被 fade gain 打折）。
  */

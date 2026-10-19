@@ -713,26 +713,20 @@ html.is-standalone #root::before {
 }
 .home-hud-vnext-box-val {
   position: absolute;
-  left: 28%;
-  right: 6%;
+  left: 28%; /* 左圖示清出 */
+  right: 5.5px; /* meter-num-right-align-r1：padR≈5.5＠390；貼匣右內緣 */
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-50%); /* 僅垂直置中；禁水平 translate 硬推 */
   font-size: 10px;
   font-weight: 700;
   font-variant-numeric: normal;
   /* nums-tracking-r1：全形數字收緊；對準 approved-r2/02 trough；禁改匣尺寸 */
   letter-spacing: 0; /* nums-halfwidth-qijic-r1 A：半形 100/100；＠zone-lock 實測 pad≥2、／Δx≈-0.18 */
   color: #2a2418;
-  text-align: center;
+  text-align: right; /* meter-num-right-align-r1：匣內數字右齊（取代 center＋hright tx） */
   line-height: 1;
   pointer-events: none;
   white-space: nowrap;
   font-family: var(--hud-vnext-font) !important;
 }
-/* sta-coin-hright-r2：置右＋右多留白 padR≈5.5＠390（sta tx 8.0／coin tx 19.6） */
-.home-hud-vnext-row--sta .home-hud-vnext-box-val {
-  transform: translate(8.0px, -50%); /* hright-r2：padR≈5.51 */
-}
-.home-hud-vnext-row--coin .home-hud-vnext-box-val {
-  transform: translate(19.6px, -50%); /* hright-r2：padR≈5.48 */
-}
+/* meter-num-right-align-r1：刪 sta-coin-hright-r2 的 translate(X,-50%) 硬推（字寬不穩） */

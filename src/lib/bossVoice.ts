@@ -6,16 +6,20 @@
  * window do nothing (no restart).
  *
  * Volume / mute: settings only expose BGM (`bgmEnabled` / `bgmVolume`).
- * There is no SFX channel yet. Voice treats `bgmEnabled === false` as mute
- * (skip play) and uses DEFAULT_VOICE_VOLUME when enabled — BGM’s default
- * 0.08 is far too quiet for dialogue.
+ * There is no SFX channel. Voice treats `bgmEnabled === false` as mute
+ * (skip play) and uses `loadSettings().bgmVolume` (same slider as BGM)
+ * when enabled. Mid-play drag: next `playBossVoice` reads the latest
+ * prefs (voice elements are not registered in `applyVolumeToTracks`).
  */
 
 import { loadSettings } from './settingsStore';
 
 export const BOSS_VOICE_COOLDOWN_MS = 10_000;
 
-/** Playback level when BGM is enabled (no dedicated SFX volume). */
+/**
+ * Historical default (0.7) from before voice followed the BGM slider.
+ * Live play path uses `prefs.bgmVolume`; kept for callers / docs only.
+ */
 export const DEFAULT_VOICE_VOLUME = 0.7;
 
 /**
@@ -107,7 +111,7 @@ export function playBossVoice(id: number): BossVoiceResult {
     audioById.set(id, audio);
   }
 
-  audio.volume = DEFAULT_VOICE_VOLUME;
+  audio.volume = prefs.bgmVolume;
   audio.muted = false;
   try {
     audio.currentTime = 0;

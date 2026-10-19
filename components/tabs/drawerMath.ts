@@ -4,7 +4,7 @@ export const drawerPeekH = (h: number, bar: number, minRows: number) => {
   return bar + 2 + (minRows - 1) * 4 + minRows * rowH;
 };
 
-/** drawer progress：0＝收合（peek）→卷軸展開；1＝全開 →卷軸卷起 */
+/** 拖曳 y→進度（歷史／unit）；卷軸改走獨立 --scroll-p。0＝peek；1＝open。 */
 export const progressFromY = (y: number, peekY: number) => {
   if (peekY <= 0) return 1;
   return Math.min(1, Math.max(0, 1 - y / peekY));

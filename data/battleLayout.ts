@@ -69,7 +69,7 @@ export const BATTLE_LAYOUT = {
 /**
  * 關主名字＋◆ 圖標：全體關主共用的固定槽位（永遠同一格式、同一螢幕位置，不隨關主頭頂或逐關參數改變）。
  * 格式＝緊湊版（名字 12px 在上、◆ 在下，整組水平置中於螢幕）；位置以柳宗元（v1.3.6）為標準：
- * 標籤底邊 y＝柳宗元戰鬥場景（未經首頁入陣時的 homeSync＋restOnBg 幾何；帽頂＝bodyBox alpha 實測 y36）帽頂螢幕 y − gap，x＝畫面寬／2。
+ * 標籤底邊 y＝柳宗元戰鬥場景（未經首頁入陣時的 heroSync→HERO 幾何；帽頂＝bodyBox alpha 實測 y36）帽頂螢幕 y − gap，x＝畫面寬／2。
  * 新關主不需任何設定即套用；不得再加逐關的名字位置參數。
  */
 export const BOSS_NAME_SLOT = {
@@ -195,17 +195,16 @@ export interface BattleScene {
   front?: string;
 }
 
-/** 首頁版面：頂欄高（英雄區上緣）、底部導覽高；首頁內容區（.home-dungeon）高＝視窗高 − 兩者 */
-export const HOME_TOP_BAR_H = 88;
+/** 首頁版面：頂欄區高（英雄區上緣＝--hud-vnext-zone-h）、底部導覽高；內容區高＝視窗高 − 兩者。
+ * one-source-geom-battle-r2：88→121.8 對齊 index.css --hud-vnext-zone-h（browser＠390；禁再寫死 88）。 */
+export const HOME_TOP_BAR_H = 121.8;
 export const HOME_NAV_H = 76;
 
 export const BATTLE_SCENES: Record<string, BattleScene> = {
   // 坐於岩上；戰鬥立繪 = 全幅 1280×720 裁切 (70, 13) 1135×623
-  // 坐於岩上（zoomout_v2 bg）；靴底 (974,634)；戰鬥人物／特效 charScale 0.7，腳仍貼岩；首頁預覽尺寸另見 home patch
-  // charScale 0.56（=0.7×0.8）繞靴底縮放；人物外框（alpha bbox 378,36–1198,636）置中於題目框以上的畫面區，背景同量平移（腳貼岩）；名字置中於螢幕
-  liu_zong_yuan_battle: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], crop: { x: 70, y: 13, w: 1135, h: 623 }, foot: 634, footX: 974, ax: 820, charScale: 0.56, bodyBox: [378, 36, 1198, 636], breathY: 0, bgTopAlign: 12, restOnBg: { foot: [975, 633], bg: [953.77, 465.18], relScale: 0.64 / 1.14 },
-    // v6：homeSync＝背景縮放／位置、人物大小與首頁同 viewport 一致（首頁 figScale 0.64、bgZoom 1.14@x995、rest 頭頂 y＝429.5−614·0.64）
-    homeSync: { w: 1280, h: 720, chrome: 216, heroTop: 88, topPad: 12, headY: 429.5 - (633 - 19) * 0.64, X: 0.53, ax: 867, zoom: 1.14, zoomX: 995 } }, // v5：背景同 v4；人物沿用首頁貼合（首頁 rest(948,429.5)＋bgZoom 1.14@x995 底 → 背景原圖 (953.77,465.18)；0.64/1.14＝0.5614）
+  // one-source-geom-battle-r2：廢 homeSync／restOnBg；heroSync→HERO_SCENES.liu_zong_yuan（figScale 0.64／bgZoom／rest）
+  // 無 homeBox 時背景＋人物同讀 computeHeroFit＋bgZoom＋rest；禁第二套 figScale 真相
+  liu_zong_yuan_battle: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], crop: { x: 70, y: 13, w: 1135, h: 623 }, foot: 633, footX: 975, ax: 867, bodyBox: [378, 36, 1198, 636], breathY: 0, heroSync: 'liu_zong_yuan' },
   // 孔子 v3：坐於戰車、雙馬在前；三層與背景同尺寸逐像素對齊（輪／蹄本來就踏在背景路面上）。
   // heroSync：縮放／位置與首頁預覽同 viewport 相同；front＝雙馬（武器層）疊在人物之上
   kong_zi_character: { bgW: 1280, bgH: 720, fig: [0, 0, 1280, 720], foot: 640.9, ax: 533, breathY: 0, heroSync: 'kong_zi', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
@@ -370,24 +369,46 @@ function groundedCore(
     sceneBox.width = sc.bgW * scale; sceneBox.height = sc.bgH * scale; sceneBox.mirrorBottom = false;
   }
   if (sc.charShiftY) figTop += sc.charShiftY;
-  // 通用首頁同步：場景（背景＋全幅人物）＝首頁英雄區同一套縮放與位置
+  // 通用首頁同步（one-source）：場景＝computeHeroFit；有 bgZoom 則背景另放大（與 heroBgFrameStyle 同）；
+  // 有 rest／figScale（柳）→ 人物由 HERO rest＋figScale 貼岩；否則（孔）人物與場景同框。
   let heroFigScale: number | null = null;
   const heroSc = sc.heroSync ? HERO_SCENES[sc.heroSync] : undefined;
   if (heroSc && !homeBox) {
     const D = rootH - HOME_TOP_BAR_H - HOME_NAV_H;
-    const { s, left, top: t } = computeHeroFit(heroSc, rootW, heroPeekHeight(D), D);
-    const top = HOME_TOP_BAR_H + t;
-    sceneBox.left = left; sceneBox.top = top; sceneBox.scale = s;
-    sceneBox.width = sc.bgW * s; sceneBox.height = sc.bgH * s; sceneBox.mirrorBottom = false;
+    const { s, left: fitL, top: t } = computeHeroFit(heroSc, rootW, heroPeekHeight(D), D);
+    const sceneTop = HOME_TOP_BAR_H + t;
+    const zoom = heroSc.bgZoom?.[0] ?? 1;
+    const zoomX = heroSc.bgZoom?.[1] ?? 0;
+    // 背景：bake bgZoom（原點在底邊）→ sceneBox 供繪製；人物用未放大的 s／fitL／sceneTop
+    let left = fitL, top = sceneTop, scale = s;
+    if (zoom !== 1) {
+      left = fitL + zoomX * s * (1 - zoom);
+      top = sceneTop + heroSc.h * s * (1 - zoom);
+      scale = s * zoom;
+    }
+    sceneBox.left = left; sceneBox.top = top; sceneBox.scale = scale;
+    sceneBox.width = sc.bgW * scale; sceneBox.height = sc.bgH * scale; sceneBox.mirrorBottom = false;
     const gap = {
       left: Math.max(0, left), top: Math.max(0, top),
       right: Math.max(0, rootW - (left + sceneBox.width)), bottom: Math.max(0, sceneH - (top + sceneBox.height)),
     };
     sceneBox.gap = gap;
     sceneBox.mirrorTiles = gap.left > 0.5 || gap.top > 0.5 || gap.right > 0.5 || gap.bottom > 0.5;
-    heroFigScale = sameDpi ? s : s * fw / a.w;
-    figLeft = left + (sameDpi ? crop.x : fx) * s;
-    figTop = top + (sameDpi ? crop.y : fy) * s;
+    const figS = heroSc.figScale ?? 1;
+    if (heroSc.rest && sameDpi) {
+      // 柳：靴底落 HERO.rest；螢幕 scale＝fit.s × figScale（唯一 figScale 真相）
+      const [rx, ry] = heroSc.rest;
+      const rfx = heroSc.footX ?? heroSc.ax;
+      const rfy = heroSc.foot;
+      heroFigScale = s * figS;
+      figLeft = fitL + rx * s - (rfx - crop.x) * heroFigScale;
+      figTop = sceneTop + ry * s - (rfy - crop.y) * heroFigScale;
+    } else {
+      // 孔等：全幅對齊，人物＝場景（含已 bake 的 bgZoom，無 figScale 時＝s）
+      heroFigScale = sameDpi ? scale : scale * fw / a.w;
+      figLeft = left + (sameDpi ? crop.x : fx) * scale;
+      figTop = top + (sameDpi ? crop.y : fy) * scale;
+    }
   }
   if (homeBox) {
     // 戰鬥背景＝主頁預覽背景（同圖、同縮放、同位置）
@@ -403,16 +424,29 @@ function groundedCore(
   }
   let restScale: number | null = null;
   if (sc.restOnBg && sameDpi) {
+    // 過渡：少數關若仍帶 restOnBg 數字；一源關主（柳）已刪，改走下方 HERO／homeBox
     const { foot: [rfx, rfy], bg: [rbx, rby], relScale } = sc.restOnBg;
     restScale = sceneBox.scale * relScale;
     figLeft = sceneBox.left + rbx * sceneBox.scale - (rfx - crop.x) * restScale;
     figTop = sceneBox.top + rby * sceneBox.scale - (rfy - crop.y) * restScale;
   } else if (homeBox) {
-    // 人物＝主頁場景層上的同一個 fig 框（場景座標 × 主頁場景縮放）
+    // 入陣無縫：背景已＝homeBox.bg；人物須讀 HERO rest／figScale（禁把 scene.scale 當人物 scale——柳 scene.s 無 figScale）
+    const heroForHome = sc.heroSync ? HERO_SCENES[sc.heroSync] : undefined;
     const s = homeBox.scene.scale;
-    restScale = sameDpi ? s : s * fw / a.w;
-    figLeft = homeBox.scene.left + (sameDpi ? crop.x : fx) * s;
-    figTop = homeBox.scene.top + (sameDpi ? crop.y : fy) * s;
+    if (heroForHome?.rest && sameDpi) {
+      const figS = heroForHome.figScale ?? 1;
+      const [rx, ry] = heroForHome.rest;
+      const rfx = heroForHome.footX ?? heroForHome.ax;
+      const rfy = heroForHome.foot;
+      restScale = s * figS;
+      figLeft = homeBox.scene.left + rx * s - (rfx - crop.x) * restScale;
+      figTop = homeBox.scene.top + ry * s - (rfy - crop.y) * restScale;
+    } else {
+      // 孔等：全幅對齊，人物框＝主頁場景層
+      restScale = sameDpi ? s : s * fw / a.w;
+      figLeft = homeBox.scene.left + (sameDpi ? crop.x : fx) * s;
+      figTop = homeBox.scene.top + (sameDpi ? crop.y : fy) * s;
+    }
   } else if (heroFigScale != null) {
     restScale = heroFigScale;
   }

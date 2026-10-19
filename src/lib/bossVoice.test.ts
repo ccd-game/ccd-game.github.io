@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BOSS_VOICE_COOLDOWN_MS,
@@ -121,7 +123,8 @@ describe('playBossVoice cooldown + mute', () => {
     expect(playBossVoice(3)).toBe('played');
     expect(created).toHaveLength(1);
     expect(created[0].play).toHaveBeenCalledTimes(1);
-    expect(created[0].volume).toBe(DEFAULT_VOICE_VOLUME);
+    // default bgmVolume is 1.0 — voice follows slider, not DEFAULT_VOICE_VOLUME
+    expect(created[0].volume).toBe(DEFAULT_SETTINGS.bgmVolume);
     expect(created[0].currentTime).toBe(0);
 
     created[0].currentTime = 1.5;
@@ -162,5 +165,91 @@ describe('playBossVoice cooldown + mute', () => {
     expect(playBossVoice(3)).toBe('muted');
     expect(playBossVoice(7)).toBe('muted');
     expect(created).toHaveLength(0);
+  });
+});
+
+describe('playBossVoice follows bgmVolume slider', () => {
+  let t: number;
+  let created: FakeAudio[];
+
+  beforeEach(() => {
+    __resetBossVoiceState();
+    t = 1_000;
+    created = [];
+    __setBossVoiceTestHooks({
+      now: () => t,
+      createAudio: (src) => {
+        const a = makeFakeAudio(src);
+        created.push(a);
+        return a;
+      },
+    });
+  });
+
+  it('enabled + bgmVolume=0 → audio.volume ≈ 0', () => {
+    stubSettings({ bgmEnabled: true, bgmVolume: 0 });
+    expect(playBossVoice(3)).toBe('played');
+    expect(created[0].volume).toBe(0);
+    expect(created[0].play).toHaveBeenCalledTimes(1);
+  });
+
+  it('enabled + bgmVolume=1 → audio.volume === 1', () => {
+    stubSettings({ bgmEnabled: true, bgmVolume: 1 });
+    expect(playBossVoice(3)).toBe('played');
+    expect(created[0].volume).toBe(1);
+  });
+
+  it('enabled + bgmVolume=0.5 → audio.volume === 0.5', () => {
+    stubSettings({ bgmEnabled: true, bgmVolume: 0.5 });
+    expect(playBossVoice(3)).toBe('played');
+    expect(created[0].volume).toBe(0.5);
+  });
+
+  it('bgmEnabled=false → muted (no play) regardless of bgmVolume', () => {
+    stubSettings({ bgmEnabled: false, bgmVolume: 1 });
+    expect(playBossVoice(3)).toBe('muted');
+    expect(created).toHaveLength(0);
+  });
+
+  it('next play re-reads latest bgmVolume (no mid-play live sync required)', () => {
+    stubSettings({ bgmEnabled: true, bgmVolume: 0.3 });
+    expect(playBossVoice(3)).toBe('played');
+    expect(created[0].volume).toBe(0.3);
+
+    t += BOSS_VOICE_COOLDOWN_MS;
+    stubSettings({ bgmEnabled: true, bgmVolume: 0.8 });
+    expect(playBossVoice(3)).toBe('played');
+    expect(created[0].volume).toBe(0.8);
+  });
+
+  it('DEFAULT_VOICE_VOLUME remains exported but is not the live play level', () => {
+    expect(DEFAULT_VOICE_VOLUME).toBe(0.7);
+    stubSettings({ bgmEnabled: true, bgmVolume: 1 });
+    expect(playBossVoice(3)).toBe('played');
+    expect(created[0].volume).toBe(1);
+    expect(created[0].volume).not.toBe(DEFAULT_VOICE_VOLUME);
+  });
+});
+
+describe('no dedicated SFX settings key', () => {
+  it('bossVoice + settingsStore source has no sfxVolume / sfxEnabled key', () => {
+    const root = resolve(__dirname, '../..');
+    const files = [
+      'src/lib/bossVoice.ts',
+      'src/lib/settingsStore.ts',
+    ] as const;
+    const forbidden = [
+      'sfxVolume',
+      'sfxEnabled',
+      'SFX_VOLUME',
+      'voiceVolume',
+      'voiceEnabled',
+    ] as const;
+    for (const rel of files) {
+      const src = readFileSync(resolve(root, rel), 'utf8');
+      for (const key of forbidden) {
+        expect(src.includes(key), `${rel} must not introduce ${key}`).toBe(false);
+      }
+    }
   });
 });

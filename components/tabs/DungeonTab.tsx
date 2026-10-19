@@ -3,7 +3,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { LevelConfig } from '../../types';
 import ChapterHero from '../home/ChapterHero';
 import { anchorStyle, chapterLabel } from '../home/heroUtils';
-import { drawerPeekH, progressFromY } from './drawerMath';
+import { drawerPeekH } from './drawerMath';
 
 const IconCircledLock = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -56,23 +56,26 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
 
   const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /** 同步入陣卷軸進度到 .home-dungeon（繼承給英雄區）；跟抽屜同一 duration／easing（CSS --drawer-p） */
-  const setDrawerProgress = useCallback((p: number, live: boolean) => {
+  /** 卷軸進度與抽屜 transform 解耦：--scroll-p 0＝展開／1＝合上；時長見 CSS（~1.6s ≡ unroll-ref-r2） */
+  const scrollRafRef = useRef<number | null>(null);
+  const clearScrollRaf = useCallback(() => {
+    if (scrollRafRef.current != null) {
+      cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = null;
+    }
+  }, []);
+
+  const setScrollProgress = useCallback((p: number, opts?: { snap?: boolean }) => {
     const root = rootRef.current;
     if (!root) return;
-    if (live) {
-      root.classList.add('is-drawer-dragging');
-      root.style.setProperty('--drawer-p', String(p));
-    } else {
-      root.classList.remove('is-drawer-dragging');
-      root.style.setProperty('--drawer-p', String(p));
-      // 下一幀清 inline，改由 .is-peek／.is-open 類驅動，讓 transition 接手
-      requestAnimationFrame(() => {
-        if (!root.classList.contains('is-drawer-dragging')) {
-          root.style.removeProperty('--drawer-p');
-        }
-      });
+    if (opts?.snap) {
+      root.classList.add('is-scroll-snap');
+      root.style.setProperty('--scroll-p', String(p));
+      void root.offsetHeight; // 強制合上態寫入後再允許長 transition
+      return;
     }
+    root.classList.remove('is-scroll-snap');
+    root.style.setProperty('--scroll-p', String(p));
   }, []);
 
   const setState = useCallback((next: DrawerState) => {
@@ -81,10 +84,36 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
       el.classList.remove('is-dragging');
       el.style.transform = '';
     }
+    const prev = stateRef.current;
     stateRef.current = next;
     setDrawerState(next);
-    setDrawerProgress(next === 'open' ? 1 : 0, false);
-  }, [setDrawerProgress]);
+    clearScrollRaf();
+
+    // 減少動態：即時到位，無長展開／合上
+    if (reduceMotion()) {
+      setScrollProgress(next === 'open' ? 1 : 0, { snap: true });
+      requestAnimationFrame(() => rootRef.current?.classList.remove('is-scroll-snap'));
+      return;
+    }
+
+    if (next === 'peek' && prev === 'open') {
+      // open→peek（下拉）：當幀確保卷合上，再雙 rAF 觸發慢展開；抽屜自身 .48s 不卡等
+      setScrollProgress(1, { snap: true });
+      scrollRafRef.current = requestAnimationFrame(() => {
+        scrollRafRef.current = requestAnimationFrame(() => {
+          scrollRafRef.current = null;
+          setScrollProgress(0);
+        });
+      });
+    } else if (next === 'open') {
+      // peek→open（上拉）：卷慢合與抽屜上拉並行，禁止 await transitionend
+      setScrollProgress(1);
+    } else {
+      setScrollProgress(next === 'peek' ? 0 : 1);
+    }
+  }, [clearScrollRaf, setScrollProgress]);
+
+  useEffect(() => () => clearScrollRaf(), [clearScrollRaf]);
   /** 拖曳結束後瀏覽器仍會補一個 click：忽略它，避免剛拖到的段又被切回 */
   const suppressClick = useRef(false);
 
@@ -131,7 +160,7 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
     // 下限＝peekY：禁止拖到只露標題列
     const y = Math.min(peekY, Math.max(0, base + dy));
     el.style.transform = `translate3d(0, ${y}px, 0)`;
-    setDrawerProgress(progressFromY(y, peekY), true);
+    // 拖曳只跟手抽屜；卷軸松手後走 setState（下拉先合再慢展／上拉並行慢合）
   };
 
   const finishDrag = (e: React.PointerEvent) => {

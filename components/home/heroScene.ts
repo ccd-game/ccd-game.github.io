@@ -1,6 +1,18 @@
 /**
- * 首頁預覽的落地場景設定（HERO_SCENES）與幾何：首頁預覽（ChapterHero）與圖鑑內頁（CharacterDetailView）共用，
- * 兩頁的背景／人物錨點、縮放、位置完全相同。
+ * 首頁／圖鑑落地場景幾何（one-source-geom-home-r1）
+ *
+ * ## 唯一準源（sceneGeometry）
+ * `HERO_SCENES`＋`computeHeroFit`／`heroFigStyle`／`heroBgFrameStyle`／`heroPeekHeight`
+ * ＝**三頁唯一幾何準源**（主頁預覽｜圖鑑內頁｜入陣 homeBox／戰鬥應跟此）。
+ * `heroPeekHeight` ≡ CSS `--peek-h`（N=4：14／56／÷3；one-source-codex-peek-h-r1）。
+ *
+ * - **驗收關主**：柳（`liu_zong_yuan`）＋孔（`kong_zi`）。
+ * - **位置／scale／ax／X／figScale／rest／bgZoom／fit**：只寫在本檔 HERO；禁第二套 figScale／座標真相。
+ * - **可共用變量（非幾何分叉）**：僅呼吸振幅／週期／相位（CSS／動畫）；不另開分叉改人物落點。
+ * - 讀取方：`ChapterHero`（預覽）、`CharacterDetailView`（圖鑑內頁）；戰鬥本輪禁改
+ *   `battleLayout`（柳仍有 homeSync 鏡像——**下輪廢柳 homeSync**，改只讀本準源）。
+ *
+ * 別名：`SCENE_GEOMETRY` ≡ `HERO_SCENES`（匯出，契約測試鎖同一參照）。
  */
 import type React from 'react';
 
@@ -42,13 +54,18 @@ const BG = `${import.meta.env.BASE_URL}resources/background`;
 export const INK_WASH_MASK = `${import.meta.env.BASE_URL}resources/effect/ink_wash_mask.webp`;
 /** 主頁山水單圖（用戶定稿）：抽屜以上滿幅；PNG 原檔禁 WebP／禁再壓 */
 export const HOME_SHANSHUI = `${import.meta.env.BASE_URL}resources/background/shanshui-full-above-drawer.png`;
-/** 入陣卷軸（art2 定稿）：合上＝雙軸填紙；打开＝展開卷。主頁 .home-cta 用。 */
+/** 入陣卷軸（art2 定稿）。主頁 .home-cta：雙軸＋畫心 PNG 切分（≡ scroll-unroll-ref-r2；禁 scaleX）。 */
 export const SCROLL_ENTER_OPEN = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/open.webp`;
 export const SCROLL_ENTER_CLOSED = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/closed-axles-filled.webp`;
+/** 自 open.webp 裁：左軸 0–88／畫心 88–1026（938×631）／右軸 1026–1114；PNG 1:1 永不橫向拉伸。 */
+export const SCROLL_ENTER_AXLE_LEFT = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/axle-left.png`;
+export const SCROLL_ENTER_PAPER = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/paper.png`;
+export const SCROLL_ENTER_AXLE_RIGHT = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/axle-right.png`;
 export const HERO_SCENES: Record<string, HeroScene> = {
   // 坐於岩上；靴底（人物層 975,633）落在岩丘頂 (948,429.5)；bgZoom 1.14 @ x995
   // 【align-v1315-home-r1】還原 v1.3.15（a628cce）：figScale 0.64、X:0.53、ax:867；無 figOy（縮放原點＝腳底）
-  // fit 'headTop'；三頁（主頁／圖鑑／入陣 homeBox）同讀此 HERO
+  // 【one-source-geom-home-r1】唯一準源；三頁同讀；戰鬥 hold scale≈0.528＠390
+  // fit 'headTop'；主頁／圖鑑／入陣 homeBox 同讀此 HERO
   liu_zong_yuan: { bg: `${BG}/bg_level_2.png`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 867, X: 0.53, head: 19, foot: 633, footX: 975, k: 1.62, breathe: '64.8% 79.9%', figScale: 0.64, fill: 'coverBottom', rest: [948, 429.5], bgZoom: [1.14, 995], fit: 'headTop' },
   // 坐於車中，放大約一成半；車輪著地，馬匹向右出框
   // v3 三層（1280×720 逐像素對齊）：kong_zi_bg → kong_zi_character（人物＋戰車）→ kong_zi_weapon（雙馬，疊在人物上）
@@ -57,6 +74,7 @@ export const HERO_SCENES: Record<string, HeroScene> = {
   //   且螢幕臉高（faceH 35）＝柳宗元（faceH 52×figScale 0.64）≈29px；ax 533→508（＝face.cx）讓內頁臉水平置中於 host 中線
   // breathe 原點＝輪／蹄著地線（y≈662＝92%），呼吸時輪蹄不離地
   // 【align-v1315-home-r1】還原 v1.3.15（a628cce）：無 figScale／figOy（缺省 figScale＝1）
+  // 【one-source-geom-home-r1】唯一準源；三頁同讀；戰鬥 hold scale≈0.783＠390；heroSync→本條
   kong_zi: { bg: `${BG}/kong_zi_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 508, X: 0.5, head: 149.5, foot: 640.9, k: 2.28, breathe: '45% 92%', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
   // 廉藺 solo：ax＝face.cx、X:0.5；figScale 使螢幕臉高≈孔子 29.04；front＝各自虎層（青／金）
   // 藺相如＝左文士＋青虎；廉頗＝右武將＋金虎
@@ -73,8 +91,10 @@ export const HERO_SCENES: Record<string, HeroScene> = {
 // 只做左右鏡射補滿；下方不鏡射、無墨黑淡出／wash（zoomout bg 直通）
 
 /**
- * 契約：有 BATTLE homeSync／restOnBg 者 → 預覽 HERO 跟戰鬥錨；有 heroSync 者 → 戰鬥跟 HERO。
- * 對照用：battleKey → heroKey。測試見 src/lib/homePreviewFollowBattle.test.ts。
+ * 過渡對照：battleKey → heroKey。
+ * one-source：幾何以 HERO／SCENE_GEOMETRY 為準；有 heroSync 者戰鬥已跟 HERO；
+ * 有 homeSync／restOnBg 者（柳）本輪仍鏡像 HERO——**下輪廢 homeSync**，勿再維護第二套常數。
+ * 測試：src/lib/homePreviewFollowBattle.test.ts、oneSourceGeom。
  */
 export const BATTLE_TO_HERO_KEY: Record<string, string> = {
   liu_zong_yuan_battle: 'liu_zong_yuan',
@@ -83,9 +103,31 @@ export const BATTLE_TO_HERO_KEY: Record<string, string> = {
   li_bai: 'li_bai',
 };
 
-/** 從 restOnBg.relScale 與 bgZoom 反推應寫進 HERO 的 figScale（＝ relScale × zoom） */
+/**
+ * 場景幾何準源別名（≡ HERO_SCENES，同一物件參照）。
+ * 預覽／圖鑑／（下輪）戰鬥只應讀此；禁另建 figScale／ax 表。
+ */
+export const SCENE_GEOMETRY: Record<string, HeroScene> = HERO_SCENES;
+
+/** 驗收關主（三頁同尺）：柳＋孔 */
+export const ONE_SOURCE_ACCEPTANCE_HEROES = ['liu_zong_yuan', 'kong_zi'] as const;
+export type OneSourceAcceptanceHero = (typeof ONE_SOURCE_ACCEPTANCE_HEROES)[number];
+
+/** 戰鬥 hold 準源 box（390×844 browser；one-source-geom-home-r1／compare-preview-vs-battle-size-r1） */
+export const BATTLE_HOLD_GEOM_390 = {
+  liu_zong_yuan: { scale: 0.528, left: -204.3043122530318, top: 130.63806372829907, faceX: 191.6956765036499 },
+  // peek-h-r1：heroPeekHeight≡CSS；PW 實測 hold（homeBox／heroSync）
+  kong_zi: { scale: 0.79093017578125, left: -206.78125, top: 15.5625, faceX: 195.011279296875 },
+} as const;
+
+/** 從 restOnBg.relScale 與 bgZoom 反推應寫進 HERO 的 figScale（＝ relScale × zoom）；過渡用，下輪廢 homeSync 後可刪 */
 export function heroFigScaleFromBattleRel(relScale: number, bgZoom: number): number {
   return relScale * bgZoom;
+}
+
+/** 解析人物螢幕 scale：場景 fit.s × HERO.figScale（唯一 figScale 真相） */
+export function heroCharScale(sc: HeroScene, fitS: number): number {
+  return fitS * (sc.figScale ?? 1);
 }
 export const SCENE_TILES: [number, number][] = [-1, 0, 1].map(i => [i, 0] as [number, number]);
 export const sceneVars = (sc: HeroScene) => ({ '--W': sc.w, '--H': sc.h, '--ax': sc.ax, '--X': sc.X, '--head': sc.head, '--foot': sc.foot, '--span': sc.foot - sc.head, '--k': sc.k }) as React.CSSProperties;
@@ -95,6 +137,17 @@ export const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 export const DRAWER_BAR_H = 52;
 
 /**
+ * 抽屜半開（四篇／N=4）時的英雄區高：圖鑑內頁／戰鬥 heroSync 以此為場景框高。
+ * 須≡ CSS `.home-dungeon[data-min-rows="4"] --peek-h`
+ *   = bar + 14 + (D − bar − 56) / 3
+ * → 英雄區高 H = D − peek-h（與 `.home-hero-slot { bottom: var(--peek-h) }` 同）。
+ * data-min-rows="6" 暫不跟（除非測試要）。
+ */
+export const heroPeekHeight = (D: number, bar: number = DRAWER_BAR_H) =>
+  D - (bar + 14 + (D - bar - 56) / 3);
+
+
+/**
  * 場景縮放／位置（px）：W×H＝英雄區尺寸；D＝首頁內容區（.home-dungeon）高；bar＝抽屜標題列高。
  * fit 'headTop'（柳宗元）：人物維持抽屜收合時的螢幕大小（＝cover 縮放），背景＋人物一起下移到「帽頂留白 m」；
  * 其他古人：半開時「帽頂留白 m、腳底距下緣 footPad」的全身縮放；一律不小於英雄區 cover（無黑邊）。
@@ -102,7 +155,7 @@ export const DRAWER_BAR_H = 52;
 export function computeHeroFit(sc: HeroScene, W: number, H: number, D: number, bar: number = DRAWER_BAR_H) {
   const zoom = sc.bgZoom?.[0] ?? 1;
   const Hc = Math.max(H, D - bar);                 // 抽屜收合時英雄區高
-  const Hp = Math.min(H, D - ((D + 2 * bar) / 3 - 1)); // 抽屜半開（四篇）時英雄區高
+  const Hp = Math.min(H, heroPeekHeight(D, bar));  // 抽屜半開（四篇）時英雄區高 ≡ CSS --peek-h
   const m = sc.topPad ?? 12;
   // 帽頂（場景像素）：有 rest 時以縮放後立繪計算，否則用 head
   const headY = sc.rest ? sc.rest[1] - (sc.foot - sc.head) * (sc.figScale ?? 1) : sc.head;
@@ -115,8 +168,6 @@ export function computeHeroFit(sc: HeroScene, W: number, H: number, D: number, b
   return { s, left, top };
 }
 
-/** 抽屜半開（四篇）時的英雄區高：圖鑑內頁以此為場景框高，構圖與首頁預覽相同 */
-export const heroPeekHeight = (D: number, bar: number = DRAWER_BAR_H) => D - ((D + 2 * bar) / 3 - 1);
 
 /** 立繪框（.home-scene-fig）在場景中的位置＋靴底對岩頂的平移縮放 */
 export function heroFigStyle(scene: HeroScene): React.CSSProperties {

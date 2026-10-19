@@ -4,7 +4,7 @@ import { LevelConfig } from '../../types';
 import { portraitKey, LAYERED_PORTRAITS } from '../../data/portraits';
 import { anchorStyle, chapterLabel, faceCircleStyle, type Target } from './heroUtils';
 import { useGyroParallax, type GyroLayer } from './useGyroParallax';
-import { HERO_SCENES, SCENE_TILES, INK_WASH_MASK, HOME_SHANSHUI, SCROLL_ENTER_OPEN, SCROLL_ENTER_CLOSED, computeHeroFit, heroFigStyle, pct, sceneVars } from './heroScene';
+import { HERO_SCENES, SCENE_TILES, INK_WASH_MASK, HOME_SHANSHUI, SCROLL_ENTER_AXLE_LEFT, SCROLL_ENTER_PAPER, SCROLL_ENTER_AXLE_RIGHT, computeHeroFit, heroFigStyle, pct, sceneVars } from './heroScene';
 
 /**
  * 英雄區立繪目標（相對於立繪框 .home-fig-stage：寬 100%、高寬比 47:39，置頂；
@@ -343,10 +343,17 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
         )}
 
         <button type="button" className={`home-cta home-focus mt-4${isL2 ? ' l2-cta' : ''}`} onClick={() => onEnter(level)} aria-label={`入陣：${level.title}`}>
-          {/* 入陣卷軸 art2：靜態默认打开＋「入陣」字；合上圖供 :active／未來轉場 */}
+          {/* 入陣卷軸：雙軸 translateX＋畫心 reverse mask（≡ scroll-unroll-ref-r2；禁 scaleX／禁雙圖 ghost） */}
           <span className="home-cta-scroll" aria-hidden="true">
-            <img className="home-cta-scroll-open" src={SCROLL_ENTER_OPEN} alt="" draggable={false} />
-            <img className="home-cta-scroll-closed" src={SCROLL_ENTER_CLOSED} alt="" draggable={false} />
+            <span className="home-cta-axle home-cta-axle-left">
+              <img src={SCROLL_ENTER_AXLE_LEFT} alt="" draggable={false} />
+            </span>
+            <span className="home-cta-paper">
+              <img src={SCROLL_ENTER_PAPER} alt="" draggable={false} />
+            </span>
+            <span className="home-cta-axle home-cta-axle-right">
+              <img src={SCROLL_ENTER_AXLE_RIGHT} alt="" draggable={false} />
+            </span>
           </span>
           <span className="home-cta-label">入陣</span>
           <span className="sr-only">：{level.title}</span>

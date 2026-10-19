@@ -362,8 +362,12 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
 
   return (
     <div
-      className="home-menu-shell absolute inset-0 flex flex-col overflow-hidden z-[500] select-none"
-      style={{ backgroundColor: 'var(--app-bg)' }}
+      className="home-menu-shell absolute inset-0 flex flex-col overflow-x-clip overflow-y-hidden z-[500] select-none"
+      style={{ backgroundColor: 'var(--app-bg)', overflowX: 'clip' }}
+      onScroll={(e) => {
+        /* home-right-white-line-r1：金框撐大 scrollWidth 時禁橫移露 --app-bg（clip 後援） */
+        if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
+      }}
     >
       <style>{`
         @keyframes dynamicTabSlide {

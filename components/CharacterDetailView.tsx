@@ -51,10 +51,12 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
       // D＝首頁內容區高＝本頁頂到底部導覽列頂（首頁 .home-dungeon 同樣由頂欄下緣延伸到導覽列上緣）
       const nav = document.querySelector<HTMLElement>('.home-bar-bottom');
       const W = root.clientWidth;
-      const D = nav ? nav.getBoundingClientRect().top - root.getBoundingClientRect().top : root.clientHeight;
-      if (!W || !D) return;
-      const H = heroPeekHeight(D);
-      const { s, left, top } = computeHeroFit(scene, W, H, D);
+      const Dfloat = nav ? nav.getBoundingClientRect().top - root.getBoundingClientRect().top : root.clientHeight;
+      if (!W || !Dfloat) return;
+      // host 高跟 CSS peek（浮點 D）；fit 跟 ChapterHero（dungeon.clientHeight 整數）→ 圖鑑 vs 預覽 Δ→0
+      const H = heroPeekHeight(Dfloat);
+      const Dfit = Math.round(Dfloat);
+      const { s, left, top } = computeHeroFit(scene, W, H, Dfit);
       const host = sceneHostRef.current, name = nameRef.current;
       const fadeEnd = host && name ? name.getBoundingClientRect().bottom - host.getBoundingClientRect().top : H;
       setFit(f => (f && f.H === H && f.s === s && f.left === left && f.top === top && Math.abs(f.fadeEnd - fadeEnd) < 0.5) ? f : { H, s, left, top, fadeEnd });
