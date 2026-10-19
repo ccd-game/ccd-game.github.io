@@ -41,7 +41,7 @@ describe('孔子 v3 三層場景（第 6 關）', () => {
     expect(r.layout.scale).toBeCloseTo(0.7339, 6);
   });
 
-  it('390×844：背景頂高出畫面（三頁皆不露鏡像）、臉高＝柳宗元（±5%）', () => {
+  it('390×844：背景頂高出畫面（三頁皆不露鏡像）；孔 figScale 缺省＝1（v1.3.15）', () => {
     const W = 390, H = 844, D = H - HOME_TOP_BAR_H - HOME_NAV_H, Hp = heroPeekHeight(D);
     const kz = computeHeroFit(HERO_SCENES.kong_zi, W, Hp, D);
     const lz = computeHeroFit(HERO_SCENES.liu_zong_yuan, W, Hp, D);
@@ -50,10 +50,14 @@ describe('孔子 v3 三層場景（第 6 關）', () => {
     expect(kz.top + 149.5 * kz.s).toBeGreaterThanOrEqual(11.9);    // 車蓋頂飾不出框
     const r = computeGroundedBattle(BATTLE_ANCHORS[key], BATTLE_SCENES[key], W, H)!;
     expect(r.sceneBox.mirrorTiles).toBe(false);
-    // face-lock：螢幕臉高＝ANCHOR.faceH × fit.s × figScale（孔 35／柳 68；±5%）
+    // align-v1315-home-r1：孔無 figScale（缺省 1）、柳 0.64；不再要求臉高 ±5% face-lock（1.548 時代）
+    expect(HERO_SCENES.kong_zi.figScale).toBeUndefined();
+    expect(HERO_SCENES.kong_zi.figOy).toBeUndefined();
+    expect(HERO_SCENES.liu_zong_yuan.figScale).toBeCloseTo(0.64, 5);
     const kzFace = PORTRAIT_ANCHORS.kong_zi.faceH * kz.s * (HERO_SCENES.kong_zi.figScale ?? 1);
     const lzFace = PORTRAIT_ANCHORS.liu_zong_yuan.faceH * lz.s * (HERO_SCENES.liu_zong_yuan.figScale ?? 1);
-    expect(Math.abs(kzFace / lzFace - 1)).toBeLessThan(0.05);
+    expect(kzFace).toBeGreaterThan(0);
+    expect(lzFace).toBeGreaterThan(0);
   });
 });
 

@@ -23,10 +23,10 @@ export const DEFAULT_VOICE_VOLUME = 0.7;
  * Extend here to wire more bosses.
  */
 export const BOSS_VOICE_SRCS: Readonly<Record<number, string>> = {
-  /** 柳宗元 — 《始得西山宴遊記》（圖鑑 id＝18；v1.3.19 准許圖鑑 remap，原 id 2 讓予廉頗） */
-  18: 'audio/boss/liuzongyuan-quote.mp3',
-  /** 孔子 — 《論仁、論孝、論君子》；句：三人行，則必有我師焉。 */
-  6: 'audio/boss/kongzi-quote.mp3',
+  /** 柳宗元 — 《始得西山宴遊記》（圖鑑 id＝3；原 18，舊 03 起後移） */
+  3: 'audio/boss/liuzongyuan-quote.mp3',
+  /** 孔子 — 《論仁、論孝、論君子》；句：三人行，則必有我師焉。（圖鑑 id＝7） */
+  7: 'audio/boss/kongzi-quote.mp3',
 };
 
 export type BossVoiceResult = 'played' | 'cooldown' | 'muted' | 'noop';

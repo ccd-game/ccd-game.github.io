@@ -354,8 +354,8 @@ const BattleArea: React.FC<BattleAreaProps> = memo(({
       {/* 落地場景背景：與立繪共用同一位置／縮放（逐像素對齊岩石／地面）；底層 cover 填滿戰鬥區 */}
       {grounded && sceneBox && (
         <div
-          className={`absolute top-0 left-0 w-full h-[62%] z-[0] overflow-hidden pointer-events-none transition-opacity duration-[700ms] ${isCharacterVisible || holdScene ? 'opacity-100' : 'opacity-0'} ${bgDimmed ? 'bg-attack-dim' : ''}`}
-          style={{ transition: `opacity 0.7s, filter ${bgDimDuration}ms` }}
+          className={`battle-scene-layer absolute top-0 left-0 w-full h-[62%] z-[0] overflow-hidden pointer-events-none transition-opacity duration-[700ms] ${isCharacterVisible || holdScene ? 'opacity-100' : 'opacity-0'} ${bgDimmed ? 'bg-attack-dim' : ''}`}
+          style={{ transition: `opacity 0.7s, filter ${bgDimDuration}ms`, backgroundColor: '#0a0a0a' }}
           aria-hidden="true"
         >
           {/* 場景本體：與立繪同一 left/top/scale（cover 縮放後通常蓋滿戰鬥區；多出的從上方／兩側裁切） */}

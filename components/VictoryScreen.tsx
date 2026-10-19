@@ -55,9 +55,11 @@ const VictoryScreen: React.FC<VictoryScreenProps> = ({ onRestart, expGained = EX
           </span>
         </div>
 
-        <p data-testid="victory-exp" className="text-[#d4af37]/90 text-[0.85rem] tracking-widest mb-8 -mt-8">
-          經驗 +{expGained}
-        </p>
+        {expGained > 0 && (
+          <p data-testid="victory-exp" className="text-[#d4af37]/90 text-[0.85rem] tracking-widest mb-8 -mt-8">
+            經驗 +{expGained}
+          </p>
+        )}
         
         {/* 按鈕容器 */}
         <div className="flex justify-center w-full">

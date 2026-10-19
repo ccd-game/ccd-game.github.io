@@ -31,11 +31,12 @@
             --hud-vnext-zone-h: 121.8px;
         }
         html.is-standalone {
-            --hud-vnext-zone-h: calc(121.8px + env(safe-area-inset-top, 0px));
+            /* home-standalone-layout-r1：基線 121.8；standalone 另加 --sat（後備 env） */
+            --hud-vnext-zone-h: calc(121.8px + var(--sat, env(safe-area-inset-top, 0px)));
         }
         @media (display-mode: standalone), (display-mode: fullscreen) {
             :root {
-                --hud-vnext-zone-h: calc(121.8px + env(safe-area-inset-top, 0px));
+                --hud-vnext-zone-h: calc(121.8px + var(--sat, env(safe-area-inset-top, 0px)));
             }
         }
 
@@ -208,6 +209,44 @@
             will-change: opacity, filter;
         }
         .bg-attack-dim { filter: brightness(0.2) contrast(1.1) !important; }
+
+        /* 戰鬥場景層：深色墊底，避免 speech／dim 時 --app-bg 淺色自右緣／縫隙透出 */
+        .battle-scene-layer {
+            background-color: #0a0a0a;
+        }
+
+        /*
+         * standalone 戰鬥補償：全域 html.is-standalone #root::before（sat 黑邊）會蓋住
+         * absolute inset-0 戰鬥頂部。戰鬥殼改自 sat 起算，百分比疊層（40% 底區／答槽／HP）
+         * 在可用高度內重算，避免答槽貼血條、底鍵區被撐溢。主頁 ::before 根因建議另限主頁。
+         */
+        html.is-standalone .battle-clip {
+            top: var(--sat, env(safe-area-inset-top, 0px));
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: auto;
+            overflow: hidden;
+        }
+        @media (display-mode: standalone), (display-mode: fullscreen) {
+            .battle-clip {
+                top: var(--sat, env(safe-area-inset-top, 0px));
+                bottom: 0;
+                left: 0;
+                right: 0;
+                height: auto;
+                overflow: hidden;
+            }
+        }
+
+        /* sab 只墊 InputPad 內部；底區 overflow 裁切，不撐 absolute 答槽／HP 疊層 */
+        .battle-input-zone {
+            overflow: hidden;
+        }
+        .battle-input-zone .input-pad-grid {
+            box-sizing: border-box;
+            min-height: 0;
+        }
 
         .gold-divider {
             position: absolute;

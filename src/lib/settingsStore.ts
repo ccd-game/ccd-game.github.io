@@ -36,7 +36,7 @@ export const SETTINGS_STORAGE_KEY = 'ccd.settings.v1';
 export const DEFAULT_SETTINGS: SettingsPrefs = {
   theme: 'light',
   bgmEnabled: true,
-  bgmVolume: 0.08,
+  bgmVolume: 1.0,
   rememberMe: true,
   updatedAt: new Date(0).toISOString(),
 };

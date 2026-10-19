@@ -32,7 +32,7 @@ LEVELS_DATA.forEach(level => {
 });
 import InkSplash from './components/InkSplash';
 import BootLoadingMask from './components/BootLoadingMask';
-import AudioManager, { AudioManagerHandle } from './components/AudioManager';
+import AudioManager, { AudioManagerHandle, applyVolumeToTracks } from './components/AudioManager';
 import { watchAuthState, signInWithGoogle, signOutUser, enterGuestMode, exitGuestMode, AuthState, canEnterGame, watchSurnameState, watchSurnameEditor, setSurnameEditorOpen, SurnameState, applyAuthPersistence, recordLevelClear, deductUserStamina, refundUserStamina, clearStaminaRefundable } from './src/lib/firebase';
 import { useBattleRecorder } from './src/lib/useBattleRecorder';
 import { ENTER_EXIT_ITEM_MS, ENTER_EXIT_MS, ENTER_EXIT_STAGGER_MS, ENTER_REDUCED_FADE_MS, HomeSceneBox, measureHomeScene, preloadBattleImages, prefersReducedMotion, setEnterFreeze, setHomePause, syncHeroAnimations } from './src/lib/enterTransition';
@@ -330,6 +330,8 @@ const App: React.FC = () => {
 
   const handleVolumeChange = useCallback((val: number) => {
     setBgmVolume(val);
+    // 同步寫入 Audio（不仰賴 useEffect 多一幀）；persist 仍 150ms debounce
+    applyVolumeToTracks(val);
     pendingVolumeRef.current = val;
     if (volumePersistTimerRef.current != null) {
       window.clearTimeout(volumePersistTimerRef.current);
@@ -484,8 +486,15 @@ const App: React.FC = () => {
   const timerRef = useRef<number | null>(null);
   const gameInstanceIdRef = useRef<number>(0);
   // 通關計時及紀錄（只在 VICTORY 記錄；見 src/lib/battleRecorder.ts）
+  /** 結算畫面顯示的實際入帳經驗（未達防作弊下限／調試 WIN 為 0） */
+  const [victoryExpGained, setVictoryExpGained] = useState(0);
+  /** 備援：若 VICTORY 時 session 尚未被 runVictorySequence 取走，仍寫入 */
   const handleVictoryClear = useCallback((clear: VictoryClear) => {
-    recordLevelClear(clear).catch((e) => console.error('通關紀錄寫入失敗', e));
+    recordLevelClear(clear)
+      .then((outcome) => {
+        if (outcome?.recorded) setVictoryExpGained(outcome.expGained);
+      })
+      .catch((e) => console.error('通關紀錄寫入失敗', e));
   }, []);
   // 速度傷害：完成作答（最後一次點選）當刻的剩餘秒數（小數），由倒數計時器的整數秒＋上次跳秒後經過的時間推算
   const gameStateRef = useRef<GameState>(gameState);
@@ -707,6 +716,7 @@ const App: React.FC = () => {
     if (!currentLevel || levelQuestions.length === 0 || isQuestionsFetching) return;
 
     const instanceId = ++gameInstanceIdRef.current;
+    setVictoryExpGained(0);
     battleRecorder.begin(currentLevel.id, !testMode);
     audioManagerRef.current?.resetBattleMusic();
     try {
@@ -756,7 +766,7 @@ const App: React.FC = () => {
     } catch (e) { }
   }, [currentLevel, levelQuestions, isQuestionsFetching, triggerBossSpeechAction, startLevelSequence, battleRecorder, resetBattleRefs]);
 
-  /** 勝利演出：沿用原有勝利流程（尚未說的門檻台詞 → Boss 勝利台詞 → VICTORY 畫面） */
+  /** 勝利演出：門檻／勝利台詞 → 結算寫入 EXP（guest／Firebase）→ VICTORY 畫面 */
   const runVictorySequence = useCallback(async (id: number, preSpeeches: string[] = []) => {
     if (!currentLevel) return;
     for (const msg of preSpeeches) {
@@ -767,8 +777,21 @@ const App: React.FC = () => {
     if (gameInstanceIdRef.current !== id) return;
     settleStamina('victory');
     setStaminaRefunded(false);
+    // 結算當刻入帳：先 takeVictoryClear，再 recordLevelClear（與 useBattleRecorder 備援互斥，只寫一次）
+    const clear = battleRecorder.takeVictoryClear();
+    let gained = 0;
+    if (clear) {
+      try {
+        const outcome = await recordLevelClear(clear);
+        if (outcome?.recorded) gained = outcome.expGained;
+      } catch (e) {
+        console.error('通關紀錄寫入失敗', e);
+      }
+    }
+    if (gameInstanceIdRef.current !== id) return;
+    setVictoryExpGained(gained);
     setGameState(p => ({ ...p, status: GameStatus.VICTORY, isTurnActive: false }));
-  }, [currentLevel, triggerBossSpeechAction, settleStamina]);
+  }, [currentLevel, triggerBossSpeechAction, settleStamina, battleRecorder]);
 
   /** 戰敗演出：沿用原有戰敗流程（戰敗台詞 → 墨染 → GAME_OVER 畫面） */
   const runDefeatSequence = useCallback(async (id: number) => {
@@ -1175,11 +1198,11 @@ const App: React.FC = () => {
       <div className={`absolute inset-0 z-[8000] pointer-events-none transition-opacity duration-150 ${isScreenFlash ? 'opacity-50 bg-red-600' : 'opacity-0'}`} />
 
       {/* 戰鬥頁容器（入陣轉場時用來確認已畫好；不建立堆疊環境） */}
-      <div ref={battleClipRef} className="absolute inset-0">
+      <div ref={battleClipRef} className="battle-clip absolute inset-0 overflow-hidden">
       {/* 無落地場景資料時，沿用舊式獨立背景；有 BATTLE_SCENES 時改由 BattleArea 與立繪共用容器 */}
       {!battleScene && (
-        <div className={`global-scene-bg absolute top-0 left-0 w-full h-[62%] z-[0] ${((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed) ? 'bg-attack-dim' : ''}`}
-          style={{ backgroundImage: currentLevel ? `url("${currentLevel.bgImg}")` : 'none', backgroundSize: 'auto 100%', backgroundRepeat: 'no-repeat', backgroundPosition: 'center bottom', opacity: gameState.status === GameStatus.PLAYING && (introStage !== 'none' || enterHold) ? 1 : 0, transition: 'opacity 0.7s, filter var(--bg-dim-duration, 400ms)', '--bg-dim-duration': `${bgDimDuration}ms` } as any} />
+        <div className={`global-scene-bg battle-scene-layer absolute top-0 left-0 w-full h-[62%] z-[0] ${((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed) ? 'bg-attack-dim' : ''}`}
+          style={{ backgroundImage: currentLevel ? `url("${currentLevel.bgImg}")` : 'none', backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center 40%', backgroundColor: '#0a0a0a', opacity: gameState.status === GameStatus.PLAYING && (introStage !== 'none' || enterHold) ? 1 : 0, transition: 'opacity 0.7s, filter var(--bg-dim-duration, 400ms)', '--bg-dim-duration': `${bgDimDuration}ms` } as any} />
       )}
 
       <div className={`gold-divider ${gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 'active' : ''}`} style={{ bottom: "40%" }} />
@@ -1189,7 +1212,7 @@ const App: React.FC = () => {
         <>
           <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} bossName={currentLevel?.bossName || ""} bossImg={battleImg} bgImg={currentLevel?.bgImg} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} weaponLayers={currentLevel?.weaponLayers} layout={battleLayout} scene={battleScene} sceneBox={battleSceneBox} bgDimmed={((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed)} bgDimDuration={bgDimDuration} holdScene={enterHold} inheritBreathOrigin={activeHomeBox?.breatheOrigin ?? null} />
           <DamageMultiplierPopup popup={damagePopup} timeScale={timeScale} />
-          <div className="absolute bottom-0 left-0 w-full z-[80] h-[40%]" style={{ backgroundColor: 'var(--app-bg)' }}>
+          <div className="battle-input-zone absolute bottom-0 left-0 w-full z-[80] h-[40%] overflow-hidden" style={{ backgroundColor: 'var(--app-bg)' }}>
             <InputPad options={shuffledOptions} usedIndices={gameState.usedIndices} disabled={!gameState.isTurnActive || gameState.isPaused} onOptionClick={handleOptionClickAction} isEnemyAttacking={isInputErrorDimmed} showUI={showInputPadUI} isExiting={isInputPadExiting} suppressExitAnim={suppressExitAnim} />
             <BossSpeech message={bossSpeechMsg} bossName={currentLevel?.bossName || ""} duration={isFatalDefeat ? 99999 : 2000 * timeScale} isFatal={isFatalDefeat} theme={theme} />
           </div>
@@ -1197,11 +1220,11 @@ const App: React.FC = () => {
             <div className="hp-text">{Math.floor(gameState.playerHp)} / {gameState.maxPlayerHp}</div>
             <div className={`absolute inset-0 bg-[#28a745] z-[33] hp-bar-gpu-layer ${introStage === 'player_hp' ? 'hp-fill-slow' : 'hp-fill-hit'}`} style={{ transform: `scaleX(${gameState.playerHp/gameState.maxPlayerHp})` }} />
           </div>
-          <div className={`absolute left-0 w-full h-[66px] z-[95] transition-all duration-700 transform ${skillPanelShown && !isFatalDefeat ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ bottom: "calc(40% + 14px)" }}>
+          <div className={`absolute left-0 w-full h-[66px] z-[95] transition-all duration-700 transform ${skillPanelShown && !isFatalDefeat ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ bottom: "calc(40% + 16px)" }}>
             <SkillPanel />
             {isAutoPlaying && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 bg-red-600 text-white text-[13px] font-black rounded-lg z-[110] animate-pulse border-2 border-white/40 shadow-[0_0_25px_red] tracking-[4px] uppercase">Auto Playing</div>}
           </div>
-          <div className="absolute left-0 w-full h-[42px] z-[100] flex flex-col items-center" style={{ bottom: "calc(40% + 80px)" }}>
+          <div className="absolute left-0 w-full h-[42px] z-[100] flex flex-col items-center" style={{ bottom: "calc(40% + 82px)" }}>
              <SlotsInterface userInput={gameState.userInput} showUI={showSlotsUI && !isFatalDefeat} isFalling={isSlotsFalling} isConverging={isConverging} onSlotClear={idx => {
                 setGameState(p => {
                   const s = p.userInput[idx]; if (!s || !s.char || s.locked || p.isPaused) return p; // 預填格不能清除
@@ -1211,7 +1234,7 @@ const App: React.FC = () => {
                 });
              }} lastImpactIndex={lastImpactIndex} noExitAnim={suppressExitAnim} />
           </div>
-          <div className="absolute left-0 w-full z-[110] flex flex-col items-center" style={{ bottom: "calc(40% + 122px)" }}>
+          <div className="absolute left-0 w-full z-[110] flex flex-col items-center" style={{ bottom: "calc(40% + 124px)" }}>
              <QuestionBox question={currentQuestion} showUI={showSlotsUI && !isFatalDefeat} noExitAnim={suppressExitAnim} />
           </div>
           <HUD gameState={gameState} introStage={introStage} onPause={() => setGameState(p => ({...p, isPaused: !p.isPaused}))} isTimerPulse={isTimerPulse} showInputPadUI={showInputPadUI && !isFatalDefeat} questionType={currentQuestion?.type} isDemoMode={isDemoMode} isAutoPlaying={isAutoPlaying} speedMultiplier={speedMultiplier} onAutoToggle={() => {
@@ -1220,7 +1243,7 @@ const App: React.FC = () => {
           }} onSpeedToggle={() => {
               // 倍數：1X → 3X → 5X → 1X（AUTO 開啟時才可見）
               setSpeedMultiplier(m => m === 1 ? 3 : m === 3 ? 5 : 1);
-          }} onDebugVictory={() => setGameState(p => ({ ...p, status: GameStatus.VICTORY }))} onDebugGameOver={() => triggerEnemyAttack(true, MAX_HP)} isDimmed={introStage === 'none' || introStage === 'starting'} theme={theme} />
+          }} onDebugVictory={() => { setVictoryExpGained(0); setGameState(p => ({ ...p, status: GameStatus.VICTORY })); }} onDebugGameOver={() => triggerEnemyAttack(true, MAX_HP)} isDimmed={introStage === 'none' || introStage === 'starting'} theme={theme} />
         </>
         </Suspense>
       )}
@@ -1233,6 +1256,7 @@ const App: React.FC = () => {
         <MenuScreen
           levels={LEVELS_DATA}
           onSelect={handleEnterLevel}
+          hudLive={showMenuScreen}
           viewingCharacter={gameState.status === GameStatus.CHARACTER_DETAIL ? viewingCharacter : null}
           onShowCharacterDetail={(char) => {
             setViewingCharacter(char);
@@ -1262,7 +1286,7 @@ const App: React.FC = () => {
 
       {isLoggedIn && gameState.status === GameStatus.VICTORY && (
         <Suspense fallback={<SoftFallback />}>
-          <VictoryScreen onRestart={resetToStart} expGained={100} />
+          <VictoryScreen onRestart={resetToStart} expGained={victoryExpGained} />
         </Suspense>
       )}
 

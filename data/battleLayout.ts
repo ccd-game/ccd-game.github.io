@@ -305,8 +305,8 @@ function groundedCore(
     const areaTop = 12; // 頂 HP 條 h-[12px]
     let dx: number, dy: number;
     if (sc.bodyBox) {
-      // 題目框：bottom calc(40% + 122px)、高 40px → 上緣 0.6·H − 162
-      const areaBottom = rootH * 0.6 - 162;
+      // 題目框：bottom calc(40% + 124px)、高 40px → 上緣 0.6·H − 164
+      const areaBottom = rootH * 0.6 - 164; // 題目 bottom calc(40%+124)+高40
       const [x0, y0, x1, y1] = sc.bodyBox;
       dx = rootW / 2 - (figLeft + ((x0 + x1) / 2 - crop.x) * figScale);
       dy = (areaTop + areaBottom) / 2 - (figTop + ((y0 + y1) / 2 - crop.y) * figScale);

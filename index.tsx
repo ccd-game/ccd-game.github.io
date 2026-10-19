@@ -4,6 +4,9 @@ import App from './App';
 import './src/styles/design-tokens.css';
 import './src/styles/home-chrome.css';
 import './src/index.css';
+import { installBlockPinchZoom } from './src/lib/blockPinchZoom';
+
+installBlockPinchZoom();
 
 /** letterbox-390: scale = min(vw/390, vh/844); #root stays 390×844 design px */
 const GAME_DESIGN_W = 390;

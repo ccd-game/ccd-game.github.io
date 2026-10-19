@@ -101,6 +101,23 @@ export class TrackFader {
   }
 }
 
+
+/**
+ * 使用者拖動／設定音量時套用到單軌：
+ * 若該軌應在聽（wanted 且未 paused），取消進行中 fade 並 snap gain=1，
+ * 讓 el.volume 直接＝user；否則只 apply（保留淡出中的 gain）。
+ */
+export function applyUserVolumeWithSnap(
+  fader: TrackFader,
+  opts: { shouldHear: boolean },
+): void {
+  if (opts.shouldHear && (fader.isFading || fader.gain < 1)) {
+    fader.set(1);
+  } else {
+    fader.apply();
+  }
+}
+
 export type BgmTrack = 'menu' | 'battle';
 
 /**

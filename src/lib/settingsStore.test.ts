@@ -48,6 +48,19 @@ describe('settingsStore', () => {
     expect(normalizePrefs({ bgmVolume: 9 }).bgmVolume).toBe(1);
   });
 
+  it('DEFAULT bgmVolume is 1.0; empty storage loads 100%', () => {
+    expect(DEFAULT_SETTINGS.bgmVolume).toBe(1.0);
+    expect(loadSettings().bgmVolume).toBe(1.0);
+    expect(normalizePrefs({}).bgmVolume).toBe(1.0);
+  });
+
+  it('preserves previously saved bgmVolume (does not force 1.0)', () => {
+    updateSettings({ bgmVolume: 0.08 });
+    expect(loadSettings().bgmVolume).toBe(0.08);
+    updateSettings({ bgmVolume: 0.42 });
+    expect(loadSettings().bgmVolume).toBe(0.42);
+  });
+
   it('load/save/update round-trip', () => {
     expect(loadSettings().theme).toBe('light');
     updateSettings({ theme: 'dark', bgmVolume: 0.4, rememberMe: false });

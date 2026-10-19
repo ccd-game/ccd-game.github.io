@@ -260,6 +260,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({ theme, onThemeToggle, bgmEnab
                       max="1"
                       step="0.01" 
                       value={bgmVolume} 
+                      onInput={(e) => onVolumeChange(parseFloat((e.target as HTMLInputElement).value))}
                       onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
                       onMouseDown={(e) => e.stopPropagation()}
                       onTouchStart={(e) => e.stopPropagation()}

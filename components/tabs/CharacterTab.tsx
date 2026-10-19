@@ -25,9 +25,9 @@ type CodexEntry = {
 
 /**
  * 圖鑑格：原「廉頗&藺相如」合併格拆為兩人。
- * 廉＝id 2；柳暫 id＝18（原 2 讓予廉），levelId 仍 2。
- * 顯示順序：藺 → 廉 → 柳 → …
- * 諸葛（09）／李白（12）：無立繪圖（資產已刪）。
+ * 廉＝id 2；柳＝id 3（原 18），levelId 仍 2。
+ * 顯示順序：藺 → 廉 → 柳 → …；舊 03 起依次後移（孔＝07）。
+ * 諸葛（10）／李白（13）：無立繪圖（資產已刪）。
  */
 const AV = `${import.meta.env.BASE_URL}resources/avatar`;
 const BG = `${import.meta.env.BASE_URL}resources/background`;
@@ -42,34 +42,34 @@ const CODEX_ENTRIES: CodexEntry[] = [
     weaponImg: `${AV}/lian_po/lian_po_weapon.png`,
     bgImg: `${BG}/lian_lin_bg.webp`,
     bgObjectPosition: '66.3% 45%' },  // faceX 848/1280 — 偏右景
-  { id: 18, name: '柳宗元', title: '《始得西山宴遊記》', levelId: 2,
+  { id: 3,  name: '柳宗元', title: '《始得西山宴遊記》', levelId: 2,
     img: `${AV}/liu_zong_yuan/liu_zong_yuan.png` },
-  { id: 3,  name: '范仲淹', title: '《岳陽樓記》', levelId: 3 },
-  { id: 4,  name: '韓愈',   title: '《師說》', levelId: 4 },
-  { id: 5,  name: '荀子',   title: '《勸學》', levelId: 5,
+  { id: 4,  name: '范仲淹', title: '《岳陽樓記》', levelId: 3 },
+  { id: 5,  name: '韓愈',   title: '《師說》', levelId: 4 },
+  { id: 6,  name: '荀子',   title: '《勸學》', levelId: 5,
     img: `${AV}/kong_zi/kong_zi_character.webp` },
-  { id: 6,  name: '孔子',   title: '《論仁、論孝、論君子》', levelId: 6,
+  { id: 7,  name: '孔子',   title: '《論仁、論孝、論君子》', levelId: 6,
     img: `${AV}/kong_zi/kong_zi_character.webp` },
-  { id: 7,  name: '孟子',   title: '《魚我所欲也》', levelId: 7 },
-  { id: 8,  name: '莊子',   title: '《逍遙遊》', levelId: 8 },
-  { id: 9,  name: '諸葛亮', title: '《出師表》', levelId: 9 },
-  { id: 10, name: '蘇洵',   title: '《六國論》', levelId: 10 },
-  { id: 11, name: '王維',   title: '《山居秋暝》', levelId: 11 },
-  { id: 12, name: '李白',   title: '《月下獨酌》', levelId: 11 },
-  { id: 13, name: '杜甫',   title: '《登樓》', levelId: 11 },
-  { id: 14, name: '蘇軾',   title: '《念奴嬌．赤壁懷古》', levelId: 12 },
-  { id: 15, name: '李清照', title: '《聲聲慢．秋情》', levelId: 12 },
-  { id: 16, name: '辛棄疾', title: '《青玉案．元夕》', levelId: 12 },
+  { id: 8,  name: '孟子',   title: '《魚我所欲也》', levelId: 7 },
+  { id: 9,  name: '莊子',   title: '《逍遙遊》', levelId: 8 },
+  { id: 10, name: '諸葛亮', title: '《出師表》', levelId: 9 },
+  { id: 11, name: '蘇洵',   title: '《六國論》', levelId: 10 },
+  { id: 12, name: '王維',   title: '《山居秋暝》', levelId: 11 },
+  { id: 13, name: '李白',   title: '《月下獨酌》', levelId: 11 },
+  { id: 14, name: '杜甫',   title: '《登樓》', levelId: 11 },
+  { id: 15, name: '蘇軾',   title: '《念奴嬌．赤壁懷古》', levelId: 12 },
+  { id: 16, name: '李清照', title: '《聲聲慢．秋情》', levelId: 12 },
+  { id: 17, name: '辛棄疾', title: '《青玉案．元夕》', levelId: 12 },
 ];
 
 /**
- * 解鎖：廉／藺暫開；柳改認 id 18；既有 6／9／12 邏輯保留。
+ * 解鎖：廉／藺暫開；柳＝3；孔＝7／諸葛＝10 暫開；李白＝13 認 level 11。
  */
 function isCodexUnlocked(id: number, levels: LevelConfig[]): boolean {
   if (id === 1 || id === 2) return true; // 廉／藺暫開，待關卡邏輯定案
-  if (id === 18 || id === 6 || id === 9) return true;
-  if (id === 12 && levels.find(l => l.id === 11)?.locked === false) return true;
-  if (id === 11 || id === 13) return false;
+  if (id === 3 || id === 7 || id === 10) return true;
+  if (id === 13 && levels.find(l => l.id === 11)?.locked === false) return true;
+  if (id === 12 || id === 14) return false;
   return false;
 }
 
@@ -80,7 +80,7 @@ const CharacterTab: React.FC<CharacterTabProps> = ({ levels, onShowDetail }) => 
       const levelData = levels.find(l => l.id === entry.levelId);
       const unlocked = isCodexUnlocked(entry.id, levels);
       // 諸葛／李白等無 img：不回落 DEFAULT，避免殘圖
-      const img = entry.img ?? (entry.id === 9 || entry.id === 12 ? undefined : (levelData?.bossImg || undefined));
+      const img = entry.img ?? (entry.id === 10 || entry.id === 13 ? undefined : (levelData?.bossImg || undefined));
       return {
         id: entry.id,
         name: entry.name,

@@ -83,17 +83,17 @@ describe('isBossVoiceOnCooldown (pure)', () => {
 });
 
 describe('hasBossVoice / bossVoiceUrl', () => {
-  it('wires 柳宗元 (id 18) and 孔子 (id 6)', () => {
-    expect(hasBossVoice(18)).toBe(true);
-    expect(hasBossVoice(6)).toBe(true);
+  it('wires 柳宗元 (id 3) and 孔子 (id 7)', () => {
+    expect(hasBossVoice(3)).toBe(true);
+    expect(hasBossVoice(7)).toBe(true);
     expect(hasBossVoice(2)).toBe(false); // id 2 已讓予廉頗（圖鑑 remap）
     expect(hasBossVoice(9)).toBe(false);
     expect(hasBossVoice(1)).toBe(false);
   });
 
   it('urls end with expected mp3', () => {
-    expect(bossVoiceUrl(18)).toMatch(/audio\/boss\/liuzongyuan-quote\.mp3$/);
-    expect(bossVoiceUrl(6)).toMatch(/audio\/boss\/kongzi-quote\.mp3$/);
+    expect(bossVoiceUrl(3)).toMatch(/audio\/boss\/liuzongyuan-quote\.mp3$/);
+    expect(bossVoiceUrl(7)).toMatch(/audio\/boss\/kongzi-quote\.mp3$/);
     expect(bossVoiceUrl(2)).toBeNull();
   });
 });
@@ -118,7 +118,7 @@ describe('playBossVoice cooldown + mute', () => {
   });
 
   it('plays 柳宗元 once, second tap within 10s is cooldown (no restart)', () => {
-    expect(playBossVoice(18)).toBe('played');
+    expect(playBossVoice(3)).toBe('played');
     expect(created).toHaveLength(1);
     expect(created[0].play).toHaveBeenCalledTimes(1);
     expect(created[0].volume).toBe(DEFAULT_VOICE_VOLUME);
@@ -126,28 +126,28 @@ describe('playBossVoice cooldown + mute', () => {
 
     created[0].currentTime = 1.5;
     created[0].play.mockClear();
-    expect(playBossVoice(18)).toBe('cooldown');
+    expect(playBossVoice(3)).toBe('cooldown');
     expect(created[0].play).not.toHaveBeenCalled();
     expect(created[0].currentTime).toBe(1.5);
-    expect(canPlayBossVoice(18)).toBe(false);
+    expect(canPlayBossVoice(3)).toBe(false);
   });
 
   it('after cooldown elapses, plays again from start (reuses Audio)', () => {
-    expect(playBossVoice(18)).toBe('played');
+    expect(playBossVoice(3)).toBe('played');
     t += BOSS_VOICE_COOLDOWN_MS;
     created[0].currentTime = 2;
     created[0].play.mockClear();
 
-    expect(canPlayBossVoice(18)).toBe(true);
-    expect(playBossVoice(18)).toBe('played');
+    expect(canPlayBossVoice(3)).toBe(true);
+    expect(playBossVoice(3)).toBe('played');
     expect(created).toHaveLength(1);
     expect(created[0].play).toHaveBeenCalledTimes(1);
     expect(created[0].currentTime).toBe(0);
   });
 
   it('孔子 plays independently of 柳 cooldown', () => {
-    expect(playBossVoice(18)).toBe('played');
-    expect(playBossVoice(6)).toBe('played');
+    expect(playBossVoice(3)).toBe('played');
+    expect(playBossVoice(7)).toBe('played');
     expect(created).toHaveLength(2);
   });
 
@@ -159,8 +159,8 @@ describe('playBossVoice cooldown + mute', () => {
   it('bgmEnabled false → muted, no Audio play', () => {
     stubSettings({ bgmEnabled: false });
     created.length = 0;
-    expect(playBossVoice(18)).toBe('muted');
-    expect(playBossVoice(6)).toBe('muted');
+    expect(playBossVoice(3)).toBe('muted');
+    expect(playBossVoice(7)).toBe('muted');
     expect(created).toHaveLength(0);
   });
 });

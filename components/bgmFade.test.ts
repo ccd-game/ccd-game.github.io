@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BGM_FADE_IN_MS, BGM_FADE_OUT_MS, FadeClock, TrackFader } from './bgmFade';
+import { BGM_FADE_IN_MS, BGM_FADE_OUT_MS, FadeClock, TrackFader, applyUserVolumeWithSnap } from './bgmFade';
 
 /** 可手動推進的假時鐘 */
 function fakeClock() {
@@ -162,5 +162,60 @@ describe('desiredTrack（頁面與音樂轉場）', () => {
     expect(desiredTrack(GameStatus.PLAYING, true)).toBeNull();
     expect(desiredTrack(GameStatus.VICTORY, false)).toBeNull();
     expect(desiredTrack(GameStatus.GAME_OVER, false)).toBeNull();
+  });
+});
+
+describe('applyUserVolumeWithSnap（拖動即時無極）', () => {
+  it('一連串音量：每步後雙軌 volume＝user 且 gain=1', () => {
+    let user = 0.5;
+    const menuEl = audio();
+    const battleEl = audio();
+    const menu = new TrackFader(menuEl, () => user, fakeClock().clock);
+    const battle = new TrackFader(battleEl, () => user, fakeClock().clock);
+    menu.set(1);
+    battle.set(1);
+    for (const v of [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]) {
+      user = v;
+      applyUserVolumeWithSnap(menu, { shouldHear: true });
+      applyUserVolumeWithSnap(battle, { shouldHear: true });
+      expect(menu.gain).toBe(1);
+      expect(battle.gain).toBe(1);
+      expect(menuEl.volume).toBeCloseTo(v, 9);
+      expect(battleEl.volume).toBeCloseTo(v, 9);
+      expect(menuEl.volume).toBe(battleEl.volume);
+    }
+  });
+
+  it('fade 中改音量：shouldHear 時 gain 恢復為 1 且 volume＝user', () => {
+    const { clock, advance } = fakeClock();
+    const el = audio();
+    let user = 1;
+    const f = new TrackFader(el, () => user, clock);
+    f.set(0);
+    void f.fadeTo(1, 800);
+    advance(400);
+    expect(f.isFading).toBe(true);
+    expect(f.gain).toBeGreaterThan(0.4);
+    expect(f.gain).toBeLessThan(0.6);
+    user = 0.7;
+    applyUserVolumeWithSnap(f, { shouldHear: true });
+    expect(f.isFading).toBe(false);
+    expect(f.gain).toBe(1);
+    expect(el.volume).toBeCloseTo(0.7, 9);
+  });
+
+  it('非 shouldHear（淡出中）：只 apply，不 snap gain', () => {
+    const { clock, advance } = fakeClock();
+    const el = audio();
+    let user = 1;
+    const f = new TrackFader(el, () => user, clock);
+    f.set(1);
+    void f.fadeTo(0, 800);
+    advance(400);
+    const g = f.gain;
+    user = 0.3;
+    applyUserVolumeWithSnap(f, { shouldHear: false });
+    expect(f.gain).toBeCloseTo(g, 9);
+    expect(el.volume).toBeCloseTo(0.3 * g, 9);
   });
 });

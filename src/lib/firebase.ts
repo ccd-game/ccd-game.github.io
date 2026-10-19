@@ -801,7 +801,7 @@ export async function updateUserJiyuan(userId: string, newJiyuan: number) {
 /**
  * 記錄一次勝利（只應在 VICTORY 時呼叫；戰敗不呼叫）。
  * - 遊客：只更新本機 sessionStorage。
- * - 登入用戶：以 transaction 讀取最新文件，寫入經驗（+5 × 答對題數 + 50）、等級及總分；
+ * - 登入用戶：以 transaction 讀取最新文件，寫入經驗（+EXP_PER_CLEAR＝100）、等級及總分；
  *   只在新分數高於該關最佳分數時寫入 levels.{id}（規則會重算並核對）。
  * - 時間低於防作弊下限：不寫入任何東西。
  * 回傳結果供介面顯示（例如「新紀錄」）；未登入時回傳 null。

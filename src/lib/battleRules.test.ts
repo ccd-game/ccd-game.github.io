@@ -40,3 +40,16 @@ describe('Boss 攻擊：每擊固定 100 HP', () => {
     expect(src.match(/triggerEnemyAttack\([^)]*,\s*[^)]+\)/g)).toEqual(['triggerEnemyAttack(true, MAX_HP)']);
   });
 });
+
+describe('勝關結算自動寫入經驗（App 接線）', () => {
+  const src = fs.readFileSync(path.resolve(__dirname, '../../App.tsx'), 'utf8');
+
+  it('runVictorySequence 在進入 VICTORY 前 takeVictoryClear 並 await recordLevelClear', () => {
+    expect(src).toMatch(/const clear = battleRecorder\.takeVictoryClear\(\);/);
+    expect(src).toMatch(/await recordLevelClear\(clear\)/);
+    expect(src).toMatch(/setVictoryExpGained\(gained\)/);
+    // 結算畫面用實際入帳值，禁再硬編碼 100
+    expect(src).toMatch(/<VictoryScreen onRestart=\{resetToStart\} expGained=\{victoryExpGained\}/);
+    expect(src).not.toMatch(/<VictoryScreen onRestart=\{resetToStart\} expGained=\{100\}/);
+  });
+});

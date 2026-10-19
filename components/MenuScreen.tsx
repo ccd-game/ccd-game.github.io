@@ -5,6 +5,16 @@ import { LevelConfig } from '../types';
 import DungeonTab from './tabs/DungeonTab';
 import { subscribeToUser, TEST_USER_ID, UserData, watchAuthState } from '../src/lib/firebase';
 import { getRequiredExpForLevel, expIntoLevel } from '../src/lib/levelSystem';
+import { clamp01, expArcConicMaskImage } from '../src/lib/hudExpArc';
+import {
+  buildExpArcAnimPlan,
+  easeOutCubic,
+  expArcAnimDurationMs,
+  expArcVisualEq,
+  expPctFromRatio,
+  sampleExpArcAnimPlan,
+  type ExpArcVisual,
+} from '../src/lib/hudExpArcAnim';
 import { MAX_STAMINA } from '../src/lib/playerData';
 import { staminaAt } from '../src/lib/stamina';
 import { SCHOOLS_BY_EMAIL_DOMAIN, schoolNameForEmail } from '../src/config/auth';
@@ -54,7 +64,8 @@ const CHROME_BASE = `${import.meta.env.BASE_URL}resources/ui/chrome`;
 /* r4：頂欄素殼已移除（懸浮 HUD） */
 /** hud-vnext-hollow-home-r9：懸浮；真刪素殼；量測 r2；短匣；單字族＋全形數值；EXP 弧下間隙 */
 const HUD_VNEXT_ORB_ARC = `${CHROME_BASE}/hud-vnext-orb-arc.png`;
-const HUD_VNEXT_ARC_FILL = `${CHROME_BASE}/hud-vnext-exp-arc-fill.png`;
+/** exp-west-east-r1：材質×trough（無玉框）；runtime conic 西→東 clip */
+const HUD_VNEXT_TROUGH_FILL = `${CHROME_BASE}/hud-vnext-exp-trough-fill.png`;
 const HUD_VNEXT_STA_SHORT = `${CHROME_BASE}/hud-vnext-sta-short.png`;
 const HUD_VNEXT_COIN_SHORT = `${CHROME_BASE}/hud-vnext-coin-short.png`;
 /** r9：數值用全形數字，與「歐陽同學」同 face 明體字形（禁半形拉丁數字視覺異體） */
@@ -108,9 +119,11 @@ interface MenuScreenProps {
   onBgmToggle: () => void;
   bgmVolume: number;
   onVolumeChange: (val: number) => void;
+  /** 主頁 HUD 可見（MENU／角色詳情）；通關入帳時若為 false 則延至回主頁再播弧填動畫 */
+  hudLive?: boolean;
 }
 
-const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharacter, onShowCharacterDetail, onBackFromDetail, theme, onThemeToggle, bgmEnabled, onBgmToggle, bgmVolume, onVolumeChange }) => {
+const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharacter, onShowCharacterDetail, onBackFromDetail, theme, onThemeToggle, bgmEnabled, onBgmToggle, bgmVolume, onVolumeChange, hudLive = true }) => {
   const [activeTab, setActiveTab] = useState<MenuTab>('dungeon');
   const [slideDirection, setSlideDirection] = useState<'right' | 'left'>('right');
   const [isSummoning, setIsSummoning] = useState(false);
@@ -274,6 +287,69 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
     );
   };
 
+  const targetExp: ExpArcVisual = {
+    level: playerData.level,
+    ratio: clamp01(playerData.exp / Math.max(1, playerData.maxExp)),
+  };
+
+  const [displayExp, setDisplayExp] = useState<ExpArcVisual>(targetExp);
+  const displayExpRef = useRef(displayExp);
+  displayExpRef.current = displayExp;
+  const animGenRef = useRef(0);
+  const primedRef = useRef(false);
+  const pendingTargetRef = useRef<ExpArcVisual | null>(null);
+  const reduceExpMotion = useReducedMotion();
+
+  const runExpArcAnim = React.useCallback((from: ExpArcVisual, to: ExpArcVisual) => {
+    if (expArcVisualEq(from, to)) {
+      setDisplayExp(to);
+      return;
+    }
+    if (reduceExpMotion) {
+      setDisplayExp(to);
+      return;
+    }
+    const plan = buildExpArcAnimPlan(from, to);
+    const dur = expArcAnimDurationMs(plan);
+    const gen = ++animGenRef.current;
+    const t0 = performance.now();
+    const tick = (now: number) => {
+      if (animGenRef.current !== gen) return;
+      const u = Math.min(1, (now - t0) / dur);
+      const eased = easeOutCubic(u);
+      setDisplayExp(sampleExpArcAnimPlan(plan, eased));
+      if (u < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [reduceExpMotion]);
+
+  useEffect(() => {
+    const to = targetExp;
+    if (!primedRef.current) {
+      primedRef.current = true;
+      setDisplayExp(to);
+      pendingTargetRef.current = null;
+      return;
+    }
+    if (expArcVisualEq(displayExpRef.current, to) && !pendingTargetRef.current) return;
+    if (!hudLive) {
+      // 結算當刻入帳：主頁隱藏，凍結顯示於入帳前，待回主頁再播
+      pendingTargetRef.current = to;
+      return;
+    }
+    const from = displayExpRef.current;
+    const dest = pendingTargetRef.current ?? to;
+    pendingTargetRef.current = null;
+    runExpArcAnim(from, dest);
+    // target 以 level/ratio 為依賴；playerData 物件本身不列入
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetExp.level, targetExp.ratio, hudLive, runExpArcAnim]);
+
+  const expRatio = displayExp.ratio;
+  const expPct = expPctFromRatio(expRatio);
+  const expArcMask = expArcConicMaskImage(expRatio);
+  const displayLevel = displayExp.level;
+
   return (
     <div
       className="home-menu-shell absolute inset-0 flex flex-col overflow-hidden z-[500] select-none"
@@ -297,14 +373,27 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
       <header className={`home-bar home-bar-top home-hud-vnext-host absolute top-0 left-0 right-0 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 -translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}>
         {/* r6：真刪頂欄素殼；懸浮；量測 measure-tophud-r2 */}
         <div className="home-hud-vnext" data-testid="home-hud-vnext">
-          <div className="home-hud-vnext-orb" aria-label={`等級 ${playerData.level}`}>
+          <div className="home-hud-vnext-orb" aria-label={`等級 ${displayLevel}`}>
             <div className="home-hud-vnext-orb-stack" aria-hidden="true">
               <img className="home-hud-vnext-orb-img" src={HUD_VNEXT_ORB_ARC} alt="" draggable={false} width={690} height={634} />
-              <img className="home-hud-vnext-arc-fill" src={HUD_VNEXT_ARC_FILL} alt="" draggable={false} width={690} height={634} />
+              <img
+                className="home-hud-vnext-arc-fill"
+                src={HUD_VNEXT_TROUGH_FILL}
+                alt=""
+                draggable={false}
+                width={690}
+                height={634}
+                data-testid="hud-exp-arc-fill"
+                style={{
+                  opacity: expRatio <= 0 ? 0 : 1,
+                  WebkitMaskImage: expArcMask,
+                  maskImage: expArcMask,
+                }}
+              />
             </div>
             <div className="home-hud-vnext-orb-text">
               <span className="home-hud-vnext-lv-label">等級</span>
-              <span className="home-hud-vnext-lv-num">{fwDigits(playerData.level)}</span>
+              <span className="home-hud-vnext-lv-num">{fwDigits(displayLevel)}</span>
             </div>
             <svg className="home-hud-vnext-exp-svg" viewBox="0 0 100 100" aria-hidden="true">
               <defs>
@@ -316,7 +405,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
                 style={{ fontFamily: 'var(--hud-vnext-font)', fontWeight: 700 }}
               >
                 <textPath href="#hud-vnext-exp-arc-path" startOffset="50%" textAnchor="middle" dy="4">
-                  {`EXP ${Math.max(0, Math.min(100, Math.round((playerData.exp / Math.max(1, playerData.maxExp)) * 100)))}%`}
+                  {`EXP ${expPct}%`}
                 </textPath>
               </text>
             </svg>

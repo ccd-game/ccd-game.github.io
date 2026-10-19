@@ -46,20 +46,18 @@ export const HOME_SHANSHUI = `${import.meta.env.BASE_URL}resources/background/sh
 export const SCROLL_ENTER_OPEN = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/open.webp`;
 export const SCROLL_ENTER_CLOSED = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/closed-axles-filled.webp`;
 export const HERO_SCENES: Record<string, HeroScene> = {
-  // 坐於岩上，放大約兩成（場景含背景一起放大，地面線不動）；身體中線 53%，軀幹在篇名右側、右袖在印章之上；飛劍在篇名後方被柔焦或出框（首頁預覽不需顯示飛劍）
-  // zoomout bg：cover＋貼底（不露墨黑）；靴底（人物層 975,633）落在岩丘頂 (948,429.5)（受光岩緣 y≈426、實岩 y≈429–430，逐欄量測）
-  // figScale 0.64（相對新背景）＝螢幕上與先前 0.8 版同大小；靴底 (948,429.5) 踩岩丘；bgZoom 1.14 @ x995 底邊讓岩台寬到膝下（跪坐在岩上）
-  // fit 'headTop'：抽屜半開時英雄區變矮 → 人物大小不變，背景＋人物下移到帽頂留白 12px，下半身可被 UI／抽屜遮
-  // ax＝face.cx（820）、X:0.5；figScale 0.758＝外頁 faceH 0.1949/0.126 換算（螢幕臉≈45）；figOy＝眼線；連動主頁
-  liu_zong_yuan: { bg: `${BG}/bg_level_2.png`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 820, X: 0.5, head: 19, foot: 633, footX: 975, k: 1.62, breathe: '64.8% 79.9%', figScale: 0.758, figOy: 125, fill: 'coverBottom', rest: [948, 429.5], bgZoom: [1.14, 995], fit: 'headTop' },
+  // 坐於岩上；靴底（人物層 975,633）落在岩丘頂 (948,429.5)；bgZoom 1.14 @ x995
+  // 【align-v1315-home-r1】還原 v1.3.15（a628cce）：figScale 0.64、X:0.53、ax:867；無 figOy（縮放原點＝腳底）
+  // fit 'headTop'；三頁（主頁／圖鑑／入陣 homeBox）同讀此 HERO
+  liu_zong_yuan: { bg: `${BG}/bg_level_2.png`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 867, X: 0.53, head: 19, foot: 633, footX: 975, k: 1.62, breathe: '64.8% 79.9%', figScale: 0.64, fill: 'coverBottom', rest: [948, 429.5], bgZoom: [1.14, 995], fit: 'headTop' },
   // 坐於車中，放大約一成半；車輪著地，馬匹向右出框
   // v3 三層（1280×720 逐像素對齊）：kong_zi_bg → kong_zi_character（人物＋戰車）→ kong_zi_weapon（雙馬，疊在人物上）
   // head＝車蓋頂飾 y149.5；foot＝前輪著地 y640.9（後輪 623.2、馬蹄 659–705，皆在同一張背景的路面上；雙馬向右下出框）
   // v1.3.7：foot 705→640.9（全身入框改以「車蓋頂～前輪著地」為準）→ 場景放大、整體上移：390×844 背景頂高出畫面、不露鏡像，
-  //   且螢幕臉高（faceH 35）＝柳宗元（faceH 52×figScale 0.64）≈29px（髮際→頦 68 量法下約 38，見 NOTES 待決）；ax＝face.cx、X:0.5 置中
+  //   且螢幕臉高（faceH 35）＝柳宗元（faceH 52×figScale 0.64）≈29px；ax 533→508（＝face.cx）讓內頁臉水平置中於 host 中線
   // breathe 原點＝輪／蹄著地線（y≈662＝92%），呼吸時輪蹄不離地
-  // face-lock：figScale 1.548＝0.1949/0.126、figOy＝眼線 271（螢幕臉≈45、眼位維持）；連動主頁；戰鬥 heroSync 僅用 computeHeroFit（不受 figScale）
-  kong_zi: { bg: `${BG}/kong_zi_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 508, X: 0.5, head: 149.5, foot: 640.9, k: 2.28, breathe: '45% 92%', figScale: 1.548, figOy: 271, front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
+  // 【align-v1315-home-r1】還原 v1.3.15（a628cce）：無 figScale／figOy（缺省 figScale＝1）
+  kong_zi: { bg: `${BG}/kong_zi_bg.webp`, w: 1280, h: 720, fig: [0, 0, 1280, 720], ax: 508, X: 0.5, head: 149.5, foot: 640.9, k: 2.28, breathe: '45% 92%', front: `${import.meta.env.BASE_URL}resources/avatar/kong_zi/kong_zi_weapon.webp` },
   // 廉藺 solo：ax＝face.cx、X:0.5；figScale 使螢幕臉高≈孔子 29.04；front＝各自虎層（青／金）
   // 藺相如＝左文士＋青虎；廉頗＝右武將＋金虎
   // headTop＋figOy=眼線：figScale 縮臉高≈29；眼位對齊孔子內頁 eyeY≈112.8＠host
@@ -73,6 +71,22 @@ export const HERO_SCENES: Record<string, HeroScene> = {
   li_bai: { bg: `${BG}/bg_level_11_1.png`, w: 2760, h: 1504, fig: [804, 270, 985, 900], ax: 1380, X: 0.5, head: 329, foot: 1200, k: 2.97, breathe: '50% 100%' },
 };
 // 只做左右鏡射補滿；下方不鏡射、無墨黑淡出／wash（zoomout bg 直通）
+
+/**
+ * 契約：有 BATTLE homeSync／restOnBg 者 → 預覽 HERO 跟戰鬥錨；有 heroSync 者 → 戰鬥跟 HERO。
+ * 對照用：battleKey → heroKey。測試見 src/lib/homePreviewFollowBattle.test.ts。
+ */
+export const BATTLE_TO_HERO_KEY: Record<string, string> = {
+  liu_zong_yuan_battle: 'liu_zong_yuan',
+  kong_zi_character: 'kong_zi',
+  zhu_ge_liang: 'zhu_ge_liang',
+  li_bai: 'li_bai',
+};
+
+/** 從 restOnBg.relScale 與 bgZoom 反推應寫進 HERO 的 figScale（＝ relScale × zoom） */
+export function heroFigScaleFromBattleRel(relScale: number, bgZoom: number): number {
+  return relScale * bgZoom;
+}
 export const SCENE_TILES: [number, number][] = [-1, 0, 1].map(i => [i, 0] as [number, number]);
 export const sceneVars = (sc: HeroScene) => ({ '--W': sc.w, '--H': sc.h, '--ax': sc.ax, '--X': sc.X, '--head': sc.head, '--foot': sc.foot, '--span': sc.foot - sc.head, '--k': sc.k }) as React.CSSProperties;
 export const pct = (v: number, of: number) => `${(v / of) * 100}%`;
@@ -106,7 +120,8 @@ export const heroPeekHeight = (D: number, bar: number = DRAWER_BAR_H) => D - ((D
 
 /** 立繪框（.home-scene-fig）在場景中的位置＋靴底對岩頂的平移縮放 */
 export function heroFigStyle(scene: HeroScene): React.CSSProperties {
-  const oy = scene.figOy ?? scene.foot;
+  // rest 貼岩：縮放原點必須＝腳底，否則 figOy（眼線）會讓腳不落 rest（align-v1315-home-r1／follow-battle-r1）
+  const oy = scene.rest ? scene.foot : (scene.figOy ?? scene.foot);
   return {
     left: pct(scene.fig[0], scene.w), top: pct(scene.fig[1], scene.h),
     width: pct(scene.fig[2], scene.w), height: pct(scene.fig[3], scene.h),

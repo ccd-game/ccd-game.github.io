@@ -3,7 +3,7 @@
  * - 答對：速度傷害；Boss HP 歸零即勝（題目未答完）；門檻台詞各說一次；勝利後不再出題
  * - 答錯／超時：玩家 −100 HP，重答同一題；第 10 次戰敗，只觸發一次
  * - 題目用盡而 Boss 未倒：戰敗（在測試中把第 2 關題庫縮為 3 題）
- * - 通關紀錄：勝利才記錄（經驗 +5 × 答對 + 50）；機械式極速通關低於防作弊下限，不記錄；戰敗不記錄
+ * - 通關紀錄：勝利才記錄（經驗 +EXP_PER_CLEAR＝100）；機械式極速通關低於防作弊下限，不記錄；戰敗不記錄
  * 只在測試中封鎖 Firebase／Google 後端。網址一律相對於 playwright.config 的 baseURL（不寫死路徑）。
  */
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
@@ -198,9 +198,9 @@ test.describe('戰鬥規則（HP 歸零即勝）', () => {
     const late = (await events(page)).map((e) => e.k);
     expect(late.filter((k) => k === 'VICTORY_SCREEN')).toHaveLength(1);
     expect(late).not.toContain('GAMEOVER_SCREEN');
-    // 通關紀錄（遊客：sessionStorage）：經驗 +5 × 答對 + 50；時間 ≥ 防作弊下限；總分＝最佳分數＋floor(exp × 0.3)
+    // 通關紀錄（遊客：sessionStorage）：經驗 +EXP_PER_CLEAR（100）；時間 ≥ 防作弊下限；總分＝最佳分數＋floor(exp × 0.3)
     const d = await guestData(page);
-    expect(d.exp).toBe(5 * answered + 50);
+    expect(d.exp).toBe(100);
     expect(d.levels[String(LEVEL_ID)].bestTimeMs).toBeGreaterThanOrEqual(12_000);
     expect(d.score).toBe(d.levels[String(LEVEL_ID)].bestScore + Math.floor((d.exp * 3) / 10));
     expect(pageErrors).toEqual([]);

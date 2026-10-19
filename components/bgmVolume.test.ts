@@ -35,4 +35,11 @@ describe('applyBgmVolume', () => {
     expect(a.volume).toBe(0);
     expect(a.muted).toBe(true);
   });
+
+  it('sets volume 1 unmuted at 100%', () => {
+    const a = fakeAudio({ volume: 0, muted: true });
+    applyBgmVolume(1, a);
+    expect(a.volume).toBe(1);
+    expect(a.muted).toBe(false);
+  });
 });

@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { GameStatus } from '../types';
 import { applyBgmVolume } from './bgmVolume';
-import { BGM_FADE_IN_MS, BGM_FADE_OUT_MS, TrackFader, desiredTrack, type BgmTrack as Track } from './bgmFade';
+import { BGM_FADE_IN_MS, BGM_FADE_OUT_MS, TrackFader, desiredTrack, applyUserVolumeWithSnap, type BgmTrack as Track } from './bgmFade';
 
 export { applyBgmVolume };
 
@@ -38,12 +38,6 @@ let userVolume = 1;
 const menuFader = new TrackFader(menuAudio, () => userVolume);
 const battleFader = new TrackFader(battleAudio, () => userVolume);
 
-function applyVolumeToTracks(volume: number): void {
-  userVolume = volume;
-  menuFader.apply();
-  battleFader.apply();
-}
-
 const TRACKS: Record<Track, { el: HTMLAudioElement; fader: TrackFader }> = {
   menu: { el: menuAudio, fader: menuFader },
   battle: { el: battleAudio, fader: battleFader },
@@ -51,6 +45,20 @@ const TRACKS: Record<Track, { el: HTMLAudioElement; fader: TrackFader }> = {
 
 /** 目前想播放的音軌；淡出完成時用來確認是否仍要暫停（避免與後來的轉場互相干擾） */
 let wanted: Track | null = null;
+
+/**
+ * 同步套用使用者音量至雙軌。
+ * 若 wanted 軌正在播且仍在淡變／gain<1，取消 fade 並 snap gain=1，
+ * 讓拖動時 el.volume 直接＝user（不被 fade gain 打折）。
+ */
+export function applyVolumeToTracks(volume: number): void {
+  userVolume = volume;
+  for (const t of Object.keys(TRACKS) as Track[]) {
+    const { el, fader } = TRACKS[t];
+    applyUserVolumeWithSnap(fader, { shouldHear: wanted === t && !el.paused });
+  }
+}
+
 
 function fadeIn(track: Track): void {
   const { el, fader } = TRACKS[track];

@@ -398,7 +398,7 @@ describe('private/settings（主題／BGM 雲端同步）', () => {
   it('他人／未驗證不可讀寫；不可刪除；不可加入全名欄位', async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), 'users', ALICE, 'private', 'settings'), {
-        theme: 'light', bgmEnabled: true, bgmVolume: 0.08, rememberMe: true,
+        theme: 'light', bgmEnabled: true, bgmVolume: 1.0, rememberMe: true,
         updatedAt: '2026-01-01T00:00:00.000Z', serverUpdatedAt: Timestamp.now(),
       });
     });
