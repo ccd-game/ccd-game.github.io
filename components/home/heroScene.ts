@@ -38,6 +38,8 @@ export interface HeroScene {
 const BG = `${import.meta.env.BASE_URL}resources/background`;
 /** 水墨遮罩（邊緣墨暈壓背景、中心較透）；首頁預覽與圖鑑落地場景共用。z：山景 → 此層 → 立繪 → UI */
 export const INK_WASH_MASK = `${import.meta.env.BASE_URL}resources/effect/ink_wash_mask.webp`;
+/** 主頁山水單圖（用戶定稿）：抽屜以上滿幅；PNG 原檔禁 WebP／禁再壓 */
+export const HOME_SHANSHUI = `${import.meta.env.BASE_URL}resources/background/shanshui-full-above-drawer.png`;
 /** 入陣卷軸（art2 定稿）：合上＝雙軸填紙；打开＝展開卷。主頁 .home-cta 用。 */
 export const SCROLL_ENTER_OPEN = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/open.webp`;
 export const SCROLL_ENTER_CLOSED = `${import.meta.env.BASE_URL}resources/ui/scroll-enter/closed-axles-filled.webp`;

@@ -568,7 +568,48 @@
         }
 
         /* 英雄區 */
-        .home-hero { height: 100%; background: var(--ink); color: var(--paper); isolation: isolate; overflow: hidden; }
+
+        /* ===== home-shanshui-only-r1：單圖滿幅山水（抽屜以上→頂；蓋陀螺露底）——不動頂欄／底欄／HUD ===== */
+        .home-shanshui {
+            position: absolute;
+            left: 0;
+            right: 0;
+            /* 上伸進頂欄懸浮區，使 letterbox 內頂至抽屜頂皆為山水 */
+            top: -88px;
+            bottom: 0;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+            background: #e8ebe3; /* 載入前近山水紙色，防露 --ink 黑 */
+        }
+        .home-shanshui img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
+            /* 併 ink-wash-gyro-cover：略放大，邊緣不露底 */
+            transform: scale(1.082);
+            transform-origin: center center;
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        /* 舊山景瓦片／水墨遮罩：真隱藏視覺（DOM 仍在供錨，但不可見） */
+        .home-scene--bg-replaced .home-scene-bg,
+        .home-ink-wash--replaced {
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+        .home-scene--bg-replaced {
+            /* 幾何仍占位，但不繪背景 */
+            z-index: 0;
+        }
+        /* 立繪仍在山水之上 */
+        .home-scene-fig-frame { z-index: 3; }
+
+        .home-hero { height: 100%; background: transparent; color: var(--paper); isolation: isolate; overflow: hidden; }
         /* 落地場景：cover 填滿篇名線以上預覽區（無上下黑邊）；腳底對齊篇名區下緣；多出的從上方／兩側裁 */
         .home-hero { container-type: size; }
         .home-scene {
@@ -769,17 +810,20 @@
         .home-cta-scroll img {
             position: absolute; inset: 0; width: 100%; height: 100%;
             object-fit: fill; /* 對齊示意槽 247×83（高×1.10；非原生比例） */
-            opacity: 0; transition: opacity .18s ease;
+            opacity: 0;
+            /* 跟抽屜同一時鐘：.48s cubic-bezier(.22,1,.36,1)；拖曳時父層清 transition */
+            transition: opacity .48s cubic-bezier(.22,1,.36,1);
             background: transparent;
         }
-        /* 提高 specificity：蓋過 `.home-cta-scroll img` 的 opacity:0 */
-        .home-cta-scroll img.home-cta-scroll-open { opacity: 1; }
+        /* 卷軸開合＝1−drawer-p：收合(p=0)展開；上拉開(p→1)卷起。繼承自 .home-dungeon --drawer-p */
+        .home-cta-scroll img.home-cta-scroll-open { opacity: calc(1 - var(--drawer-p, 0)); }
         .home-cta-scroll img.home-cta-scroll-closed {
             /* 合上資產為豎長雙軸：置中contain，避免拉扁 */
             object-fit: contain; object-position: center;
+            opacity: var(--drawer-p, 0);
         }
-        .home-cta:active .home-cta-scroll img.home-cta-scroll-open { opacity: 0; }
-        .home-cta:active .home-cta-scroll img.home-cta-scroll-closed { opacity: 1; }
+        .home-cta:active .home-cta-scroll img.home-cta-scroll-open { opacity: 0; transition-duration: .18s; }
+        .home-cta:active .home-cta-scroll img.home-cta-scroll-closed { opacity: 1; transition-duration: .18s; }
         .home-cta-label {
             /* r8/r9: 「入陣」水平＋光學垂直置中（cy_up≈6；無紙底 backing） */
             position: absolute; inset: 0; z-index: 1;
@@ -793,8 +837,10 @@
             text-shadow: none; /* 無紙底／無軟襯 */
             pointer-events: none;
             background: transparent;
+            opacity: calc(1 - var(--drawer-p, 0));
+            transition: opacity .48s cubic-bezier(.22,1,.36,1);
         }
-        .home-cta:active .home-cta-label { opacity: 0; } /* 合上態無紙面字 */
+        .home-cta:active .home-cta-label { opacity: 0; transition-duration: .18s; } /* 合上態無紙面字 */
         .home-cta:hover { filter: brightness(1.06); }
         .home-cta:active { transform: scale(.98); }
         .home-cta:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; filter: brightness(1.1); border-radius: 8px; }
@@ -828,29 +874,47 @@
         .home-lv-num, .home-lv-label, .home-coin-label, .home-meter-label, .home-vtitle, .home-chapter-no, .home-seal,
         .home-cta, .home-section-title, .home-slip-no, .home-slip-title { font-synthesis: none; }
 
-        /* 首頁：預覽占滿，十二篇章入口為底部抽屜 */
+        /* 入陣卷軸⇄抽屜進度：可動畫自訂屬性；0＝收合（卷展開）／1＝全開（卷卷起） */
+        @property --drawer-p {
+            syntax: '<number>';
+            inherits: true;
+            initial-value: 1;
+        }
+        /* 首頁：預覽占滿，十二篇章入口為底部抽屜
+           進頁默認＝open（十二關全見，--drawer-p:1→卷軸卷起）。
+           收合下限 peek＝標題列＋完整 N 篇（--drawer-min-rows，最低 4；勿露第5緣）。
+           rowH=(H − bar − 56)/12；N 列可見高 = 2 + N·rowH + (N−1)·4
+           peek = bar + 2 + (N−1)·4 + N·(H−bar−56)/12
+           禁止再收到只露標題列（無 is-closed 段）。 */
         .home-dungeon {
             --bar-h: 52px;
-            /* v1.3.15：瀏覽器默認 peek＝標題列＋完整四篇（勿露第5篇上緣）
-               rowH=(H − bar − 56)/12；四列可見高 = 2 + 4·rowH + 3·4
-               peek = bar + 14 + (H−bar−56)/3 = H/3 + 2·bar/3 − 4.667 ≈ −5px
-               去掉 r9 zone-lock max（曾把 peek 抬到露出第5緣） */
-            --peek-h: calc(100% / 3 + var(--bar-h) * 2 / 3 - 5px);
+            --drawer-min-rows: 4;
+            /* 最低 N=4：bar+14+(H−bar−56)/3 */
+            --peek-h: calc(var(--bar-h) + 14px + (100% - var(--bar-h) - 56px) / 3);
+            --drawer-p: 1; /* 進頁默認 open */
             position: relative; height: 100%; overflow: hidden;
+            transition: --drawer-p .48s cubic-bezier(.22,1,.36,1);
         }
-        /* standalone／fullscreen：默認 peek 六篇完整（同理勿露第7緣）
-           peek = bar + 2 + 6·rowH + 5·4 = bar + 22 + (H−bar−56)/2 */
-        html.is-standalone .home-dungeon {
+        .home-dungeon.is-peek { --drawer-p: 0; }
+        .home-dungeon.is-open { --drawer-p: 1; }
+        .home-dungeon.is-drawer-dragging {
+            transition: none;
+        }
+        .home-dungeon.is-drawer-dragging .home-cta-scroll img,
+        .home-dungeon.is-drawer-dragging .home-cta-label {
+            transition: none;
+        }
+        /* 可選 N=6：data-min-rows="6" → bar+22+(H−bar−56)/2（舊最低） */
+        .home-dungeon[data-min-rows="6"] {
+            --drawer-min-rows: 6;
             --peek-h: calc(var(--bar-h) + 22px + (100% - var(--bar-h) - 56px) / 2);
         }
-        @media (display-mode: standalone), (display-mode: fullscreen) {
-            .home-dungeon {
-                --peek-h: calc(var(--bar-h) + 22px + (100% - var(--bar-h) - 56px) / 2);
-            }
+        .home-dungeon[data-min-rows="4"] {
+            --drawer-min-rows: 4;
+            --peek-h: calc(var(--bar-h) + 14px + (100% - var(--bar-h) - 56px) / 3);
         }
-        /* 英雄區下緣＝抽屜上緣（peek／open 時在 peek 線；closed 時在標題列） */
+        /* 英雄區下緣＝抽屜上緣（peek／open 皆貼 peek 線；不再有 closed＝只露 bar） */
         .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }
-        .home-hero-slot.is-closed { bottom: var(--bar-h); }
         .home-drawer {
             position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column;
             background: var(--home-surface); box-shadow: 0 -10px 24px rgba(0,0,0,.28);
@@ -875,6 +939,7 @@
             padding: 2px 16px 10px; container-type: size; container-name: drawer;
             transition: opacity .36s cubic-bezier(.22,1,.36,1);
         }
+        /* 已無 closed 段；保留選擇器以免舊類殘留時列表消失 */
         .home-drawer.is-closed .home-drawer-list { opacity: 0; pointer-events: none; }
         .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }
         .home-drawer-list .home-slip { flex: 1; min-width: 0; min-height: 0; padding: 0 8px 0 0; }
@@ -907,7 +972,8 @@
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .home-drawer, .home-drawer-chev, .home-hero-slot { transition: none !important; }
+            .home-drawer, .home-drawer-chev, .home-hero-slot, .home-dungeon { transition: none !important; }
+            .home-cta-scroll img, .home-cta-label { transition: none !important; }
             .home-drawer-list { transition: opacity .15s linear; }
             .home-breathe, .home-scene-breathe, .home-saber, .home-saber-float, .home-saber-idle, .home-embers span { animation: none !important; }
             .home-saber.is-back { opacity: 0 !important; }

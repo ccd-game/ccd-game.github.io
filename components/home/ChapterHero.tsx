@@ -4,7 +4,7 @@ import { LevelConfig } from '../../types';
 import { portraitKey, LAYERED_PORTRAITS } from '../../data/portraits';
 import { anchorStyle, chapterLabel, faceCircleStyle, type Target } from './heroUtils';
 import { useGyroParallax, type GyroLayer } from './useGyroParallax';
-import { HERO_SCENES, SCENE_TILES, INK_WASH_MASK, SCROLL_ENTER_OPEN, SCROLL_ENTER_CLOSED, computeHeroFit, heroFigStyle, pct, sceneVars } from './heroScene';
+import { HERO_SCENES, SCENE_TILES, INK_WASH_MASK, HOME_SHANSHUI, SCROLL_ENTER_OPEN, SCROLL_ENTER_CLOSED, computeHeroFit, heroFigStyle, pct, sceneVars } from './heroScene';
 
 /**
  * 英雄區立繪目標（相對於立繪框 .home-fig-stage：寬 100%、高寬比 47:39，置頂；
@@ -154,23 +154,15 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
       onMouseDown={e => e.stopPropagation()}
       onMouseUp={e => e.stopPropagation()}
     >
+      {/* home-shanshui-only-r1：滿幅山水（內容頂→抽屜頂；略放大蓋陀螺露底）；人物／卷軸／HUD 在上 */}
+      <div className="home-shanshui" aria-hidden="true">
+        <img src={HOME_SHANSHUI} alt="" draggable={false} width={1280} height={720} />
+      </div>
       {/* 第一層：篇章場景（外框承載陀螺儀位移） */}
       {/* 無落地場景時才鋪篇章底圖；有 scene 時不再鋪 under-scene 模糊暗底（等同 wash） */}
+      {/* 無落地場景時仍掛 bgGyro（陀螺儀層），底圖已由 .home-shanshui 取代 */}
       {!scene && (
-      <div ref={bgGyro} className="absolute inset-0 home-gyro-layer" data-parallax="bg">
-      <AnimatePresence initial={false}>
-        <motion.div
-          key={`bg-${level.id}`}
-          className="absolute inset-[-16px]"
-          initial={{ opacity: 0, scale: reduce ? 1 : 1.06 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: reduce ? 0.2 : 0.9, ease: [0.2, 0.8, 0.2, 1] }}
-        >
-          <img src={level.bgImg} alt="" className="w-full h-full object-cover home-hero-bg" draggable={false} />
-        </motion.div>
-      </AnimatePresence>
-      </div>
+      <div ref={bgGyro} className="absolute inset-0 home-gyro-layer" data-parallax="bg" aria-hidden="true" />
       )}
 
       {/* 第二層：古人立繪（無 wash／floor／scene-fade） */}
@@ -186,17 +178,16 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
         >
           {scene ? (
             <>
-              {/* 場景：背景＋立繪同幾何（無墨色收邊） */}
-              <div className={`home-scene${scene.fill === 'coverBottom' ? ' is-cover-bottom' : ''}${' is-fit'}`}
-                style={{ ...sceneVars(scene), ...(scene.bgZoom ? { transform: `scale(${scene.bgZoom[0]})`, transformOrigin: `${pct(scene.bgZoom[1], scene.w)} 100%` } : {}) }}>
-                {/* 背景本體＋左右鏡射：場景比英雄區窄時水平補滿；下方不鏡射 */}
+              {/* 舊場景山景＋水墨：已由 .home-shanshui 取代（保留場景幾何容器供立繪錨點） */}
+              <div className={`home-scene home-scene--bg-replaced${scene.fill === 'coverBottom' ? ' is-cover-bottom' : ''}${' is-fit'}`}
+                style={{ ...sceneVars(scene), ...(scene.bgZoom ? { transform: `scale(${scene.bgZoom[0]})`, transformOrigin: `${pct(scene.bgZoom[1], scene.w)} 100%` } : {}) }}
+                aria-hidden="true">
                 {SCENE_TILES.map(([i, j]) => (
                   <img key={`${i}${j}`} src={scene.bg} alt="" className="home-scene-layer home-scene-bg" draggable={false}
                     style={i || j ? { left: `${i * 100}%`, top: `${j * 100}%`, transform: `scale(${i ? -1 : 1}, ${j ? -1 : 1})` } : undefined} />
                 ))}
               </div>
-              {/* 水墨遮罩：山景之上、立繪之下、UI chrome 之下；viewport cover，中心透、邊緣壓 */}
-              <div className="home-ink-wash" aria-hidden="true">
+              <div className="home-ink-wash home-ink-wash--replaced" aria-hidden="true">
                 <img src={INK_WASH_MASK} alt="" draggable={false} />
               </div>
               <div className={`home-scene home-scene-fig-frame${scene.fill === 'coverBottom' ? ' is-cover-bottom' : ''}${' is-fit'}`} style={sceneVars(scene)}>

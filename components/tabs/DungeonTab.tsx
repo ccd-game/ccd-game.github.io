@@ -3,6 +3,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { LevelConfig } from '../../types';
 import ChapterHero from '../home/ChapterHero';
 import { anchorStyle, chapterLabel } from '../home/heroUtils';
+import { drawerPeekH, progressFromY } from './drawerMath';
 
 const IconCircledLock = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -25,32 +26,54 @@ const IconChevronUp = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
 );
 
-type DrawerState = 'closed' | 'peek' | 'open';
+/** 兩段：peek＝收合下限（露出 minRows 篇）；open＝占滿。禁止再收到只露標題列。 */
+type DrawerState = 'peek' | 'open';
 
-/** 抽屜三段的 translateY（px）：closed＝只露標題列；peek＝露出前四篇（與 CSS --peek-h 同式） */
+/** 抽屜 translateY（px）：open＝0；peek＝收合下限（不可再往下） */
 const drawerStops = (el: HTMLElement) => {
   const h = el.clientHeight;
   const bar = parseFloat(getComputedStyle(el).getPropertyValue('--bar-h')) || 52;
-  const closedY = Math.max(0, h - bar);
-  const peekH = (h + 2 * bar) / 3 - 1;
-  return { closedY, peekY: Math.max(0, Math.min(closedY, h - peekH)) };
+  const minRows = parseFloat(getComputedStyle(el).getPropertyValue('--drawer-min-rows')) || 4;
+  const peekH = drawerPeekH(h, bar, minRows);
+  const peekY = Math.max(0, h - peekH);
+  return { peekY, minRows };
 };
 
 const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
   const featured = levels.filter(l => !l.locked);
   const [activeId, setActiveId] = useState<number>(featured[0]?.id ?? levels[0]?.id);
-  // 十二篇章入口抽屜三段：closed（只露標題列）／peek（半開，露出前四篇）／open（預設，占滿首頁，十二篇全見）；
-  // 點選篇章後收合到 peek 並顯示該篇預覽
+  // 十二篇章入口兩段：open＝進頁默認（十二關全見）／peek＝收合下限（--drawer-min-rows，最低 4）；
+  // 點選篇章後收合到 peek。禁止 closed（只露標題列）。
   const [drawerState, setDrawerState] = useState<DrawerState>('open');
   const drawerOpen = drawerState === 'open';
   const barRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef(drawerState);
   useEffect(() => { stateRef.current = drawerState; }, [drawerState]);
   // 手指拖曳：以 transform 跟手，松手後依位移／速度決定開或關；與左右滑切分頁互不干擾
   const drag = useRef<{ x: number; y: number; t: number; dragging: boolean; axis: 'x' | 'y' | null } | null>(null);
 
   const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /** 同步入陣卷軸進度到 .home-dungeon（繼承給英雄區）；跟抽屜同一 duration／easing（CSS --drawer-p） */
+  const setDrawerProgress = useCallback((p: number, live: boolean) => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (live) {
+      root.classList.add('is-drawer-dragging');
+      root.style.setProperty('--drawer-p', String(p));
+    } else {
+      root.classList.remove('is-drawer-dragging');
+      root.style.setProperty('--drawer-p', String(p));
+      // 下一幀清 inline，改由 .is-peek／.is-open 類驅動，讓 transition 接手
+      requestAnimationFrame(() => {
+        if (!root.classList.contains('is-drawer-dragging')) {
+          root.style.removeProperty('--drawer-p');
+        }
+      });
+    }
+  }, []);
 
   const setState = useCallback((next: DrawerState) => {
     const el = drawerRef.current;
@@ -60,7 +83,8 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
     }
     stateRef.current = next;
     setDrawerState(next);
-  }, []);
+    setDrawerProgress(next === 'open' ? 1 : 0, false);
+  }, [setDrawerProgress]);
   /** 拖曳結束後瀏覽器仍會補一個 click：忽略它，避免剛拖到的段又被切回 */
   const suppressClick = useRef(false);
 
@@ -101,11 +125,13 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
     if (d.axis !== 'y' || !d.dragging) return;
     e.stopPropagation();
     if (reduceMotion()) return; // 減少動態：不跟手，松手再切
-    const { closedY, peekY } = drawerStops(el);
+    const { peekY } = drawerStops(el);
     const st = stateRef.current;
-    const base = st === 'open' ? 0 : st === 'peek' ? peekY : closedY;
-    const y = Math.min(closedY, Math.max(0, base + dy));
+    const base = st === 'open' ? 0 : peekY;
+    // 下限＝peekY：禁止拖到只露標題列
+    const y = Math.min(peekY, Math.max(0, base + dy));
     el.style.transform = `translate3d(0, ${y}px, 0)`;
+    setDrawerProgress(progressFromY(y, peekY), true);
   };
 
   const finishDrag = (e: React.PointerEvent) => {
@@ -127,9 +153,9 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
     let next: DrawerState = st;
     const up = dy < -THRESH || v < -VEL;
     const down = dy > THRESH || v > VEL;
+    // 兩段：open⇄peek；下拉不再進入 closed
     if (st === 'open') { if (down) next = 'peek'; }
-    else if (st === 'peek') { if (up) next = 'open'; else if (down) next = 'closed'; }
-    else if (up) next = 'peek';
+    else if (up) next = 'open';
     setState(next);
   };
 
@@ -137,7 +163,7 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
   const onPointerCancel = (e: React.PointerEvent) => finishDrag(e);
 
   return (
-    <div className="flex-1 tab-slide-active home-surface home-dungeon">
+    <div ref={rootRef} className={`flex-1 tab-slide-active home-surface home-dungeon is-${drawerState}`}>
       {featured.length > 0 && (
         <div className={`home-hero-slot is-${drawerState}`} inert={drawerOpen || undefined}>
           <ChapterHero levels={levels} featured={featured} activeId={activeId} onActiveChange={setActiveId} onEnter={onSelect} />
@@ -161,7 +187,7 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
           aria-controls="home-chapter-list"
           onClick={() => {
             if (suppressClick.current) { suppressClick.current = false; return; }
-            setState(stateRef.current === 'open' ? 'peek' : stateRef.current === 'peek' ? 'open' : 'peek');
+            setState(stateRef.current === 'open' ? 'peek' : 'open');
           }}
         >
 <h3 className="home-section-title">十二篇章入口</h3>
@@ -170,7 +196,7 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
           <span className="sr-only">{drawerOpen ? '（收合）' : '（展開）'}</span>
         </button>
 
-        <ol id="home-chapter-list" className="home-drawer-list" inert={drawerState === 'closed' || undefined}>
+        <ol id="home-chapter-list" className="home-drawer-list">
           {levels.map((level, index) => {
             const isActive = level.id === activeId;
             const open = !level.locked;
