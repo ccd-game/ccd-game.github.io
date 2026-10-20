@@ -1102,6 +1102,15 @@
             padding: 2px 16px 10px; container-type: size; container-name: drawer;
             transition: opacity .36s cubic-bezier(.22,1,.36,1);
         }
+        /* home-chapter-four-only-r1：peek 可視區（紙緣495→底欄頂768）恰四章。
+           open 仍 1fr×12＋gap4 均分；peek 若沿用 1fr，綠線鎖 peek-h 會露出第5《勸學》約25px。
+           故 peek 改固定列高49＋gap8＋align-content:start，四章完整、其下無勸學露字／露邊。
+           未改 --peek-h／綠線鎖／HERO／chrome。 */
+        .home-drawer.is-peek .home-drawer-list {
+            gap: 8px;
+            grid-template-rows: repeat(12, 49px);
+            align-content: start;
+        }
         /* 已無 closed 段；保留選擇器以免舊類殘留時列表消失 */
         .home-drawer.is-closed .home-drawer-list { opacity: 0; pointer-events: none; }
         .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }
@@ -1317,13 +1326,15 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     filter: brightness(0.85);
 }
 /* frost-r5：描述區宣紙山水——與主頁 .home-shanshui／shell full844 同資產同切片；
-   盒頂＝peek 綠線 495；img 自 shell 頂對齊，裁切窗＝抽屜 peek 同帶筆觸
-   frost-r6：水平 clip——加寬＋左對齊，令 full844 左緣松岩落入中軸；垂直仍鎖綠線495／高273 */
+   onesource-peek-r1：盒頂≡主頁 peek rect（493.5−zone），勿再寫死 495＠viewport；
+   img 自 shell 頂對齊，裁切窗＝抽屜 peek 同帶筆觸
+   frost-r6：水平 clip——加寬＋左對齊，令 full844 左緣松岩落入中軸 */
 .codex-inner-desc-shanshui {
     position: absolute;
     left: 0;
     right: 0;
-    top: calc(495px - var(--hud-vnext-zone-h, 121.8px)); /* 綠線相對 root */
+    /* ≡ 主頁 --peek-h 公式：hero 底／drawer rect 頂相對 root */
+    top: calc(493.5px - var(--hud-vnext-zone-h, 121.8px));
     bottom: 0; /* 貼 root 底＝底欄上緣 */
     z-index: 1; /* 在 scene-extend 上、stage／desc frost 下 */
     overflow: hidden;
@@ -1338,8 +1349,8 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
        必拆 Tailwind preflight img{max-width:100%}，否則 160% 被卡成 390 */
     width: 160%;
     max-width: none;
-    /* 盒在 vp495；img 頂對齊 vp0（≡ shell／.home-shanshui img）；垂直不變 */
-    top: -495px;
+    /* 盒在 vp 493.5（rect）；img 頂對齊 vp0（≡ shell／.home-shanshui img） */
+    top: -493.5px;
     height: 100dvh;
     min-height: 844px;
     object-fit: fill; /* ≡ shell background-size:100% 100%（高度仍鎖 full844） */

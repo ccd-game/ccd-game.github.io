@@ -1,12 +1,17 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CHARACTER_DETAILS } from '../data/characters';
 import { portraitStyle, portraitKey, LAYERED_PORTRAITS } from '../data/portraits';
-import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, heroPeekHeight, sceneVars, HOME_SHANSHUI, HOME_SHANSHUI_2X } from './home/heroScene';
+import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, sceneVars, HOME_SHANSHUI, HOME_SHANSHUI_2X } from './home/heroScene';
+import { CHROME_DRAWER_RECT_TOP_Y, CHROME_GREEN_TOP_Y } from './tabs/drawerMath';
 import { hasBossVoice, playBossVoice } from '../src/lib/bossVoice';
 
-/** 主頁抽屜 peek 頂（綠線）Y＝495 css＠390；資訊欄頂貼綠線、高＝navTop−495 填滿至底欄上緣（禁抬 stage、禁 absolute 脫流） */
-const PEEK_INFO_TOP_Y = 495;
-const STAGE_FLOW_H = 310;
+/**
+ * onesource-peek-r1：圖鑑內頁 peek ≡ 主頁 CSS
+ *   --peek-h: calc(100% - (493.5px - var(--hud-vnext-zone-h)))
+ *   → 英雄區高 H = 493.5 − rootTop（rootTop≡zone 時＝.home-hero-slot）
+ * 禁再寫死 PEEK_INFO_TOP_Y=495／STAGE_FLOW_H=310／heroPeekHeight N=4（與 tip 綠線 CSS 脫節）。
+ * 準源仍 HERO_SCENES＋computeHeroFit；D／H／綠線與主頁同口徑。
+ */
 /* desc-frost-r5：叠 r4；頂 frost 透戰鬥日落；描述 frost 透宣紙山水（同抽屜）；α0.80＋blur20；装甲明朝；硬鎖 pad／隊主／几何 */
 
 export interface CharacterDetailProps {
@@ -32,8 +37,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   const nameRef = useRef<HTMLHeadingElement>(null);
   const sceneHostRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<{ H: number; s: number; left: number; top: number } | null>(null);
-  /** info：marginTop 使頂＝495；height＝navTop−495 填滿；stage 佔位仍 STAGE_FLOW_H */
-  const [layoutBox, setLayoutBox] = useState<{ marginTop: number; height: number } | null>(null);
+  /** info：頂＝綠線（≡主頁 peek）；stageH＝H＝493.5−rootTop；height＝navTop−綠線 */
+  const [layoutBox, setLayoutBox] = useState<{ marginTop: number; height: number; stageH: number } | null>(null);
 
   // 分頁隱藏時暫停立繪動畫（飛劍循環、呼吸）
   const rootRef = useRef<HTMLDivElement>(null);
@@ -46,8 +51,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
     return () => document.removeEventListener('visibilitychange', sync);
   }, []);
 
-  // 場景框＝一源 peek 高（禁裁 host）；去羽化（無 mask／gradient）；
-  // 資訊欄：stage 佔位維持 STAGE_FLOW_H；marginTop 對齊 495；height＝navTop−495 填滿至底欄；內容區內可捲（禁抬 stage、禁 absolute）
+  // 場景框＝主頁 peek 同口徑 H（禁裁 host）；去羽化（無 mask／gradient）；
+  // stageH 跟 peek 聯動（＝H）；info 頂＝綠線；height＝navTop−綠線；禁 absolute 脫流
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || typeof ResizeObserver === 'undefined') { setFit(null); setLayoutBox(null); return; }
@@ -55,17 +60,19 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
       const nav = document.querySelector<HTMLElement>('.home-bar-bottom');
       const rootRect = root.getBoundingClientRect();
       const navTop = nav ? nav.getBoundingClientRect().top : rootRect.bottom;
-      // stage 底（文件流）＝ rootTop + STAGE_FLOW_H；marginTop 使 infoTop＝PEEK_INFO_TOP_Y
-      const marginTop = PEEK_INFO_TOP_Y - (rootRect.top + STAGE_FLOW_H);
-      // 固定高＝navTop−495：整區自綠線填滿至底欄上緣（貼底欄縫＝0）；廢 polish max260／auto 留縫
-      const height = Math.max(0, navTop - PEEK_INFO_TOP_Y);
-      setLayoutBox(b => (b && Math.abs(b.marginTop - marginTop) < 0.5 && Math.abs(b.height - height) < 0.5) ? b : { marginTop, height });
+      // ≡ 主頁 --peek-h 綠線鎖：H = 493.5 − rootTop（host 底鎖 rect＝493.5；可見紙緣≈495）
+      const stageH = Math.max(0, CHROME_DRAWER_RECT_TOP_Y - rootRect.top);
+      // 綠線相對 root：rootTop + stageH ＝ rect；可見紙緣 +1.5 → info 頂
+      const greenTop = rootRect.top + stageH + (CHROME_GREEN_TOP_Y - CHROME_DRAWER_RECT_TOP_Y);
+      const marginTop = greenTop - (rootRect.top + stageH);
+      const height = Math.max(0, navTop - greenTop);
+      setLayoutBox(b => (b && Math.abs(b.marginTop - marginTop) < 0.5 && Math.abs(b.height - height) < 0.5 && Math.abs(b.stageH - stageH) < 0.5) ? b : { marginTop, height, stageH });
 
       if (scene) {
         const W = root.clientWidth;
         const Dfloat = navTop - rootRect.top;
-        if (W && Dfloat) {
-          const H = heroPeekHeight(Dfloat);
+        if (W && Dfloat && stageH) {
+          const H = stageH; // ≡ ChapterHero clientHeight（CSS slot）；禁 heroPeekHeight N=4
           const Dfit = Math.round(Dfloat);
           const { s, left, top } = computeHeroFit(scene, W, H, Dfit);
           setFit(f => (f && f.H === H && f.s === s && f.left === left && f.top === top) ? f : { H, s, left, top });
@@ -129,7 +136,10 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         </svg>
       </button>
 
-      <div className="codex-inner-stage relative h-[310px] w-full flex items-end justify-center overflow-visible shrink-0 z-10 no-select-drag">
+      <div
+        className="codex-inner-stage relative w-full flex items-end justify-center overflow-visible shrink-0 z-10 no-select-drag"
+        style={{ height: layoutBox ? layoutBox.stageH : (fit ? fit.H : 0) }}
+      >
          {!scene && !layered && (
          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
             {/* 背景：不透明度 0.9（原 0.8），淡色洗白減少約兩成；底部淡出不變 */}
@@ -274,7 +284,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         data-testid="codex-info-chrome"
         className="codex-inner-desc codex-inner-desc-frost relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0"
         style={{
-          /* 固定高＝navTop−495：頂貼綠線495、底貼底欄上緣；內容區內可捲；frost 見 .codex-inner-desc-frost */
+          /* 高＝navTop−綠線（≡主頁 peek）；頂貼綠線、底貼底欄；frost 見 .codex-inner-desc-frost */
           height: layoutBox ? layoutBox.height : undefined,
           marginTop: layoutBox ? layoutBox.marginTop : -12,
           visibility: layoutBox ? 'visible' : 'hidden',
