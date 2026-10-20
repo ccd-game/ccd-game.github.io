@@ -1098,6 +1098,15 @@
             padding: 2px 16px 10px; container-type: size; container-name: drawer;
             transition: opacity .36s cubic-bezier(.22,1,.36,1);
         }
+        /* home-chapter-four-only-r1：peek 可視區（紙緣495→底欄頂768）恰四章。
+           open 仍 1fr×12＋gap4 均分；peek 若沿用 1fr，綠線鎖 peek-h 會露出第5《勸學》約25px。
+           故 peek 改固定列高49＋gap8＋align-content:start，四章完整、其下無勸學露字／露邊。
+           未改 --peek-h／綠線鎖／HERO／chrome。 */
+        .home-drawer.is-peek .home-drawer-list {
+            gap: 8px;
+            grid-template-rows: repeat(12, 49px);
+            align-content: start;
+        }
         /* 已無 closed 段；保留選擇器以免舊類殘留時列表消失 */
         .home-drawer.is-closed .home-drawer-list { opacity: 0; pointer-events: none; }
         .home-drawer-list > li { min-height: 0; min-width: 0; display: flex; }

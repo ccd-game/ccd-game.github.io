@@ -1,0 +1,87 @@
+# Deploy test preview under /test/ while keeping live Pages root = main (v1.3.25).
+# Does NOT overwrite live root with four-only. Shares concurrency group `pages`
+# with deploy.yml; cancel-in-progress: false so live deploys are not cancelled.
+name: Deploy test preview (/test/)
+
+on:
+  push:
+    branches: [test]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout test (this branch)
+        uses: actions/checkout@v4
+        with:
+          path: test-src
+
+      - name: Checkout main (live root, no four-only)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-src
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: main-src/package-lock.json
+
+      - name: Build live root from main
+        working-directory: main-src
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build test preview with BASE_PATH=/test/
+        working-directory: test-src
+        env:
+          BASE_PATH: /test/
+        run: |
+          npm ci
+          npm run build
+
+      - name: Merge site (root=main, /test/=this branch)
+        run: |
+          mkdir -p site
+          cp -a main-src/dist/. site/
+          mkdir -p site/test
+          cp -a test-src/dist/. site/test/
+          echo "=== site tree (top) ==="
+          find site -maxdepth 3 -type f | head -80
+          test -f site/index.html
+          test -f site/test/index.html
+          # four-only marker should be in test CSS only, not required in root
+          if grep -R "home-chapter-four-only-r1" site/test >/dev/null 2>&1; then
+            echo "OK: four-only marker present under site/test"
+          else
+            echo "WARN: four-only comment not found in built assets (may be minified away); checking peek CSS"
+            grep -R "grid-template-rows:repeat(12,49px)\|repeat(12, 49px)" site/test || true
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
