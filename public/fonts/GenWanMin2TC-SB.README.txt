@@ -1,0 +1,4 @@
+源雲明體 GenWanMin2 TC SemiBold（完整 OTF；圖鑑 B fallback）
+授權：SIL OFL 1.1（含 Adobe 保留字型名 Source；本產品 CSS 名為 GenWan Mincho SB，未使用保留名）
+來源：https://github.com/ButTaiwan/genwan-font/releases（GenWanMin2TC-SB.otf）
+用途：装甲明朝 Display 缺碼／空殼字經 span.fb 繪出；勿只靠 CSS stack。

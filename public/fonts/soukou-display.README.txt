@@ -12,3 +12,5 @@ codex-inner-desc-frost-r4：
 - 令「柳宗元」「始得西山宴遊記」「萬化冥合」「頹然就醉」等落入装甲明朝，避免系統黑體備援。
 - 源字型缺「值」「挡／擋」「澠」「蔺」「卧」等少數碼位；「值」等仍可能 fallback。
 - 約 280KB；覆蓋優先。
+
+font-soukou-genwan-fb-lock-r1／soukou-subset-p0-r1：覆寫為 P0 子集（約 302KB；圖鑑技文＋空殼改走 GenWan SB .fb）。

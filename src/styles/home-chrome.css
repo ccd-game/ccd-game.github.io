@@ -378,7 +378,7 @@ html.is-standalone #root::before {
 /* 量測同 r6/r7：珠 center(53.8,59.5)；體力(281,39.5)92.2×26.5；銅錢(281.5,76)91.8×26.5 */
 
 .home-bar-top.home-hud-vnext-host {
-  --hud-vnext-font: 'Soukou Mincho Display', serif;
+  --hud-vnext-font: 'Soukou Mincho Display', 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif;
   height: 118px !important;
   padding: 0 !important;
   margin: 0 !important;
@@ -394,7 +394,7 @@ html.is-standalone #root::before {
 }
 
 .home-hud-vnext {
-  --hud-vnext-font: 'Soukou Mincho Display', serif;
+  --hud-vnext-font: 'Soukou Mincho Display', 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif;
   position: absolute;
   left: 0;
   top: 0;
@@ -413,6 +413,12 @@ html.is-standalone #root::before {
   font-family: var(--hud-vnext-font) !important;
   font-synthesis: none;
   font-variant-numeric: normal;
+}
+
+/* B fb 1000：缺碼／空殼 → GenWan；須先 wrapSoukouFb；禁只靠 stack；暫無描邊 */
+.home-hud-vnext .fb {
+  font-family: 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif !important;
+  font-weight: 1000 !important;
 }
 
 .home-hud-vnext-orb {

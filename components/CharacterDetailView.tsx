@@ -4,6 +4,7 @@ import { portraitStyle, portraitKey, LAYERED_PORTRAITS } from '../data/portraits
 import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, sceneVars, HOME_SHANSHUI, HOME_SHANSHUI_2X } from './home/heroScene';
 import { CHROME_DRAWER_RECT_TOP_Y, CHROME_GREEN_TOP_Y } from './tabs/drawerMath';
 import { hasBossVoice, playBossVoice } from '../src/lib/bossVoice';
+import { wrapSoukouFbParts } from '../src/lib/wrapSoukouFb';
 
 /**
  * onesource-peek-r1：圖鑑內頁 peek ≡ 主頁 CSS
@@ -24,6 +25,20 @@ export interface CharacterDetailProps {
   };
   onBack: () => void;
 }
+
+
+/** 装甲缺碼／空殼 → span.fb（GenWan SB）；禁只靠 CSS stack */
+const SoukouFb: React.FC<{ text: string }> = ({ text }) => (
+  <>
+    {wrapSoukouFbParts(text).map((part, i) =>
+      part.fb ? (
+        <span key={i} className="fb">{part.t}</span>
+      ) : (
+        <React.Fragment key={i}>{part.t}</React.Fragment>
+      )
+    )}
+  </>
+);
 
 const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) => {
   const detailData = CHARACTER_DETAILS[char.id];
@@ -294,11 +309,11 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         <div data-testid="codex-desc-pad-top" className="flex-1 min-h-0 basis-0 shrink" aria-hidden="true" />
         <div className="flex flex-col gap-0.5 shrink-0">
         <div className="text-center">
-          <h2 ref={nameRef} className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', textShadow: 'none' }}>{char.name}</h2>
-          <p className="text-[var(--gold-accent)] font-bold tracking-[3px] text-[11px] mb-1">{char.title}</p>
+          <h2 ref={nameRef} className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', textShadow: 'none' }}><SoukouFb text={char.name} /></h2>
+          <p className="text-[var(--gold-accent)] font-bold tracking-[3px] text-[11px] mb-1"><SoukouFb text={char.title} /></p>
           <div className="w-8 h-[1px] bg-[var(--gold-accent)] mx-auto mb-1 opacity-20"></div>
           <p className="text-[10.5px] leading-snug text-left opacity-90 mb-0" style={{ color: 'var(--text-sub)' }}>
-            {detailData?.bio || "此聖賢境界深邃，其詳細修煉背景尚待考證。"}
+            <SoukouFb text={detailData?.bio || "此聖賢境界深邃，其詳細修煉背景尚待考證。"} />
           </p>
         </div>
 
@@ -318,8 +333,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
                      <span className="text-black font-black text-[8.5px]">隊</span>
                    </div>
                    <div className="flex flex-col min-w-0">
-                     <span className="font-black tracking-widest text-[13px] leading-tight" style={{ color: 'var(--text-main)' }}>{detailData.leaderSkill.name}</span>
-                     <span className="text-[9.5px] opacity-90 leading-snug whitespace-normal break-words" style={{ color: 'var(--text-sub)' }}>{detailData.leaderSkill.desc}</span>
+                     <span className="font-black tracking-widest text-[13px] leading-tight" style={{ color: 'var(--text-main)' }}><SoukouFb text={detailData.leaderSkill.name} /></span>
+                     <span className="text-[9.5px] opacity-90 leading-snug whitespace-normal break-words" style={{ color: 'var(--text-sub)' }}><SoukouFb text={detailData.leaderSkill.desc} /></span>
                    </div>
                  </div>
               </div>
@@ -331,8 +346,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
                        <span className="text-[var(--gold-accent)] font-black text-[8.5px]">主</span>
                      </div>
                      <div className="flex flex-col min-w-0">
-                       <span className="font-black tracking-widest text-[13px] leading-tight" style={{ color: 'var(--text-main)' }}>{skill.name}</span>
-                       <span className="text-[9.5px] opacity-90 leading-snug whitespace-normal break-words" style={{ color: 'var(--text-sub)' }}>{skill.desc}</span>
+                       <span className="font-black tracking-widest text-[13px] leading-tight" style={{ color: 'var(--text-main)' }}><SoukouFb text={skill.name} /></span>
+                       <span className="text-[9.5px] opacity-90 leading-snug whitespace-normal break-words" style={{ color: 'var(--text-sub)' }}><SoukouFb text={skill.desc} /></span>
                      </div>
                    </div>
                 </div>

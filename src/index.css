@@ -416,11 +416,17 @@
             src: url('/fonts/genwan-display.woff2') format('woff2');
             font-weight: 100 900; font-style: normal; font-display: block;
         }
-        /* hud-vnext：裝甲明朝（僅頂 HUD 經 --hud-vnext-font 引用；底欄美人篆不動） */
+        /* hud-vnext／圖鑑 B：装甲明朝 Display（P0 子集；僅 Regular） */
         @font-face {
             font-family: 'Soukou Mincho Display';
             src: url('/fonts/soukou-display.woff2') format('woff2');
-            font-weight: 100 900; font-style: normal; font-display: block;
+            font-weight: 400; font-style: normal; font-display: swap;
+        }
+        /* B fb：源雲明體 SB（完整 OTF；缺碼／空殼經 span.fb；face 宣告 600） */
+        @font-face {
+            font-family: 'GenWan Mincho SB';
+            src: url('/fonts/GenWanMin2TC-SB.otf') format('opentype');
+            font-weight: 600; font-style: normal; font-display: swap;
         }
         /* 主頁朱印：王漢宗印篆體（GPL v2 自由字型子集）。 */
         @font-face {
@@ -1392,11 +1398,15 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
 .codex-inner > [data-testid="codex-info-chrome"] {
     z-index: 20;
 }
-/* frost-r5：圖鑑內頁名／正文／技名／技述＝装甲明朝；源字僅 Regular；禁動主頁／戰鬥字體 */
+/* frost-r6＋B fb 1000：圖鑑內頁＝装甲主字＋源雲 fallback；空殼須 span.fb；暫無描邊；禁動 HERO／chrome 佈局 */
 .codex-inner-desc,
 .codex-inner-desc * {
-    font-family: 'Soukou Mincho Display', 'Soukou Mincho', serif !important;
-    font-weight: 400 !important; /* Soukou Regular only；禁 Tailwind font-black 合成粗體 */
+    font-family: 'Soukou Mincho Display', 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif !important;
+    font-weight: 400 !important; /* 装甲 Regular；禁 Tailwind font-black 合成粗體；無描邊 */
+}
+.codex-inner-desc .fb {
+    font-family: 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif !important;
+    font-weight: 1000 !important;
 }
 /* frost-r5：描述 frost＝drawer-alpha-r3 同數字（禁降 α）；下層＝宣紙山水筆觸 */
 .codex-inner-desc-frost {

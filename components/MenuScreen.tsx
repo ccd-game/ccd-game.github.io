@@ -27,6 +27,7 @@ import { MAX_STAMINA } from '../src/lib/playerData';
 import { staminaAt } from '../src/lib/stamina';
 import { SCHOOLS_BY_EMAIL_DOMAIN, schoolNameForEmail } from '../src/config/auth';
 import { shortLabelFor } from '../src/lib/displayLabel';
+import { wrapSoukouFbParts } from '../src/lib/wrapSoukouFb';
 
 // Default tab (dungeon) stays eager; other tabs + codex detail are lazy.
 const CharacterTab = lazy(() => import('./tabs/CharacterTab'));
@@ -132,6 +133,20 @@ interface MenuScreenProps {
   /** 主頁 HUD 可見（MENU／角色詳情）；通關入帳時若為 false 則延至回主頁再播弧填動畫 */
   hudLive?: boolean;
 }
+
+
+/** 装甲缺碼／空殼 → span.fb（GenWan SB）；HUD 暱稱／校名輸出前 wrap */
+const SoukouFb: React.FC<{ text: string }> = ({ text }) => (
+  <>
+    {wrapSoukouFbParts(text).map((part, i) =>
+      part.fb ? (
+        <span key={i} className="fb">{part.t}</span>
+      ) : (
+        <React.Fragment key={i}>{part.t}</React.Fragment>
+      )
+    )}
+  </>
+);
 
 const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharacter, onShowCharacterDetail, onBackFromDetail, theme, onThemeToggle, bgmEnabled, onBgmToggle, bgmVolume, onVolumeChange, hudLive = true }) => {
   const [activeTab, setActiveTab] = useState<MenuTab>('dungeon');
@@ -453,8 +468,8 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
             </svg>
           </div>
           <div className="home-hud-vnext-mid">
-            <span className="home-hud-vnext-name" data-testid="hud-name">{playerData.name || '歐陽同學'}</span>
-            <span className="home-hud-vnext-school" data-testid="hud-school">{playerData.schoolName || '救世軍卜維廉中學'}</span>
+            <span className="home-hud-vnext-name" data-testid="hud-name"><SoukouFb text={playerData.name || '歐陽同學'} /></span>
+            <span className="home-hud-vnext-school" data-testid="hud-school"><SoukouFb text={playerData.schoolName || '救世軍卜維廉中學'} /></span>
           </div>
           <div className="home-hud-vnext-row home-hud-vnext-row--sta">
             <span className="home-hud-vnext-row-label">體力</span>
