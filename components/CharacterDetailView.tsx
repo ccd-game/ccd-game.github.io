@@ -1,11 +1,13 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CHARACTER_DETAILS } from '../data/characters';
 import { portraitStyle, portraitKey, LAYERED_PORTRAITS } from '../data/portraits';
-import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, heroPeekHeight, sceneVars } from './home/heroScene';
+import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, heroPeekHeight, sceneVars, HOME_SHANSHUI, HOME_SHANSHUI_2X } from './home/heroScene';
 import { hasBossVoice, playBossVoice } from '../src/lib/bossVoice';
 
-/** 背景底部羽化的長度（px）：羽化在「名字」那一行結束 */
-const CODEX_FADE_PX = 140;
+/** 主頁抽屜 peek 頂（綠線）Y＝495 css＠390；資訊欄頂貼綠線、高＝navTop−495 填滿至底欄上緣（禁抬 stage、禁 absolute 脫流） */
+const PEEK_INFO_TOP_Y = 495;
+const STAGE_FLOW_H = 310;
+/* desc-frost-r5：叠 r4；頂 frost 透戰鬥日落；描述 frost 透宣紙山水（同抽屜）；α0.80＋blur20；装甲明朝；硬鎖 pad／隊主／几何 */
 
 export interface CharacterDetailProps {
   char: {
@@ -29,7 +31,9 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   const layered = LAYERED_PORTRAITS[pk];
   const nameRef = useRef<HTMLHeadingElement>(null);
   const sceneHostRef = useRef<HTMLDivElement>(null);
-  const [fit, setFit] = useState<{ H: number; s: number; left: number; top: number; fadeEnd: number } | null>(null);
+  const [fit, setFit] = useState<{ H: number; s: number; left: number; top: number } | null>(null);
+  /** info：marginTop 使頂＝495；height＝navTop−495 填滿；stage 佔位仍 STAGE_FLOW_H */
+  const [layoutBox, setLayoutBox] = useState<{ marginTop: number; height: number } | null>(null);
 
   // 分頁隱藏時暫停立繪動畫（飛劍循環、呼吸）
   const rootRef = useRef<HTMLDivElement>(null);
@@ -42,34 +46,72 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
     return () => document.removeEventListener('visibilitychange', sync);
   }, []);
 
-  // 場景框＝首頁預覽英雄區（抽屜半開）的大小：寬同頁寬、高由內容區高推得；
-  // 羽化終點＝名字那一行的下緣（相對場景框）
+  // 場景框＝一源 peek 高（禁裁 host）；去羽化（無 mask／gradient）；
+  // 資訊欄：stage 佔位維持 STAGE_FLOW_H；marginTop 對齊 495；height＝navTop−495 填滿至底欄；內容區內可捲（禁抬 stage、禁 absolute）
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!scene || !root || typeof ResizeObserver === 'undefined') { setFit(null); return; }
+    if (!root || typeof ResizeObserver === 'undefined') { setFit(null); setLayoutBox(null); return; }
     const sync = () => {
-      // D＝首頁內容區高＝本頁頂到底部導覽列頂（首頁 .home-dungeon 同樣由頂欄下緣延伸到導覽列上緣）
       const nav = document.querySelector<HTMLElement>('.home-bar-bottom');
-      const W = root.clientWidth;
-      const Dfloat = nav ? nav.getBoundingClientRect().top - root.getBoundingClientRect().top : root.clientHeight;
-      if (!W || !Dfloat) return;
-      // host 高跟 CSS peek（浮點 D）；fit 跟 ChapterHero（dungeon.clientHeight 整數）→ 圖鑑 vs 預覽 Δ→0
-      const H = heroPeekHeight(Dfloat);
-      const Dfit = Math.round(Dfloat);
-      const { s, left, top } = computeHeroFit(scene, W, H, Dfit);
-      const host = sceneHostRef.current, name = nameRef.current;
-      const fadeEnd = host && name ? name.getBoundingClientRect().bottom - host.getBoundingClientRect().top : H;
-      setFit(f => (f && f.H === H && f.s === s && f.left === left && f.top === top && Math.abs(f.fadeEnd - fadeEnd) < 0.5) ? f : { H, s, left, top, fadeEnd });
+      const rootRect = root.getBoundingClientRect();
+      const navTop = nav ? nav.getBoundingClientRect().top : rootRect.bottom;
+      // stage 底（文件流）＝ rootTop + STAGE_FLOW_H；marginTop 使 infoTop＝PEEK_INFO_TOP_Y
+      const marginTop = PEEK_INFO_TOP_Y - (rootRect.top + STAGE_FLOW_H);
+      // 固定高＝navTop−495：整區自綠線填滿至底欄上緣（貼底欄縫＝0）；廢 polish max260／auto 留縫
+      const height = Math.max(0, navTop - PEEK_INFO_TOP_Y);
+      setLayoutBox(b => (b && Math.abs(b.marginTop - marginTop) < 0.5 && Math.abs(b.height - height) < 0.5) ? b : { marginTop, height });
+
+      if (scene) {
+        const W = root.clientWidth;
+        const Dfloat = navTop - rootRect.top;
+        if (W && Dfloat) {
+          const H = heroPeekHeight(Dfloat);
+          const Dfit = Math.round(Dfloat);
+          const { s, left, top } = computeHeroFit(scene, W, H, Dfit);
+          setFit(f => (f && f.H === H && f.s === s && f.left === left && f.top === top) ? f : { H, s, left, top });
+        }
+      } else {
+        setFit(null);
+      }
     };
     const ro = new ResizeObserver(sync);
     ro.observe(root);
-    if (nameRef.current) ro.observe(nameRef.current);
+    const navEl = document.querySelector<HTMLElement>('.home-bar-bottom');
+    if (navEl) ro.observe(navEl);
     sync();
     return () => ro.disconnect();
   }, [scene]);
 
   return (
-    <div ref={rootRef} className="codex-inner flex-1 flex flex-col animate-[fadeIn_0.5s_ease-out_forwards] overflow-y-auto overflow-x-hidden custom-scrollbar relative" style={{ backgroundColor: 'var(--app-bg)' }}>
+    <div ref={rootRef} className="codex-inner flex-1 flex flex-col animate-[fadeIn_0.5s_ease-out_forwards] relative" data-testid="codex-inner">
+      {/* frost-r5：戰鬥場景上伸——專供頂欄 frost 采樣日落／火燒雲（cover 級取景，禁 300% 色帶）；禁動 HERO */}
+      <div
+        className="codex-inner-scene-extend"
+        aria-hidden="true"
+        data-testid="codex-scene-extend"
+        style={(scene?.bg || char.bgImg) ? {
+          backgroundImage: `url("${scene?.bg || char.bgImg}")`,
+        } : undefined}
+      />
+      {/* frost-r5：描述區專用宣紙山水（同 .home-shanshui／drawer 下層）；位在 desc frost 下、戰景之上，禁戰景色帶充描述 */}
+      <div
+        className="codex-inner-desc-shanshui"
+        aria-hidden="true"
+        data-testid="codex-desc-shanshui"
+      >
+        <img
+          src={HOME_SHANSHUI}
+          srcSet={`${HOME_SHANSHUI} 1x, ${HOME_SHANSHUI_2X} 2x`}
+          alt=""
+          draggable={false}
+        />
+      </div>
+      {/* frost-r5：頂欄 frost＝drawer-alpha-r3；下層＝戰鬥場景（非宣紙）；不改 MenuScreen／HUD 源 */}
+      <div
+        className="codex-inner-top-frost"
+        aria-hidden="true"
+        data-testid="codex-top-frost"
+      />
       <style>{`
         .no-select-drag {
           -webkit-user-select: none;
@@ -87,7 +129,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         </svg>
       </button>
 
-      <div className="relative h-[310px] w-full flex items-end justify-center overflow-visible shrink-0 z-10 no-select-drag">
+      <div className="codex-inner-stage relative h-[310px] w-full flex items-end justify-center overflow-visible shrink-0 z-10 no-select-drag">
          {!scene && !layered && (
          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
             {/* 背景：不透明度 0.9（原 0.8），淡色洗白減少約兩成；底部淡出不變 */}
@@ -115,14 +157,11 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
          </div>
 
          {scene && (
-           /* 首頁落地場景（HERO_SCENES）：背景＋人物同一套幾何（同首頁預覽的 --fit-s／l／t），框高＝首頁英雄區（抽屜半開）；
-              框延伸到名字下方，底部羽化在名字那一行結束（mask，往下才淡到頁底色） */
+           /* 首頁落地場景（HERO_SCENES）：背景＋人物同一套幾何；框高＝一源 peek；去羽化（無 mask） */
            <div ref={sceneHostRef} className="codex-scene-host absolute left-0 right-0 top-0 overflow-hidden pointer-events-none"
              style={{
                zIndex: 5, height: fit ? fit.H : 0, visibility: fit ? 'visible' : 'hidden',
                '--fit-s': `${fit?.s ?? 1}px`, '--fit-l': `${fit?.left ?? 0}px`, '--fit-t': `${fit?.top ?? 0}px`,
-               WebkitMaskImage: `linear-gradient(to bottom, #000 ${(fit?.fadeEnd ?? 0) - CODEX_FADE_PX}px, transparent ${fit?.fadeEnd ?? 0}px)`,
-               maskImage: `linear-gradient(to bottom, #000 ${(fit?.fadeEnd ?? 0) - CODEX_FADE_PX}px, transparent ${fit?.fadeEnd ?? 0}px)`,
              } as React.CSSProperties}>
              <div className="home-scene is-fit" style={heroBgFrameStyle(scene)}>
                {SCENE_TILES.map(([i, j]) => (
@@ -197,14 +236,10 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
            </div>
          )}
 
-         {/* 立繪：以臉部錨點統一定位；淡出遮罩依立繪區高度計算，確保名字下方無人物 */}
+         {/* 立繪：以臉部錨點統一定位（去羽化，無 mask） */}
          {!scene && !layered && <div
            className="absolute inset-0 overflow-hidden pointer-events-none"
-           style={{
-             zIndex: 10,
-             WebkitMaskImage: 'linear-gradient(to bottom, black 62%, transparent 96%)',
-             maskImage: 'linear-gradient(to bottom, black 62%, transparent 96%)',
-           }}
+           style={{ zIndex: 10 }}
          >
            <div
              className="absolute inset-0"
@@ -225,8 +260,6 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
            </div>
          </div>}
          
-         {!scene && <div className="absolute inset-0 z-15 bg-gradient-to-b from-transparent via-transparent to-[var(--app-bg)] pointer-events-none"></div>}
-
          {hasBossVoice(char.id) && (
            <button
              type="button"
@@ -237,9 +270,21 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
          )}
       </div>
 
-      <div className="relative z-20 px-5 flex flex-col gap-0.5 pb-12" style={{ marginTop: '-12px' }}>
+      <div
+        data-testid="codex-info-chrome"
+        className="codex-inner-desc codex-inner-desc-frost relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0"
+        style={{
+          /* 固定高＝navTop−495：頂貼綠線495、底貼底欄上緣；內容區內可捲；frost 見 .codex-inner-desc-frost */
+          height: layoutBox ? layoutBox.height : undefined,
+          marginTop: layoutBox ? layoutBox.marginTop : -12,
+          visibility: layoutBox ? 'visible' : 'hidden',
+        }}
+      >
+        {/* 名上留白＝技下至欄底：等分 flex spacer（對稱；禁隨意 padding） */}
+        <div data-testid="codex-desc-pad-top" className="flex-1 min-h-0 basis-0 shrink" aria-hidden="true" />
+        <div className="flex flex-col gap-0.5 shrink-0">
         <div className="text-center">
-          <h2 ref={nameRef} className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', fontFamily: "'LXGW WenKai Mono TC', serif", textShadow: '0 0 2px var(--app-bg), 0 0 8px var(--app-bg), 0 0 16px var(--app-bg)' }}>{char.name}</h2>
+          <h2 ref={nameRef} className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', textShadow: 'none' }}>{char.name}</h2>
           <p className="text-[var(--gold-accent)] font-bold tracking-[3px] text-[11px] mb-1">{char.title}</p>
           <div className="w-8 h-[1px] bg-[var(--gold-accent)] mx-auto mb-1 opacity-20"></div>
           <p className="text-[10.5px] leading-snug text-left opacity-90 mb-0" style={{ color: 'var(--text-sub)' }}>
@@ -254,30 +299,30 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
           </div>
         )}
 
-        <div className="space-y-1.5">
+        <div className="space-y-1.5" data-testid="codex-skill-block">
           {detailData ? (
             <>
-              <div className="py-1.5 px-3 rounded-xl border border-[var(--gold-accent)]/30 bg-white/5 backdrop-blur-sm shadow-sm">
-                 <div className="flex gap-3 items-center">
-                   <div className="w-6 h-6 shrink-0 rounded-md bg-[var(--gold-accent)] flex items-center justify-center shadow-md">
-                     <span className="text-black font-black text-[8.5px]">領</span>
+              <div className="py-1.5 px-3 rounded-xl border border-[var(--gold-accent)]/30 bg-transparent">
+                 <div className="flex gap-3 items-start">
+                   <div className="w-6 h-6 shrink-0 rounded-md bg-[var(--gold-accent)] flex items-center justify-center shadow-md mt-0.5">
+                     <span className="text-black font-black text-[8.5px]">隊</span>
                    </div>
-                   <div className="flex flex-col overflow-hidden">
-                     <span className="font-black tracking-widest text-[13px] truncate leading-tight" style={{ color: 'var(--text-main)' }}>{detailData.leaderSkill.name}</span>
-                     <span className="text-[9.5px] opacity-90 leading-tight truncate" style={{ color: 'var(--text-sub)' }}>{detailData.leaderSkill.desc}</span>
+                   <div className="flex flex-col min-w-0">
+                     <span className="font-black tracking-widest text-[13px] leading-tight" style={{ color: 'var(--text-main)' }}>{detailData.leaderSkill.name}</span>
+                     <span className="text-[9.5px] opacity-90 leading-snug whitespace-normal break-words" style={{ color: 'var(--text-sub)' }}>{detailData.leaderSkill.desc}</span>
                    </div>
                  </div>
               </div>
 
               {detailData.activeSkills.map((skill, i) => (
-                <div key={i} className="py-1.5 px-3 rounded-xl border border-[var(--gold-accent)]/30 bg-white/5 backdrop-blur-sm shadow-sm">
-                   <div className="flex gap-3 items-center">
-                     <div className="w-6 h-6 shrink-0 rounded-md bg-white/10 flex items-center justify-center border border-[var(--gold-accent)]/20 shadow-md">
-                       <span className="text-[var(--gold-accent)] font-black text-[8.5px]">技</span>
+                <div key={i} className="py-1.5 px-3 rounded-xl border border-[var(--gold-accent)]/30 bg-transparent">
+                   <div className="flex gap-3 items-start">
+                     <div className="w-6 h-6 shrink-0 rounded-md bg-white/10 flex items-center justify-center border border-[var(--gold-accent)]/20 shadow-md mt-0.5">
+                       <span className="text-[var(--gold-accent)] font-black text-[8.5px]">主</span>
                      </div>
-                     <div className="flex flex-col overflow-hidden">
-                       <span className="font-black tracking-widest text-[13px] truncate leading-tight" style={{ color: 'var(--text-main)' }}>{skill.name}</span>
-                       <span className="text-[9.5px] opacity-90 leading-tight truncate" style={{ color: 'var(--text-sub)' }}>{skill.desc}</span>
+                     <div className="flex flex-col min-w-0">
+                       <span className="font-black tracking-widest text-[13px] leading-tight" style={{ color: 'var(--text-main)' }}>{skill.name}</span>
+                       <span className="text-[9.5px] opacity-90 leading-snug whitespace-normal break-words" style={{ color: 'var(--text-sub)' }}>{skill.desc}</span>
                      </div>
                    </div>
                 </div>
@@ -287,6 +332,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
             <div className="p-4 text-center opacity-40 italic text-xs">聖賢實力深不可測</div>
           )}
         </div>
+        </div>
+        <div data-testid="codex-desc-pad-bottom" className="flex-1 min-h-0 basis-0 shrink" aria-hidden="true" />
       </div>
 
       <style>{`
@@ -301,8 +348,6 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
           --wc: max(calc(310px * 16 / 9), 100%);
           position: absolute; top: 0; width: var(--wc); height: auto;
           left: clamp(calc(100% - var(--wc)), max(calc(65% - var(--wc) * var(--lx) / 100), calc(4px - var(--wc) * var(--tip) / 100)), 0px);
-          -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
-          mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
         }
         /* 首頁落地場景沿用 .home-scene 幾何（縮放／位置由 JS 算好的 --fit-*，與首頁 .home-hero .home-scene.is-fit 相同） */
         .codex-scene-host .home-scene.is-fit { --s: var(--fit-s, 1px); left: var(--fit-l, 0px); top: var(--fit-t, 0px); }

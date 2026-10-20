@@ -1001,10 +1001,14 @@
          * scrollWidth；點篇章時 scrollIntoView 把 .home-menu-shell scrollLeft 推到 ~16，
          * 預覽右緣露出 --app-bg（#f4f1ea）豎條。overflow:hidden 仍可被程式／scrollIntoView
          * 橫移；overflow-x:clip 取消橫向捲動容器。勿改戰鬥檔。
+         * align-info-inner-bottom-flush-r1：對稱修 Y——overflow-y:hidden 仍可被
+         * scrollIntoView({block:'center'}) 把 shell.scrollTop 推到 ≈23，絕對頂／底欄
+         * 整塊上移（topBarTop=−23、bottomBarBottom=821，底下宣紙縫）。overflow-y:clip
+         * 取消縱向捲動容器；主頁／內頁底欄貼 844。
          */
         .home-menu-shell {
             overflow-x: clip !important; /* 蓋過曾用之 overflow-hidden utility */
-            overflow-y: hidden !important;
+            overflow-y: clip !important; /* 對稱 x：禁 scrollIntoView 推 scrollTop */
             /* home-xuan-r11-tryfit：全站頁底＝宣紙山水 full844（底 76 淨紙給底欄叠；不搶 HUD） */
             background-color: #f4f0e8;
             background-image: image-set(
@@ -1285,3 +1289,122 @@ html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !importa
 
 /* 入陣小視窗開著：主頁預覽動畫（呼吸、飛劍、佩刀浮動、火星…）原地暫停，取消後由同一位置繼續；陀螺儀另以 data-enter-freeze 凍結 */
 html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { animation-play-state: paused !important; }
+
+/* ===== codex-inner-polish-r1＋desc-frost-r2…r5：兩區下層分開——頂＝戰鬥場景；描述＝宣紙山水（禁羽化；禁抬 chrome）===== */
+.codex-inner {
+    background: transparent !important; /* 禁硬素色；頂區戰景由 scene-extend 蓋，描述區由 desc-shanshui 蓋 */
+    /* frost-r5：拆 isolation——免 backdrop-filter 被挡，令頂／描述 frost 真采樣下層像素 */
+    isolation: auto;
+    /* frost-r2：禁裁負 top 場景上伸；捲動改由 info 欄自行 overflow-y-auto */
+    overflow: visible !important;
+}
+/* frost-r5：戰鬥場景＝頂欄 frost 下層（日落／火燒雲）。cover＋上移令火燒雲落入頂欄；
+   禁 r4 auto 300% 放大色帶；描述區另由 .codex-inner-desc-shanshui 盖，勿靠戰景充描述紋 */
+.codex-inner-scene-extend {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(-1 * var(--hud-vnext-zone-h, 121.8px));
+    height: calc(100% + var(--hud-vnext-zone-h, 121.8px));
+    z-index: 0;
+    pointer-events: none;
+    background-color: #0a0a0a; /* 對齊 battle-scene-layer 深色墊 */
+    background-size: cover; /* 近原比例，紋理可過 blur20 */
+    background-position: center -169px; /* ≈源圖 22%（火燒雲）對齊視口頂 */
+    background-repeat: no-repeat;
+}
+.dark-mode .codex-inner-scene-extend {
+    filter: brightness(0.85);
+}
+/* frost-r5：描述區宣紙山水——與主頁 .home-shanshui／shell full844 同資產同切片；
+   盒頂＝peek 綠線 495；img 自 shell 頂對齊，裁切窗＝抽屜 peek 同帶筆觸
+   frost-r6：水平 clip——加寬＋左對齊，令 full844 左緣松岩落入中軸；垂直仍鎖綠線495／高273 */
+.codex-inner-desc-shanshui {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(495px - var(--hud-vnext-zone-h, 121.8px)); /* 綠線相對 root */
+    bottom: 0; /* 貼 root 底＝底欄上緣 */
+    z-index: 1; /* 在 scene-extend 上、stage／desc frost 下 */
+    overflow: hidden;
+    pointer-events: none;
+    background: transparent;
+}
+.codex-inner-desc-shanshui img {
+    display: block;
+    position: absolute;
+    left: 0;
+    /* r6：等价水平 clip——寬 160%＋左緣對齊，盒內見源圖左≈0–62.5%；中軸≈源 31%（松岩帶）
+       必拆 Tailwind preflight img{max-width:100%}，否則 160% 被卡成 390 */
+    width: 160%;
+    max-width: none;
+    /* 盒在 vp495；img 頂對齊 vp0（≡ shell／.home-shanshui img）；垂直不變 */
+    top: -495px;
+    height: 100dvh;
+    min-height: 844px;
+    object-fit: fill; /* ≡ shell background-size:100% 100%（高度仍鎖 full844） */
+    object-position: left top; /* r6：水平左緣優先（对位参数） */
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+.dark-mode .codex-inner-desc-shanshui {
+    opacity: 0; /* dark 無宣紙；frost dark 仍 0.88 */
+}
+/* frost-r5：頂欄 frost＝drawer-alpha-r3 同數字；下層＝戰鬥場景（非宣紙）；不改 .home-bar-top */
+.codex-inner-top-frost {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(-1 * var(--hud-vnext-zone-h, 121.8px));
+    height: var(--hud-vnext-zone-h, 121.8px);
+    z-index: 5;
+    pointer-events: none;
+    background: rgba(244, 240, 232, 0.80);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+}
+.dark-mode .codex-inner-top-frost {
+    background: rgba(13, 11, 9, 0.88);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .codex-inner-top-frost { background: rgba(244, 240, 232, 0.96); }
+    .dark-mode .codex-inner-top-frost { background: rgba(13, 11, 9, 0.96); }
+}
+/* 舞台層保持 z；描述 shanshui z1 勿盖舞台立繪 */
+.codex-inner-stage,
+.codex-inner > .relative.z-10,
+.codex-inner > [data-testid="codex-info-chrome"] {
+    position: relative;
+    z-index: 10;
+}
+.codex-inner > [data-testid="codex-info-chrome"] {
+    z-index: 20;
+}
+/* frost-r5：圖鑑內頁名／正文／技名／技述＝装甲明朝；源字僅 Regular；禁動主頁／戰鬥字體 */
+.codex-inner-desc,
+.codex-inner-desc * {
+    font-family: 'Soukou Mincho Display', 'Soukou Mincho', serif !important;
+    font-weight: 400 !important; /* Soukou Regular only；禁 Tailwind font-black 合成粗體 */
+}
+/* frost-r5：描述 frost＝drawer-alpha-r3 同數字（禁降 α）；下層＝宣紙山水筆觸 */
+.codex-inner-desc-frost {
+    background: rgba(244, 240, 232, 0.80);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+}
+.dark-mode .codex-inner-desc-frost {
+    background: rgba(13, 11, 9, 0.88);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .codex-inner-desc-frost { background: rgba(244, 240, 232, 0.96); }
+    .dark-mode .codex-inner-desc-frost { background: rgba(13, 11, 9, 0.96); }
+}
+/* frost-r5：技能卡禁再叠實白／blur 盖死山水（父層已有 frost） */
+.codex-inner-desc-frost [data-testid="codex-skill-block"] > div {
+    background: transparent !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none;
+}
+
