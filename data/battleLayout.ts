@@ -202,7 +202,9 @@ export const HOME_NAV_H = 76;
 
 /**
  * 戰鬥 safe-area。Browser 路徑必須 standalone=false（即使 --sat 有值也不改幾何）。
- * standalone 時可玩區高＝rootH − sat − sab；layout 座標仍相對 .battle-clip（CSS 已 top:sat，這裡不再加一次）。
+ * standalone 且 (sat|sab)>0：可玩區高＝rootH − sat − sab。hero scale 仍走無 homeBox 的 Browser 全高公式，
+ * 再把場景垂直置中在 .battle-clip 內（CSS 已 top:sat，layout 座標不再加 sat）。
+ * 場景沒蓋住的可玩區留給黑底，不鏡射補滿。
  */
 export interface BattleInsets {
   standalone: boolean;
@@ -217,6 +219,16 @@ export function battleInsetPlayfieldH(rootH: number, insets?: BattleInsets | nul
   const sab = Number.isFinite(insets.sab) ? Math.max(0, insets.sab) : 0;
   if (sat === 0 && sab === 0) return rootH;
   return Math.max(0, rootH - sat - sab);
+}
+
+/**
+ * 場景置中到可玩區的垂直位移（.battle-clip 座標）。
+ * playH 已是 rootH−sat−sab；不得再把 sat 加進回傳值（CSS top:sat 已算過一次）。
+ * 場景矮於可玩區 → 上下等量留白；高於可玩區 → 上下等量裁切。兩種都不改 scale。
+ */
+export function battleInsetLetterboxDy(sceneTop: number, sceneHeight: number, playH: number): number {
+  if (!(playH > 0) || !(sceneHeight > 0) || !Number.isFinite(sceneTop)) return 0;
+  return (playH - sceneHeight) / 2 - sceneTop;
 }
 
 function cssLenPx(doc: Document, name: string): number {
@@ -295,16 +307,17 @@ function groundedCore(
   homeBox?: { bg: { left: number; top: number; scale: number }; scene: { left: number; top: number; scale: number }; breatheOrigin?: [number, number] | null } | null,
   /** 僅供 bossNameSlotY 計算基準關主時使用（避免遞迴） */
   slotOverride?: number,
-  /** standalone 時改以 inset 可玩區重算 fit；browser／零 inset 不改 rootH */
+  /** standalone inset：可玩區變矮，但 fit 仍用 rootH（Browser 公式）；之後只做 letterbox 置中 */
   insets?: BattleInsets | null,
 ): { layout: BattleLayout; sceneBox: BattleSceneBox; hatScreenY: number } | null {
   if (!anchor || !scene || rootW <= 0 || rootH <= 0) return null;
-  // H1：sat／sab 只在 standalone 吃進可玩區。clip 的 CSS 已 top:sat，layout 仍是 clip 座標，這裡不再把 sat 加進 top。
-  // 可玩區一變就改走 heroSync：homeBox 是 root 座標，放進已下移的 clip 會再吃一次 sat，fiber 也會停在量測當下的數字。
+  // standalone+(sat|sab)>0：可玩區高＝rootH−sat−sab，但不要拿這個較矮的高去重跑 heroSync（那會把 scale 從 ≈0.528 縮到 ≈0.445）。
+  // scale／水平位置鎖定無 homeBox 的 Browser 全高公式。homeBox 是 root 座標，放進已下移的 clip 會再吃一次 sat，inset 時丟棄。
+  // 置中只改 clip 內的 y。CSS 已 top:sat，letterbox 位移不得再加 sat。
   const playH = battleInsetPlayfieldH(rootH, insets);
-  if (playH !== rootH) homeBox = null;
-  rootH = playH;
-  if (rootH <= 0) return null;
+  const letterbox = playH !== rootH;
+  if (letterbox) homeBox = null;
+  if (playH <= 0) return null;
   const a = anchor, P = BATTLE_LAYOUT, sc = scene;
   const sceneH = rootH * P.sceneRatio;
   const [fx, fy, fw, fh] = sc.fig;
@@ -525,7 +538,27 @@ function groundedCore(
     bottomY: figTop + a.bottomY * figScaleF,
     anchor: a,
   };
-  return { layout, sceneBox, hatScreenY };
+  let hatY = hatScreenY;
+  if (letterbox) {
+    // 場景框置中於可玩區；人物與場景同一 dy，腳仍貼岩。不改 scale／left。
+    const dy = battleInsetLetterboxDy(sceneBox.top, sceneBox.height, playH);
+    layout.top += dy;
+    layout.faceY += dy;
+    layout.bottomY += dy;
+    layout.headY += dy;
+    sceneBox.top += dy;
+    hatY += dy;
+    // 上下留白是黑邊：關掉鏡射補滿，避免把場景複製進留白。
+    sceneBox.mirrorTiles = false;
+    sceneBox.mirrorBottom = false;
+    sceneBox.gap = {
+      left: Math.max(0, sceneBox.left),
+      right: Math.max(0, rootW - (sceneBox.left + sceneBox.width)),
+      top: Math.max(0, sceneBox.top),
+      bottom: Math.max(0, playH - (sceneBox.top + sceneBox.height)),
+    };
+  }
+  return { layout, sceneBox, hatScreenY: hatY };
 }
 
 /** 名字槽位 y（標籤底邊，螢幕 px）：由基準關主（柳宗元）同 viewport 的帽頂推得；依 viewport 快取 */

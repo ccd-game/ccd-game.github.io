@@ -446,7 +446,7 @@ const App: React.FC = () => {
     return () => ro.disconnect();
   }, []);
 
-  // H1：sat／is-standalone（及 resize）才重算戰鬥 fit。Browser 無 standalone 時 insets 不進可玩區。
+  // standalone inset：戰鬥場景改 letterbox 置中（scale 仍是 Browser 全高公式）。Browser 無 standalone 時 insets 不進可玩區。
   const [battleInsets, setBattleInsets] = useState<BattleInsets>(() => readBattleInsets());
   useEffect(() => {
     let raf = 0;
