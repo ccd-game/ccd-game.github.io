@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, isWeaponAttackStyle, weaponAttackTiming, X_SLASH_TIMING } from './types';
-import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle } from './data/battleLayout';
+import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle, readBattleInsets, type BattleInsets } from './data/battleLayout';
 import { MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT, BOSS_MAX_HP, CORRECT_ANSWER_DAMAGE, WRONG_ANSWER_DAMAGE, BOSS_HP_SPEECH_THRESHOLDS, QUESTIONS_EXHAUSTED_POLICY } from './constants';
 import { computeDamageDetail, playerHpAfterBossHit } from './src/lib/battleRules';
 import { newBattleOrder, isQuestionsExhausted } from './src/lib/battleQuestions';
@@ -444,6 +444,35 @@ const App: React.FC = () => {
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []);
+
+  // H1：sat／is-standalone（及 resize）才重算戰鬥 fit。Browser 無 standalone 時 insets 不進可玩區。
+  const [battleInsets, setBattleInsets] = useState<BattleInsets>(() => readBattleInsets());
+  useEffect(() => {
+    let raf = 0;
+    const pull = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const next = readBattleInsets();
+        setBattleInsets(prev => (
+          prev.standalone === next.standalone && prev.sat === next.sat && prev.sab === next.sab ? prev : next
+        ));
+      });
+    };
+    pull();
+    const mq = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)');
+    mq.addEventListener('change', pull);
+    window.addEventListener('resize', pull);
+    window.visualViewport?.addEventListener('resize', pull);
+    const mo = new MutationObserver(pull);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    return () => {
+      cancelAnimationFrame(raf);
+      mq.removeEventListener('change', pull);
+      window.removeEventListener('resize', pull);
+      window.visualViewport?.removeEventListener('resize', pull);
+      mo.disconnect();
+    };
   }, []);
 
   useEffect(() => watchAuthState(setAuthState), []);
@@ -1021,8 +1050,8 @@ const App: React.FC = () => {
   // 入陣無縫轉場：戰鬥背景／人物／呼吸沿用主頁預覽（同關、同尺寸時）
   const activeHomeBox = homeBox && currentLevel && homeBox.levelId === currentLevel.id && Math.abs(homeBox.W - appSize.w) < 1 && Math.abs(homeBox.H - appSize.h) < 1 ? homeBox : null;
   const grounded = useMemo(
-    () => battleScene ? computeGroundedBattle(battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox) : null,
-    [battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox]
+    () => battleScene ? computeGroundedBattle(battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox, battleInsets) : null,
+    [battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox, battleInsets]
   );
   const battleLayout = useMemo(
     () => grounded?.layout ?? computeBattleLayout(battleAnchor, appSize.w, appSize.h),

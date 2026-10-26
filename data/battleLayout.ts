@@ -200,6 +200,52 @@ export interface BattleScene {
 export const HOME_TOP_BAR_H = 121.8;
 export const HOME_NAV_H = 76;
 
+/**
+ * 戰鬥 safe-area。Browser 路徑必須 standalone=false（即使 --sat 有值也不改幾何）。
+ * standalone 時可玩區高＝rootH − sat − sab；layout 座標仍相對 .battle-clip（CSS 已 top:sat，這裡不再加一次）。
+ */
+export interface BattleInsets {
+  standalone: boolean;
+  sat: number;
+  sab: number;
+}
+
+/** Browser、或 standalone 但 sat＝sab＝0 → 原 rootH（Day0 幾何）。否則扣除 inset。 */
+export function battleInsetPlayfieldH(rootH: number, insets?: BattleInsets | null): number {
+  if (!insets?.standalone) return rootH;
+  const sat = Number.isFinite(insets.sat) ? Math.max(0, insets.sat) : 0;
+  const sab = Number.isFinite(insets.sab) ? Math.max(0, insets.sab) : 0;
+  if (sat === 0 && sab === 0) return rootH;
+  return Math.max(0, rootH - sat - sab);
+}
+
+function cssLenPx(doc: Document, name: string): number {
+  const view = doc.defaultView;
+  const raw = view?.getComputedStyle(doc.documentElement).getPropertyValue(name).trim() ?? '';
+  if (/^-?[\d.]+px$/.test(raw)) return Math.max(0, parseFloat(raw));
+  const probe = doc.createElement('div');
+  probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;padding:0;border:0;';
+  probe.style.paddingTop = `var(${name}, 0px)`;
+  (doc.body ?? doc.documentElement).appendChild(probe);
+  const px = parseFloat(view?.getComputedStyle(probe).paddingTop ?? '');
+  probe.remove();
+  return Number.isFinite(px) ? Math.max(0, px) : 0;
+}
+
+/** 讀 html.is-standalone／display-mode 與 --sat／--sab。只給戰鬥 fit；不改主頁幾何。 */
+export function readBattleInsets(doc: Document | undefined = typeof document === 'undefined' ? undefined : document): BattleInsets {
+  const none: BattleInsets = { standalone: false, sat: 0, sab: 0 };
+  if (!doc?.documentElement) return none;
+  const byClass = doc.documentElement.classList.contains('is-standalone');
+  let byMode = false;
+  try {
+    byMode = !!doc.defaultView?.matchMedia?.('(display-mode: standalone), (display-mode: fullscreen)').matches;
+  } catch {
+    byMode = false;
+  }
+  return { standalone: byClass || byMode, sat: cssLenPx(doc, '--sat'), sab: cssLenPx(doc, '--sab') };
+}
+
 export const BATTLE_SCENES: Record<string, BattleScene> = {
   // 坐於岩上；戰鬥立繪 = 全幅 1280×720 裁切 (70, 13) 1135×623
   // one-source-geom-battle-r2：廢 homeSync／restOnBg；heroSync→HERO_SCENES.liu_zong_yuan（figScale 0.64／bgZoom／rest）
@@ -234,8 +280,9 @@ export function computeGroundedBattle(
   rootW: number,
   rootH: number,
   homeBox?: Parameters<typeof groundedCore>[4],
+  insets?: BattleInsets | null,
 ): { layout: BattleLayout; sceneBox: BattleSceneBox } | null {
-  const r = groundedCore(anchor, scene, rootW, rootH, homeBox);
+  const r = groundedCore(anchor, scene, rootW, rootH, homeBox, undefined, insets);
   return r && { layout: r.layout, sceneBox: r.sceneBox };
 }
 
@@ -248,8 +295,16 @@ function groundedCore(
   homeBox?: { bg: { left: number; top: number; scale: number }; scene: { left: number; top: number; scale: number }; breatheOrigin?: [number, number] | null } | null,
   /** 僅供 bossNameSlotY 計算基準關主時使用（避免遞迴） */
   slotOverride?: number,
+  /** standalone 時改以 inset 可玩區重算 fit；browser／零 inset 不改 rootH */
+  insets?: BattleInsets | null,
 ): { layout: BattleLayout; sceneBox: BattleSceneBox; hatScreenY: number } | null {
   if (!anchor || !scene || rootW <= 0 || rootH <= 0) return null;
+  // H1：sat／sab 只在 standalone 吃進可玩區。clip 的 CSS 已 top:sat，layout 仍是 clip 座標，這裡不再把 sat 加進 top。
+  // 可玩區一變就改走 heroSync：homeBox 是 root 座標，放進已下移的 clip 會再吃一次 sat，fiber 也會停在量測當下的數字。
+  const playH = battleInsetPlayfieldH(rootH, insets);
+  if (playH !== rootH) homeBox = null;
+  rootH = playH;
+  if (rootH <= 0) return null;
   const a = anchor, P = BATTLE_LAYOUT, sc = scene;
   const sceneH = rootH * P.sceneRatio;
   const [fx, fy, fw, fh] = sc.fig;
