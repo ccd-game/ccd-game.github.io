@@ -27,13 +27,9 @@
             --sab: env(safe-area-inset-bottom);
             --sat: env(safe-area-inset-top);
             /* peek-sheet：抽屜裸紙。圓角鎖 0＝滿寬直切（實測抽屜 radius 0；非 0 會讓紙緣兩角離開綠線）。
-               描述內文上下同距。頂欄與描述的可見紙是 --peek-seen-paper，不走液態玻璃。 */
+               描述內文上下同距。描述沿用這張紙色。頂欄另用更透的同色，頁頂淡影才看得出。不走液態玻璃。 */
             --peek-sheet-pad-y: 16px;
             --peek-sheet-radius: 0px;
-            /* 抽屜肉眼看到的紙＝裸紙 α0.80 再疊列卡 rgba(235,229,216,0.38)。
-               山水權重 0.62×0.20＝0.124，等同一層 rgba(240,235,225,0.876)。
-               圖鑑頂欄／描述沒有列卡，塗這層，透出的山水才跟抽屜列一樣多。裸 .peek-sheet 不動。 */
-            --peek-seen-paper: rgba(240, 235, 225, 0.876);
             --glass-medium-blur: 18px;
             --glass-ink-edge: rgba(42, 36, 28, 0.32);
             /* hud-drawer-zone-lock-r1：虛擬 top HUD 佔位高（css px＠390 letterbox）
@@ -52,8 +48,6 @@
 
         .dark-mode {
             --glass-ink-edge: rgba(237, 228, 208, 0.28);
-            /* 暗色列卡 rgba(20,17,14,0.46) 疊在 α0.88 紙上：山水權重 0.065，合成 rgba(16,14,11,0.935)。 */
-            --peek-seen-paper: rgba(16, 14, 11, 0.935);
             --app-bg: #0f0f0f; 
             --panel-bg: rgba(24, 24, 24, 0.9);
             --panel-border: rgba(184, 134, 11, 0.2);
@@ -1341,7 +1335,9 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     animation: none;
     overflow: visible !important;
 }
-/* 頂欄＝抽屜列的合成紙（--peek-seen-paper），不 blur、不 saturate、不鋪第二張背景。
+/* 頂欄紙色與抽屜相同 (244,240,232)，但 α 只取 0.42。
+   頁頂山水明暗差只有約 20，α 0.80／0.876 會把那層淡影壓成實心宣紙（實測波紋從 23 收到 2）。
+   0.42 仍是紙，不是液態玻璃：不 blur、不 saturate、不鋪第二張背景。
    底緣用抽屜同一 --home-line，不佔 1px。高跟 --hud-vnext-zone-h（standalone 含 --sat）。 */
 .codex-inner-top-frost {
     position: absolute;
@@ -1351,11 +1347,14 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     height: var(--hud-vnext-zone-h, 121.8px);
     z-index: 5;
     pointer-events: none;
-    background: var(--peek-seen-paper);
+    background: rgba(244, 240, 232, 0.42);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     border: none;
     box-shadow: inset 0 -1px 0 var(--home-line);
+}
+.dark-mode .codex-inner-top-frost {
+    background: rgba(13, 11, 9, 0.48);
 }
 /* 舞台層保持 z，蓋在頁底之上；描述紙面 z20，α 透殼層山水 */
 .codex-inner-stage,
@@ -1377,13 +1376,12 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     font-family: 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif !important;
     font-weight: 1000 !important;
 }
-/* 描述：圓角／投影仍走 .peek-sheet，上下內距同值。不改帶高／綠線。
-   裸紙 α0.80 比抽屜列更透（列上還有一層 0.38）。這裡改塗 --peek-seen-paper，
-   山水權重與普通列卡相同，並且不 blur。 */
+/* 描述：紙色／圓角／投影走 .peek-sheet 的 rgba(244,240,232,0.80)，不另調暖、不叠列卡色。
+   上下內距同值。不 blur。抽屜列卡是畫在這張紙上的第二層，不是另一種紙。
+   描述區掀開紙後與頁底同一張山水（不是英雄戰景）。 */
 .codex-inner-desc.peek-sheet {
     padding-top: var(--peek-sheet-pad-y, 16px);
     padding-bottom: var(--peek-sheet-pad-y, 16px);
-    background: var(--peek-seen-paper);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
 }
