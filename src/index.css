@@ -1376,14 +1376,20 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     font-family: 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif !important;
     font-weight: 1000 !important;
 }
-/* 描述：紙色／圓角／投影走 .peek-sheet 的 rgba(244,240,232,0.80)，不另調暖、不叠列卡色。
-   上下內距同值。不 blur。抽屜列卡是畫在這張紙上的第二層，不是另一種紙。
-   描述區掀開紙後與頁底同一張山水（不是英雄戰景）。 */
+/* 描述紙色仍是抽屜的 (244,240,232)，不改暖。
+   裸紙 α0.80 只蓋住標題列和列間縫；肉眼看到的抽屜是列卡，
+   rgba(235,229,216,0.38) 疊在 α0.80 上，山水只剩 0.62×0.20＝0.124。
+   描述沒有列卡，所以把 α 提到 0.876，透出的山水分量才跟列一樣。不 blur。 */
 .codex-inner-desc.peek-sheet {
     padding-top: var(--peek-sheet-pad-y, 16px);
     padding-bottom: var(--peek-sheet-pad-y, 16px);
+    background: rgba(244, 240, 232, 0.876);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+}
+.dark-mode .codex-inner-desc.peek-sheet {
+    /* 暗色列卡 0.46 疊在 α0.88 紙上，山水權重 0.065 */
+    background: rgba(13, 11, 9, 0.935);
 }
 /* frost-r5：技能卡禁再叠實白／blur 盖死山水（父層已有 frost） */
 .codex-inner-desc-frost [data-testid="codex-skill-block"] > div {

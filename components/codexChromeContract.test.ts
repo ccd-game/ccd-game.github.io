@@ -54,6 +54,7 @@ describe('codex detail chrome contract', () => {
   it('keeps the desc sheet unblurred so it matches the peek composite', () => {
     const start = css.indexOf('.codex-inner-desc.peek-sheet {');
     const block = css.slice(start, css.indexOf('}', start) + 1);
+    expect(block).toContain('rgba(244, 240, 232, 0.876)');
     expect(block).toContain('backdrop-filter: none');
     expect(block).not.toContain('rgba(240, 235, 225');
     expect(block).not.toContain('blur(');

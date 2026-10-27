@@ -16,7 +16,7 @@ import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codex
 /* 全關主同一殼（無孔子專例）。描述用紙色走 .peek-sheet，但不 blur：
    首頁抽屜的 blur 被 .home-dungeon 的 backdrop root 吃掉，山水是銳利頁底透出 α 0.80。
    描述若再 blur(20px) 會把同一張山水抹平。內文上下距同 --peek-sheet-pad-y。
-   描述沿用抽屜裸紙 α 0.80。頂欄同色但 α 0.42，頁頂淡影才透得出來。不 blur。帶高仍 codexDetailBand。 */
+   描述用抽屜同色、α 0.876（對齊列卡透出的山水，不是裸縫的 0.80）。頂欄 α 0.42。不 blur。帶高仍 codexDetailBand。 */
 
 export interface CharacterDetailProps {
   char: {
