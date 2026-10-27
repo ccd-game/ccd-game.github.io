@@ -26,6 +26,12 @@
             --theme-transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             --sab: env(safe-area-inset-bottom);
             --sat: env(safe-area-inset-top);
+            /* peek-sheet：抽屜與圖鑑描述共用。圓角鎖 0＝滿寬直切（實測抽屜 radius 0；非 0 會讓紙緣兩角離開綠線）。
+               描述內文上下同距。頂欄液態玻璃用 --glass-*，勿拿去塗描述紙面。 */
+            --peek-sheet-pad-y: 16px;
+            --peek-sheet-radius: 0px;
+            --glass-medium-blur: 18px;
+            --glass-ink-edge: rgba(42, 36, 28, 0.32);
             /* hud-drawer-zone-lock-r1：虛擬 top HUD 佔位高（css px＠390 letterbox）
                實測 max(銅錢底 102.5, EXP文字底 113.844) + 8 = 121.844 → 寫死 121.8 */
             --hud-vnext-zone-h: 121.8px;
@@ -41,6 +47,7 @@
         }
 
         .dark-mode {
+            --glass-ink-edge: rgba(237, 228, 208, 0.28);
             --app-bg: #0f0f0f; 
             --panel-bg: rgba(24, 24, 24, 0.9);
             --panel-border: rgba(184, 134, 11, 0.2);
@@ -1073,31 +1080,39 @@
         }
         /* 英雄區下緣＝抽屜上緣（peek／open 皆貼 peek 線；不再有 closed＝只露 bar） */
         .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }
+        /* peek-sheet：首頁抽屜與圖鑑描述同一紙面。禁拿去塗頂欄（頂欄走液態玻璃）。
+           home-xuan-r11-tryfit-r3：α 0.80＋blur 20（字穩）。頂線用 inset shadow，不佔 1px 版面（原在 .home-drawer-bar border-top）。
+           radius 鎖 --peek-sheet-radius（0＝滿寬直切）。 */
+        .peek-sheet {
+            background: rgba(244, 240, 232, 0.80);
+            -webkit-backdrop-filter: blur(20px); /* 先寫 -webkit-：寫在後面時建置只保留它，Chrome 模糊失效 */
+            backdrop-filter: blur(20px);
+            border-radius: var(--peek-sheet-radius, 0px);
+            box-shadow:
+                0 -10px 24px rgba(0, 0, 0, 0.28),
+                inset 0 1px 0 var(--home-line);
+        }
+        .dark-mode .peek-sheet {
+            background: rgba(13, 11, 9, 0.88); /* ≈0.42×(0.80/0.38) */
+        }
+        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+            .peek-sheet { background: rgba(244, 240, 232, 0.96); }
+            .dark-mode .peek-sheet { background: rgba(13, 11, 9, 0.96); }
+        }
         .home-drawer {
             position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column;
-            /* home-xuan-r11-tryfit-r3：抽屜 frost 更不透（字穩）；alpha 0.30→0.80；blur 維持 20 */
-            background: rgba(244, 240, 232, 0.80);
-            -webkit-backdrop-filter: blur(20px); /* 先寫 -webkit-：Safari／iOS */
-            backdrop-filter: blur(20px);
-            box-shadow: 0 -10px 24px rgba(0,0,0,.28);
+            /* 紙面見 .peek-sheet */
             transform: translate3d(0, calc(100% - var(--bar-h)), 0);
             transition: transform .48s cubic-bezier(.22,1,.36,1);
             will-change: transform;
             touch-action: pan-y;
-        }
-        .dark-mode .home-drawer {
-            background: rgba(13, 11, 9, 0.88); /* ≈0.42×(0.80/0.38) */
-        }
-        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-            .home-drawer { background: rgba(244, 240, 232, 0.96); }
-            .dark-mode .home-drawer { background: rgba(13, 11, 9, 0.96); }
         }
         .home-drawer.is-peek { transform: translate3d(0, calc(100% - var(--peek-h)), 0); }
         .home-drawer.is-open { transform: translate3d(0, 0, 0); }
         .home-drawer.is-dragging { transition: none; }
         .home-drawer-bar {
             flex: 0 0 var(--bar-h); display: flex; align-items: center; gap: 10px; padding: 6px 18px 0 20px; position: relative;
-            border-top: 1px solid var(--home-line); color: var(--home-text); text-align: left; cursor: pointer;
+            color: var(--home-text); text-align: left; cursor: pointer;
         }
         .home-drawer-bar::before { content: ''; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--home-muted); opacity: .5; }
         .home-drawer-bar .home-section-meta { margin-left: auto; }
@@ -1368,7 +1383,10 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
 .dark-mode .codex-inner-desc-shanshui {
     opacity: 0; /* dark 無宣紙；frost dark 仍 0.88 */
 }
-/* frost-r5：頂欄 frost＝drawer-alpha-r3 同數字；下層＝戰鬥場景（非宣紙）；不改 .home-bar-top */
+/* detail-top-glass-r1：只塗圖鑑頂欄。中等液態玻璃＝blur＋低 α 漸層＋淡墨底緣。
+   禁實色平板（舊 rgba(244,240,232,.80)）。Browser 與 standalone 同一條：
+   高／頂位移跟 --hud-vnext-zone-h（standalone 已含 --sat）；sab 不在這層。
+   描述紙面仍 .peek-sheet，不是玻璃。不改 .home-bar-top（主頁頂欄維持全透）。 */
 .codex-inner-top-frost {
     position: absolute;
     left: 0;
@@ -1377,16 +1395,49 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     height: var(--hud-vnext-zone-h, 121.8px);
     z-index: 5;
     pointer-events: none;
-    background: rgba(244, 240, 232, 0.80);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
+    background-color: transparent;
+    background-image: linear-gradient(
+        180deg,
+        rgba(255, 252, 246, 0.34) 0%,
+        rgba(244, 240, 232, 0.12) 46%,
+        rgba(255, 252, 246, 0.22) 100%
+    );
+    -webkit-backdrop-filter: blur(var(--glass-medium-blur, 18px)) saturate(1.35);
+    backdrop-filter: blur(var(--glass-medium-blur, 18px)) saturate(1.35);
+    border-bottom: 1px solid var(--glass-ink-edge, rgba(42, 36, 28, 0.32));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 252, 246, 0.55),
+        inset 0 -1px 0 rgba(42, 36, 28, 0.10);
 }
 .dark-mode .codex-inner-top-frost {
-    background: rgba(13, 11, 9, 0.88);
+    background-image: linear-gradient(
+        180deg,
+        rgba(28, 24, 18, 0.40) 0%,
+        rgba(13, 11, 9, 0.16) 52%,
+        rgba(20, 16, 12, 0.28) 100%
+    );
+    box-shadow:
+        inset 0 1px 0 rgba(255, 252, 246, 0.16),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.35);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .codex-inner-top-frost { background: rgba(244, 240, 232, 0.96); }
-    .dark-mode .codex-inner-top-frost { background: rgba(13, 11, 9, 0.96); }
+    /* 無模糊時加一層洗色，避免 HUD 墨字直接壓在戰景上；仍是漸層，不是舊 0.96 平板 */
+    .codex-inner-top-frost {
+        background-image: linear-gradient(180deg, rgba(244, 240, 232, 0.78), rgba(244, 240, 232, 0.62));
+    }
+    .dark-mode .codex-inner-top-frost {
+        background-image: linear-gradient(180deg, rgba(13, 11, 9, 0.78), rgba(13, 11, 9, 0.62));
+    }
+}
+@media (prefers-reduced-transparency: reduce) {
+    .codex-inner-top-frost {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        background-image: linear-gradient(180deg, rgba(244, 240, 232, 0.92), rgba(244, 240, 232, 0.84));
+    }
+    .dark-mode .codex-inner-top-frost {
+        background-image: linear-gradient(180deg, rgba(13, 11, 9, 0.92), rgba(13, 11, 9, 0.84));
+    }
 }
 /* 舞台層保持 z；描述 shanshui z1 勿盖舞台立繪 */
 .codex-inner-stage,
@@ -1408,18 +1459,11 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     font-family: 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif !important;
     font-weight: 1000 !important;
 }
-/* frost-r5：描述 frost＝drawer-alpha-r3 同數字（禁降 α）；下層＝宣紙山水筆觸 */
-.codex-inner-desc-frost {
-    background: rgba(244, 240, 232, 0.80);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
-}
-.dark-mode .codex-inner-desc-frost {
-    background: rgba(13, 11, 9, 0.88);
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .codex-inner-desc-frost { background: rgba(244, 240, 232, 0.96); }
-    .dark-mode .codex-inner-desc-frost { background: rgba(13, 11, 9, 0.96); }
+/* 描述紙面＝.peek-sheet（與抽屜同一條）。上下內距同值，消掉「貼頂、底下空一截」。
+   橫向仍由元件 px-5。不改帶高／綠線公式。 */
+.codex-inner-desc.peek-sheet {
+    padding-top: var(--peek-sheet-pad-y, 16px);
+    padding-bottom: var(--peek-sheet-pad-y, 16px);
 }
 /* frost-r5：技能卡禁再叠實白／blur 盖死山水（父層已有 frost） */
 .codex-inner-desc-frost [data-testid="codex-skill-block"] > div {

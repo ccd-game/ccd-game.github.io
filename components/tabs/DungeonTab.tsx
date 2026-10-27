@@ -201,7 +201,7 @@ const DungeonTab: React.FC<DungeonTabProps> = ({ levels, onSelect }) => {
 
       <section
         ref={drawerRef}
-        className={`home-drawer is-${drawerState}`}
+        className={`home-drawer peek-sheet is-${drawerState}`}
         aria-label="十二篇章入口"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

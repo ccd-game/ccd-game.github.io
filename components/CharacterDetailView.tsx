@@ -13,8 +13,9 @@ import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codex
  * 禁再寫死 PEEK_INFO_TOP_Y=495／STAGE_FLOW_H=310／heroPeekHeight N=4（與 tip 綠線 CSS 脫節）。
  * 準源仍 HERO_SCENES＋computeHeroFit；D／H／綠線與主頁同口徑。
  */
-/* desc-frost-r5：叠 r4；頂 frost 透戰鬥日落；描述 frost 透宣紙山水（同抽屜）；α0.80＋blur20；装甲明朝。
-   描述帶頂貼綠線、底貼底欄；內文自上排（不再用雙 flex-1 虚位把姓名／技能垂直置中）。 */
+/* 全關主同一殼（無孔子專例）。描述紙面＝.peek-sheet（與首頁抽屜同一條：宣紙、圓角 token、影、淡墨頂線）。
+   內文 padding-top／padding-bottom 同 --peek-sheet-pad-y，不再貼頂、底下留白。
+   頂欄只走 .codex-inner-top-frost 液態玻璃，描述不是玻璃。帶高仍 codexDetailBand。 */
 
 export interface CharacterDetailProps {
   char: {
@@ -133,7 +134,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
           draggable={false}
         />
       </div>
-      {/* frost-r5：頂欄 frost＝drawer-alpha-r3；下層＝戰鬥場景（非宣紙）；不改 MenuScreen／HUD 源 */}
+      {/* 頂欄中等液態玻璃（blur＋淡墨緣）；Browser／standalone 都跟 --hud-vnext-zone-h（含 sat）。不改 HUD 源。 */}
       <div
         className="codex-inner-top-frost"
         aria-hidden="true"
@@ -302,9 +303,9 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
 
       <div
         data-testid="codex-info-chrome"
-        className="codex-inner-desc codex-inner-desc-frost relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0 min-h-0"
+        className="codex-inner-desc codex-inner-desc-frost peek-sheet relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0 min-h-0"
         style={{
-          /* 高＝navTop−綠線（設計 px；≡主頁 peek）；頂貼綠線、底貼底欄；frost 見 .codex-inner-desc-frost */
+          /* 高＝navTop−綠線（設計 px；≡主頁 peek）；頂貼綠線、底貼底欄；紙面見 .peek-sheet */
           height: layoutBox ? layoutBox.height : undefined,
           marginTop: layoutBox ? layoutBox.marginTop : -12,
           visibility: layoutBox ? 'visible' : 'hidden',
