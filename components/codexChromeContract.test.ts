@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 /**
- * 圖鑑內頁 chrome：描述與頂欄都是 peek 紙（α 0.80，不 blur）。
- * 不改綠線 493.5／hostH（那是另一條 PR）。
+ * 圖鑑內頁 chrome：頂欄與描述塗抽屜列的合成紙（--peek-seen-paper），不 blur。
+ * 抽屜裸紙仍是 α 0.80。不改綠線 493.5／hostH（那是另一條 PR）。
  */
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
 const detail = readFileSync(new URL('./CharacterDetailView.tsx', import.meta.url), 'utf8');
@@ -27,8 +27,9 @@ describe('codex detail chrome contract', () => {
   it('paints detail top chrome as the same unblurred peek paper, with no second background', () => {
     const start = css.indexOf('.codex-inner-top-frost {');
     const block = css.slice(start, css.indexOf('}', start) + 1);
-    expect(block).toContain('rgba(244, 240, 232, 0.80)');
+    expect(block).toContain('var(--peek-seen-paper)');
     expect(block).toContain('backdrop-filter: none');
+    expect(css).toContain('--peek-seen-paper: rgba(240, 235, 225, 0.876)');
     expect(block).not.toContain('blur(');
     expect(block).not.toContain('saturate(');
     expect(block).not.toContain('background-image');
@@ -54,6 +55,7 @@ describe('codex detail chrome contract', () => {
     const start = css.indexOf('.codex-inner-desc.peek-sheet {');
     const block = css.slice(start, css.indexOf('}', start) + 1);
     expect(block).toContain('backdrop-filter: none');
+    expect(block).toContain('var(--peek-seen-paper)');
     expect(block).not.toContain('blur(');
   });
 
