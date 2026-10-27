@@ -1,39 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { HERO_SCENES, computeHeroFit } from './home/heroScene';
-import { CHROME_ZONE_H } from './tabs/drawerMath';
+import { HERO_SCENES, computeHeroFit, heroPeekHeight } from './home/heroScene';
+import { CHROME_DRAWER_RECT_TOP_Y, CHROME_GREEN_TOP_Y, CHROME_PEEK_HOST_H, CHROME_ZONE_H } from './tabs/drawerMath';
 import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codexDetailLayout';
 
 const NAV_H = 76;
 const DESIGN_H = 844;
 
 describe('codexDetailBand：設計 px 綠線鎖', () => {
-  it('browser 390×844、無 sat／sab：舞台 371.7、描述 273、D≈646.2', () => {
+  it('browser 390×844、無 sat／sab：舞台 ≡ heroPeekHeight≈400.8、D≈646.2', () => {
     const codexTop = CHROME_ZONE_H;
     const navTop = DESIGN_H - NAV_H;
     const band = codexDetailBand(codexTop, navTop);
     expect(band.marginTop).toBeCloseTo(1.5, 5);
-    expect(band.stageH).toBeCloseTo(493.5 - CHROME_ZONE_H, 5);
-    expect(band.height).toBeCloseTo(navTop - 495, 5);
+    expect(band.stageH).toBeCloseTo(CHROME_DRAWER_RECT_TOP_Y - CHROME_ZONE_H, 5);
+    expect(band.stageH).toBeCloseTo(CHROME_PEEK_HOST_H, 5);
+    expect(band.stageH).toBeCloseTo(heroPeekHeight(band.D), 5);
+    expect(band.stageH).toBeCloseTo(400.8, 5);
+    expect(band.height).toBeCloseTo(navTop - CHROME_GREEN_TOP_Y, 5);
     expect(band.D).toBeCloseTo(navTop - codexTop, 5);
     expect(codexTop + band.stageH + band.marginTop + band.height).toBeCloseTo(navTop, 5);
+    const fit = computeHeroFit(HERO_SCENES.kong_zi, 390, band.stageH, band.D);
+    expect(fit.s).toBeCloseTo(0.79093017578125, 2);
   });
 
-  it('standalone sat＋sab：綠線仍在 495，描述底貼 nav 頂', () => {
+  it('standalone sat＋sab：綠線仍在固定 rect，描述底貼 nav 頂', () => {
     const sat = 47;
     const sab = 34;
     const codexTop = CHROME_ZONE_H + sat;
     const navTop = DESIGN_H - NAV_H - sab;
     const band = codexDetailBand(codexTop, navTop);
-    expect(band.stageH).toBeCloseTo(493.5 - codexTop, 5);
-    expect(codexTop + band.stageH + band.marginTop).toBeCloseTo(495, 5);
-    expect(band.height).toBeCloseTo(navTop - 495, 5);
+    expect(band.stageH).toBeCloseTo(CHROME_DRAWER_RECT_TOP_Y - codexTop, 5);
+    expect(codexTop + band.stageH + band.marginTop).toBeCloseTo(CHROME_GREEN_TOP_Y, 5);
+    expect(band.height).toBeCloseTo(navTop - CHROME_GREEN_TOP_Y, 5);
     expect(band.height).toBeGreaterThan(200);
   });
 
   it('nav 在綠線之上時描述高為 0（不寫負高）', () => {
     const band = codexDetailBand(121.8, 400);
     expect(band.height).toBe(0);
-    expect(band.stageH).toBeCloseTo(371.7, 5);
+    expect(band.stageH).toBeCloseTo(CHROME_PEEK_HOST_H, 5);
   });
 });
 

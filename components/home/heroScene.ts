@@ -4,7 +4,7 @@
  * ## 唯一準源（sceneGeometry）
  * `HERO_SCENES`＋`computeHeroFit`／`heroFigStyle`／`heroBgFrameStyle`／`heroPeekHeight`
  * ＝**三頁唯一幾何準源**（主頁預覽｜圖鑑內頁｜入陣 homeBox／戰鬥應跟此）。
- * `heroPeekHeight` ≡ CSS `--peek-h`（N=4：14／56／÷3；one-source-codex-peek-h-r1）。
+ * `heroPeekHeight` ≡ CSS hostH＠390×844 browser（`--chrome-drawer-rect-y` − zone；N=4：14／56／÷3）。
  *
  * - **驗收關主**：柳（`liu_zong_yuan`）＋孔（`kong_zi`）。
  * - **位置／scale／ax／X／figScale／rest／bgZoom／fit**：只寫在本檔 HERO；禁第二套 figScale／座標真相。
@@ -139,10 +139,9 @@ export const DRAWER_BAR_H = 52;
 
 /**
  * 抽屜半開（四篇／N=4）時的英雄區高：圖鑑內頁／戰鬥 heroSync 以此為場景框高。
- * 須≡ CSS `.home-dungeon[data-min-rows="4"] --peek-h`
- *   = bar + 14 + (D − bar − 56) / 3
- * → 英雄區高 H = D − peek-h（與 `.home-hero-slot { bottom: var(--peek-h) }` 同）。
- * data-min-rows="6" 暫不跟（除非測試要）。
+ * 390×844 browser：H ≡ CSS host（`--chrome-drawer-rect-y` − zone）。
+ * 公式＝ D − (bar + 14 + (D − bar − 56) / 3)。
+ * 禁改公式去貼舊綠線 rect 493.5（那會得到 hostH≈371.7／scale≈0.733）。
  */
 export const heroPeekHeight = (D: number, bar: number = DRAWER_BAR_H) =>
   D - (bar + 14 + (D - bar - 56) / 3);

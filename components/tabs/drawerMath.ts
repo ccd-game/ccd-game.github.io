@@ -1,17 +1,34 @@
-/** 概念綠線（戰鬥血條頂）Y=495 css＠390×844；可見抽屜紙緣對齊此值 */
-export const CHROME_GREEN_TOP_Y = 495;
-/**
- * rect 鎖：frost／alpha 頂緣至可見不透明紙約 +1.5px，
- * peek 以 493.5 鎖 getBoundingClientRect → 像素紙緣≈495。
- * 中途誤測≈450＝英雄區宣紙左右亮帶，非抽屜紙緣。
- */
-export const CHROME_DRAWER_RECT_TOP_Y = 493.5;
+import { HOME_NAV_H, HOME_TOP_BAR_H } from '../../data/battleLayout';
+import { DRAWER_BAR_H, heroPeekHeight } from '../home/heroScene';
+
 /** ≡ --hud-vnext-zone-h／HOME_TOP_BAR_H（無 sat） */
-export const CHROME_ZONE_H = 121.8;
+export const CHROME_ZONE_H = HOME_TOP_BAR_H;
+
+/** 390×844 設計畫布。D＝視窗 − zone − nav，與戰鬥 heroSync 同一組常數。 */
+export const CHROME_REF_VIEW_H = 844;
+export const CHROME_REF_D = CHROME_REF_VIEW_H - CHROME_ZONE_H - HOME_NAV_H;
 
 /**
- * peek 高（px）：使可見抽屜紙緣落在視口 Y=495（rect 頂＝493.5）。
- * peekH = h − (RECT − zone)。
+ * onesource 英雄區高（browser＠390×844）≡ heroPeekHeight(D) ≈ 400.8。
+ * 舊綠線 rect 493.5 令 hostH＝493.5−zone≈371.7（scale≈0.733），與此差約 −29.1px。
+ */
+export const CHROME_PEEK_HOST_H = heroPeekHeight(CHROME_REF_D, DRAWER_BAR_H);
+
+/** frost／alpha 頂緣至可見不透明紙 */
+export const CHROME_FROST_PAPER_GAP = 1.5;
+
+/**
+ * 抽屜 rect 頂（設計 px＠390×844 browser）。
+ * hostH＝rect−zone ≡ heroPeekHeight。CSS `--chrome-drawer-rect-y` 必須等於此值。
+ */
+export const CHROME_DRAWER_RECT_TOP_Y = CHROME_ZONE_H + CHROME_PEEK_HOST_H;
+
+/** 可見抽屜紙緣（rect 再低一個 frost 隙） */
+export const CHROME_GREEN_TOP_Y = CHROME_DRAWER_RECT_TOP_Y + CHROME_FROST_PAPER_GAP;
+
+/**
+ * peek 高（px）：英雄區＝onesource hostH，可見紙緣落在 CHROME_GREEN_TOP_Y。
+ * peekH = h − hostH = h − (rect − zone)。
  */
 export const drawerPeekH = (h: number, _bar?: number, _minRows?: number) => {
   return h - (CHROME_DRAWER_RECT_TOP_Y - CHROME_ZONE_H);

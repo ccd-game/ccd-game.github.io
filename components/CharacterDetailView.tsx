@@ -7,10 +7,11 @@ import { wrapSoukouFbParts } from '../src/lib/wrapSoukouFb';
 import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codexDetailLayout';
 
 /**
- * onesource-peek-r1：圖鑑內頁 peek ≡ 主頁 CSS
- *   --peek-h: calc(100% - (493.5px - var(--hud-vnext-zone-h)))
- *   → 英雄區高 H = 493.5 − rootTop（rootTop≡zone 時＝.home-hero-slot）
- * 禁再寫死 PEEK_INFO_TOP_Y=495／STAGE_FLOW_H=310／heroPeekHeight N=4（與 tip 綠線 CSS 脫節）。
+ * onesource-peek-host：圖鑑內頁 peek ≡ 主頁 CSS
+ *   --peek-h: calc(100% - (var(--chrome-drawer-rect-y) - var(--hud-vnext-zone-h)))
+ *   rect ≡ zone + heroPeekHeight(D@390×844) → 英雄區高 H = rect − rootTop
+ *   （rootTop≡zone 時 H≡400.8，＝.home-hero-slot）
+ * H 來自 codexDetailBand（rect 由 heroPeekHeight 導出）。禁再寫 493.5／hostH 371.7。
  * 準源仍 HERO_SCENES＋computeHeroFit；D／H／綠線與主頁同口徑。
  */
 /* desc-frost-r5：叠 r4；頂 frost 透戰鬥日落；描述 frost 透宣紙山水（同抽屜）；α0.80＋blur20；装甲明朝。
@@ -53,7 +54,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   const nameRef = useRef<HTMLHeadingElement>(null);
   const sceneHostRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<{ H: number; s: number; left: number; top: number } | null>(null);
-  /** info：頂＝綠線（≡主頁 peek）；stageH＝H＝493.5−rootTop；height＝navTop−綠線 */
+  /** info：頂＝綠線（≡主頁 peek）；stageH＝H＝rect−rootTop；height＝navTop−綠線 */
   const [layoutBox, setLayoutBox] = useState<{ marginTop: number; height: number; stageH: number } | null>(null);
 
   // 分頁隱藏時暫停立繪動畫（飛劍循環、呼吸）
@@ -79,7 +80,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
       const canvasRect = canvas?.getBoundingClientRect();
       const scale = designScaleFromRoot(canvas?.offsetHeight ?? 0, canvasRect?.height ?? 0);
       const origin = canvasRect?.top ?? 0;
-      // rect 是 letterbox 縮放後的視口 px；493.5／CSS 高是設計 px。先換算再鎖綠線。
+      // rect 是 letterbox 縮放後的視口 px；綠線／CSS 高是設計 px。先換算再鎖綠線。
       const codexTop = viewportYToDesign(rootRect.top, origin, scale);
       const navTop = nav
         ? viewportYToDesign(nav.getBoundingClientRect().top, origin, scale)
@@ -92,7 +93,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         const W = root.clientWidth;
         const Dfloat = band.D;
         if (W && Dfloat && stageH) {
-          const H = stageH; // ≡ ChapterHero clientHeight（CSS slot）；禁 heroPeekHeight N=4
+          const H = stageH; // ≡ ChapterHero clientHeight（CSS slot）；rect 已對齊 heroPeekHeight
           const Dfit = Math.round(Dfloat);
           const { s, left, top } = computeHeroFit(scene, W, H, Dfit);
           setFit(f => (f && f.H === H && f.s === s && f.left === left && f.top === top) ? f : { H, s, left, top });
