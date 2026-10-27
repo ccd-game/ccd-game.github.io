@@ -1080,7 +1080,7 @@
         }
         /* 英雄區下緣＝抽屜上緣（peek／open 皆貼 peek 線；不再有 closed＝只露 bar） */
         .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }
-        /* peek-sheet：首頁抽屜與圖鑑描述同一紙色／圓角／投影。禁拿去塗頂欄（頂欄走液態玻璃）。
+        /* peek-sheet：首頁抽屜與圖鑑描述同一紙色／圓角／投影。頂欄另塗同一 α，不走液態玻璃。
            home-xuan-r11-tryfit-r3：α 0.80＋blur 20。抽屜父層是 backdrop root，blur 打不到頁底，
            山水靠 α 透出。圖鑑描述沒有這層 root，另在 .codex-inner-desc.peek-sheet 把 blur 歸零，
            否則同一條會把描述抹得比抽屜濁。頂線用 inset shadow，不佔 1px。
@@ -1324,7 +1324,7 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
 
 /* 圖鑑內頁不另鋪戰景／宣紙複本。頁底就是 .home-menu-shell 的山水。
    禁把 fadeIn 套在這層：該 keyframes 的 forwards 會留下 backdrop-filter: blur(24px)，
-   這層變成 backdrop root，頂欄液態玻璃就模糊不到頁底。 */
+   這層變成 backdrop root，頂欄／描述的 α 紙就只透到空層。 */
 .codex-inner {
     background: transparent !important;
     isolation: auto;
@@ -1335,9 +1335,8 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     animation: none;
     overflow: visible !important;
 }
-/* detail-top-glass：中等液態玻璃＝只 blur 頁底＋淡墨底緣。
-   無 background-image、無 rgba 洗色、無第二張背景。
-   Browser／standalone 同一條，高跟 --hud-vnext-zone-h（standalone 含 --sat）。 */
+/* 頂欄＝描述同一張 peek 紙：α 0.80 透未模糊的頁底山水。不 blur、不 saturate、不鋪第二張背景。
+   底緣用抽屜同一 --home-line，不佔 1px。高跟 --hud-vnext-zone-h（standalone 含 --sat）。 */
 .codex-inner-top-frost {
     position: absolute;
     left: 0;
@@ -1346,13 +1345,16 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     height: var(--hud-vnext-zone-h, 121.8px);
     z-index: 5;
     pointer-events: none;
-    background: none;
-    -webkit-backdrop-filter: blur(var(--glass-medium-blur, 18px)) saturate(1.35);
-    backdrop-filter: blur(var(--glass-medium-blur, 18px)) saturate(1.35);
-    border-bottom: 1px solid var(--glass-ink-edge, rgba(42, 36, 28, 0.32));
-    box-shadow: none;
+    background: rgba(244, 240, 232, 0.80);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: inset 0 -1px 0 var(--home-line);
 }
-/* 舞台層保持 z，蓋在頁底之上；描述紙面 z20，backdrop 仍見殼層山水 */
+.dark-mode .codex-inner-top-frost {
+    background: rgba(13, 11, 9, 0.88);
+}
+/* 舞台層保持 z，蓋在頁底之上；描述紙面 z20，α 透殼層山水 */
 .codex-inner-stage,
 .codex-inner > .relative.z-10,
 .codex-inner > [data-testid="codex-info-chrome"] {

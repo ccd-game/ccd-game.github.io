@@ -16,7 +16,7 @@ import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codex
 /* 全關主同一殼（無孔子專例）。描述用紙色走 .peek-sheet，但不 blur：
    首頁抽屜的 blur 被 .home-dungeon 的 backdrop root 吃掉，山水是銳利頁底透出 α 0.80。
    描述若再 blur(20px) 會把同一張山水抹平。內文上下距同 --peek-sheet-pad-y。
-   頂欄只 blur 頁底，不墊第二張背景。帶高仍 codexDetailBand。 */
+   頂欄同一張 α 0.80 紙，不 blur。帶高仍 codexDetailBand。 */
 
 export interface CharacterDetailProps {
   char: {
@@ -113,7 +113,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
 
   return (
     <div ref={rootRef} className="codex-inner flex-1 flex flex-col relative" data-testid="codex-inner">
-      {/* 頂欄液態玻璃：不鋪戰景／宣紙複本，backdrop 直接采樣 .home-menu-shell 頁底。Browser／standalone 都跟 --hud-vnext-zone-h。 */}
+      {/* 頂欄＝peek 紙（α 0.80，不 blur）。不鋪戰景／宣紙複本。Browser／standalone 都跟 --hud-vnext-zone-h。 */}
       <div
         className="codex-inner-top-frost"
         aria-hidden="true"

@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 /**
- * 圖鑑內頁 chrome：描述紙面與首頁 peek 抽屜共用 .peek-sheet；
- * 頂欄只走液態玻璃。不改綠線 493.5／hostH（那是另一條 PR）。
+ * 圖鑑內頁 chrome：描述與頂欄都是 peek 紙（α 0.80，不 blur）。
+ * 不改綠線 493.5／hostH（那是另一條 PR）。
  */
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
 const detail = readFileSync(new URL('./CharacterDetailView.tsx', import.meta.url), 'utf8');
@@ -24,22 +24,24 @@ describe('codex detail chrome contract', () => {
     expect(css).toMatch(/\.codex-inner-desc\.peek-sheet\s*\{[^}]*padding-bottom:\s*var\(--peek-sheet-pad-y/);
   });
 
-  it('paints detail top chrome as medium glass over the page, with no second background', () => {
+  it('paints detail top chrome as the same unblurred peek paper, with no second background', () => {
     const start = css.indexOf('.codex-inner-top-frost {');
     const block = css.slice(start, css.indexOf('}', start) + 1);
-    expect(block).toContain('backdrop-filter: blur(var(--glass-medium-blur');
-    expect(block).toContain('var(--glass-ink-edge');
-    expect(block).toContain('background: none');
+    expect(block).toContain('rgba(244, 240, 232, 0.80)');
+    expect(block).toContain('backdrop-filter: none');
+    expect(block).not.toContain('blur(');
+    expect(block).not.toContain('saturate(');
     expect(block).not.toContain('background-image');
-    expect(block).not.toContain('rgba(244, 240, 232');
+    expect(block).not.toContain('var(--glass-ink-edge');
     expect(block).toContain('var(--hud-vnext-zone-h');
+    expect(block).toContain('var(--home-line)');
     expect(detail).not.toContain('codex-inner-scene-extend');
     expect(detail).not.toContain('codex-inner-desc-shanshui');
     expect(css).not.toContain('.codex-inner-scene-extend');
     expect(css).not.toContain('.codex-inner-desc-shanshui');
   });
 
-  it('does not trap the top glass inside a shell blur', () => {
+  it('does not trap the detail paper inside a shell blur', () => {
     expect(detail).not.toContain('fadeIn');
     const start = css.indexOf('.codex-inner {');
     const block = css.slice(start, css.indexOf('}', start) + 1);
