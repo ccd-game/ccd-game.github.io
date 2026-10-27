@@ -31,7 +31,7 @@
                SA contain：zone 不加 sat。瀏海由畫布外黑邊吃掉。 */
             --hud-vnext-zone-h: 121.8px;
         }
-        /* 畫布內歸零，避免 var(--sat) 再把 chrome 頂開。外黑邊用 --sa-contain-*（index.tsx）。 */
+        /* 畫布內歸零。外層不 padding env(safe-area-*)；上下黑邊是視口置中留白，等厚。 */
         html.is-standalone {
             --sat: 0px;
             --sab: 0px;
@@ -80,6 +80,10 @@
             --game-scale: 1;
         }
 
+        html {
+            background-color: #000;
+        }
+
         body {
             font-family: 'LXGW WenKai Mono TC', monospace;
             background-color: #000;
@@ -93,22 +97,6 @@
             transition: color var(--theme-transition);
             /* 禁雙指縮放／長按選取干擾（viewport meta 已 user-scalable=no；此為加強） */
             touch-action: manipulation;
-        }
-
-        /* SA：padding 即黑邊，把 390×844 的 flex 置中區收進 safe area。Browser 不加這層。 */
-        html.is-standalone body {
-            padding-top: var(--sa-contain-top, env(safe-area-inset-top, 0px));
-            padding-right: var(--sa-contain-right, env(safe-area-inset-right, 0px));
-            padding-bottom: var(--sa-contain-bottom, env(safe-area-inset-bottom, 0px));
-            padding-left: var(--sa-contain-left, env(safe-area-inset-left, 0px));
-        }
-        @media (display-mode: standalone), (display-mode: fullscreen) {
-            body {
-                padding-top: var(--sa-contain-top, env(safe-area-inset-top, 0px));
-                padding-right: var(--sa-contain-right, env(safe-area-inset-right, 0px));
-                padding-bottom: var(--sa-contain-bottom, env(safe-area-inset-bottom, 0px));
-                padding-left: var(--sa-contain-left, env(safe-area-inset-left, 0px));
-            }
         }
 
         #root {
