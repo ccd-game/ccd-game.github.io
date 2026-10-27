@@ -39,6 +39,15 @@ describe('codex detail chrome contract', () => {
     expect(css).not.toContain('.codex-inner-desc-shanshui');
   });
 
+  it('does not trap the desc backdrop inside a shell blur', () => {
+    expect(detail).not.toContain('fadeIn');
+    const start = css.indexOf('.codex-inner {');
+    const block = css.slice(start, css.indexOf('}', start) + 1);
+    expect(block).toContain('backdrop-filter: none');
+    expect(block).toContain('animation: none');
+    expect(block).not.toContain('blur(');
+  });
+
   it('does not special-case Confucius on the detail shell', () => {
     const shell = detail.slice(detail.indexOf('return ('), detail.indexOf('const CompactStat'));
     expect(shell).not.toMatch(/kong_zi|孔子|char\.id\s*===/);

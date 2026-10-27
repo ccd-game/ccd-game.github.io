@@ -1320,10 +1320,17 @@ html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !importa
 /* 入陣小視窗開著：主頁預覽動畫（呼吸、飛劍、佩刀浮動、火星…）原地暫停，取消後由同一位置繼續；陀螺儀另以 data-enter-freeze 凍結 */
 html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { animation-play-state: paused !important; }
 
-/* 圖鑑內頁不另鋪戰景／宣紙複本。頂欄玻璃與描述紙面都直接采樣 .home-menu-shell 頁底。 */
+/* 圖鑑內頁不另鋪戰景／宣紙複本。描述 .peek-sheet 必須直接采樣 .home-menu-shell 頁底。
+   禁把 fadeIn 套在這層：該 keyframes 的 forwards 會留下 backdrop-filter: blur(24px)，
+   殼變成 backdrop root，子層紙面只模糊到空底，看起來是實心宣紙、透不出山水。 */
 .codex-inner {
     background: transparent !important;
     isolation: auto;
+    opacity: 1;
+    filter: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    animation: none;
     overflow: visible !important;
 }
 /* detail-top-glass：中等液態玻璃＝只 blur 頁底＋淡墨底緣。

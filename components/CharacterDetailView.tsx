@@ -111,7 +111,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   }, [scene]);
 
   return (
-    <div ref={rootRef} className="codex-inner flex-1 flex flex-col animate-[fadeIn_0.5s_ease-out_forwards] relative" data-testid="codex-inner">
+    <div ref={rootRef} className="codex-inner flex-1 flex flex-col relative" data-testid="codex-inner">
       {/* 頂欄液態玻璃：不鋪戰景／宣紙複本，backdrop 直接采樣 .home-menu-shell 頁底。Browser／standalone 都跟 --hud-vnext-zone-h。 */}
       <div
         className="codex-inner-top-frost"
