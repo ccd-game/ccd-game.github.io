@@ -5,7 +5,7 @@
  * 不鎖裸絕對 Y，不要求宿主 400.8。SA letterbox 不在本 spec。
  */
 import { expect, test } from '@playwright/test';
-import { blockFirebase, enterAsGuest, levelBank, openBattle, pickChapter } from './support/battle';
+import { blockFirebase, enterAsGuest, levelBank, openBattle, pickChapter, waitTurnActive } from './support/battle';
 
 const TOL = 2;
 
@@ -42,14 +42,15 @@ test.describe('green-line band（Browser HP top）', () => {
     expect(Math.abs(peek!.hostDesign - 400.8)).toBeGreaterThan(TOL);
 
     await page.getByRole('navigation', { name: '主選單' }).getByRole('button', { name: '豪杰' }).click();
-    await page.getByText('孔子', { exact: true }).click();
+    // 立繪層蓋住名字；點外卡（force）才進內頁。綠線不依賴點哪一個字。
+    await page.locator('.cursor-pointer', { has: page.getByText('孔子', { exact: true }) }).click({ force: true });
     const desc = page.locator('[data-testid="codex-info-chrome"].codex-inner-desc');
     await expect(desc).toBeVisible();
     const detailTop = await desc.evaluate((el) => el.getBoundingClientRect().top);
 
     await page.getByRole('navigation', { name: '主選單' }).getByRole('button', { name: '江湖' }).click();
     await openBattle(page, kong);
-    await expect(page.locator('.input-pad-btn:not([disabled])').first()).toBeVisible();
+    await waitTurnActive(page, kong);
 
     const battle = await page.evaluate(() => {
       const track = Array.from(document.querySelectorAll('div')).find((el) => {
@@ -88,6 +89,7 @@ test.describe('green-line band（Browser HP top）', () => {
     expect(battle!.hpH).toBeLessThan(14);
     expect(Math.abs(battle!.hpTop - battle!.battleRootTop)).toBeGreaterThan(TOL);
     expect(maxPair(peek!.top, detailTop, battle!.hpBottom)).toBeGreaterThan(TOL);
-    expect(maxPair(peek!.top, detailTop, battle!.hpTop)).toBeLessThanOrEqual(TOL);
+    const band = maxPair(peek!.top, detailTop, battle!.hpTop);
+    expect(band, `peek=${peek!.top} detail=${detailTop} hpTop=${battle!.hpTop} hpBottom=${battle!.hpBottom} root=${battle!.battleRootTop}`).toBeLessThanOrEqual(TOL);
   });
 });
