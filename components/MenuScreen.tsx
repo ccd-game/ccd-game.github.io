@@ -28,6 +28,7 @@ import { staminaAt } from '../src/lib/stamina';
 import { SCHOOLS_BY_EMAIL_DOMAIN, schoolNameForEmail } from '../src/config/auth';
 import { shortLabelFor } from '../src/lib/displayLabel';
 import { wrapSoukouFbParts } from '../src/lib/wrapSoukouFb';
+import { menuMainPaddingBottom, readMenuChromeInsets, type MenuChromeInsets } from './menuChromeInset';
 
 // Default tab (dungeon) stays eager; other tabs + codex detail are lazy.
 const CharacterTab = lazy(() => import('./tabs/CharacterTab'));
@@ -152,6 +153,33 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
   const [activeTab, setActiveTab] = useState<MenuTab>('dungeon');
   const [slideDirection, setSlideDirection] = useState<'right' | 'left'>('right');
   const [isSummoning, setIsSummoning] = useState(false);
+  const [chromeInsets, setChromeInsets] = useState<MenuChromeInsets>(() => readMenuChromeInsets());
+  useEffect(() => {
+    let raf = 0;
+    const pull = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const next = readMenuChromeInsets();
+        setChromeInsets(prev => (
+          prev.standalone === next.standalone && prev.sab === next.sab ? prev : next
+        ));
+      });
+    };
+    pull();
+    const mq = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)');
+    mq.addEventListener('change', pull);
+    window.addEventListener('resize', pull);
+    window.visualViewport?.addEventListener('resize', pull);
+    const mo = new MutationObserver(pull);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    return () => {
+      cancelAnimationFrame(raf);
+      mq.removeEventListener('change', pull);
+      window.removeEventListener('resize', pull);
+      window.visualViewport?.removeEventListener('resize', pull);
+      mo.disconnect();
+    };
+  }, []);
   const reduceNav = useReducedMotion();
   const activeNavIndex = TABS.indexOf(activeTab);
   const startX = useRef<number | null>(null);
@@ -497,7 +525,13 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         onMouseUp={handleMouseUp}
         style={{
           paddingTop: isSummoning ? 0 : 'var(--hud-vnext-zone-h)', /* zone-lock-r1：內容區 top＝HUD 鎖區高 */
-          paddingBottom: isSummoning ? 0 : 'calc(76px + env(safe-area-inset-bottom))',
+          /* standalone+sab：只留 76 殼高，列表／外頁貼殼頂。Browser 與圖鑑內頁仍 76+sab。 */
+          paddingBottom: menuMainPaddingBottom({
+            summoning: isSummoning,
+            viewingDetail: !!viewingCharacter,
+            standalone: chromeInsets.standalone,
+            sab: chromeInsets.sab,
+          }),
           touchAction: 'pan-y', // 允許系統接管垂直滾動
           overflow: 'hidden'
         }}
