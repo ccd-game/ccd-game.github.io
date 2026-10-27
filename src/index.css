@@ -219,9 +219,15 @@
 
         /*
          * standalone 戰鬥補償：全域 html.is-standalone #root::before（sat 黑邊）會蓋住
-         * absolute inset-0 戰鬥頂部。戰鬥殼改自 sat 起算，百分比疊層（40% 底區／答槽／HP）
-         * 在可用高度內重算，避免答槽貼血條、底鍵區被撐溢。主頁 ::before 根因建議另限主頁。
+         * absolute inset-0 戰鬥頂部。戰鬥殼改自 sat 起算，場景在變矮的 clip 裡 letterbox。
+         * 下區綠線（玩家血條頂）不跟這段較矮 clip 的 40%：那會把血條頂從設計 Y≈495.4
+         * 推到 ≈519（sat59），與 peek／detail 的 493.5／495 脫隊。
+         * --battle-floor 鎖設計畫布高的 40%（clip 底仍貼 #root 底，sat 在頂邊公式相消）。
+         * Browser 不設此長度，子層 fallback 40%（clip＝設計高，與原式相同）。
          */
+        .battle-clip {
+            --battle-floor: 40%;
+        }
         html.is-standalone .battle-clip {
             top: var(--sat, env(safe-area-inset-top, 0px));
             bottom: 0;
@@ -229,6 +235,7 @@
             right: 0;
             height: auto;
             overflow: hidden;
+            --battle-floor: calc(var(--game-design-h) * 0.4px);
         }
         @media (display-mode: standalone), (display-mode: fullscreen) {
             .battle-clip {
@@ -238,6 +245,7 @@
                 right: 0;
                 height: auto;
                 overflow: hidden;
+                --battle-floor: calc(var(--game-design-h) * 0.4px);
             }
         }
 

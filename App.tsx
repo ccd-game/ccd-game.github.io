@@ -1236,26 +1236,26 @@ const App: React.FC = () => {
           style={{ backgroundImage: currentLevel ? `url("${currentLevel.bgImg}")` : 'none', backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center 40%', backgroundColor: '#0a0a0a', opacity: gameState.status === GameStatus.PLAYING && (introStage !== 'none' || enterHold) ? 1 : 0, transition: 'opacity 0.7s, filter var(--bg-dim-duration, 400ms)', '--bg-dim-duration': `${bgDimDuration}ms` } as any} />
       )}
 
-      <div className={`gold-divider ${gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 'active' : ''}`} style={{ bottom: "40%" }} />
+      <div className={`gold-divider ${gameState.status === GameStatus.PLAYING && introStage !== 'none' ? 'active' : ''}`} style={{ bottom: "var(--battle-floor, 40%)" }} />
 
       {isLoggedIn && gameState.status === GameStatus.PLAYING && (
         <Suspense fallback={<SoftFallback />}>
         <>
           <BattleArea levelId={currentLevel?.id || 0} enemyAnim={enemyAnimState} isBossSlashActive={isBossSlashActive} isPlayerSlashActive={isPlayerSlashActive} introStage={introStage} bossName={currentLevel?.bossName || ""} bossImg={battleImg} bgImg={currentLevel?.bgImg} speedMultiplier={speedMultiplier} attackStyle={getBossAttackStyle(currentLevel)} weaponLayers={currentLevel?.weaponLayers} layout={battleLayout} scene={battleScene} sceneBox={battleSceneBox} bgDimmed={((enemyAnimState === 'attack' && currentLevel?.id !== 6) || isInputErrorDimmed || isSpeechDimmed)} bgDimDuration={bgDimDuration} holdScene={enterHold} inheritBreathOrigin={activeHomeBox?.breatheOrigin ?? null} />
           <DamageMultiplierPopup popup={damagePopup} timeScale={timeScale} />
-          <div className="battle-input-zone absolute bottom-0 left-0 w-full z-[80] h-[40%] overflow-hidden" style={{ backgroundColor: 'var(--app-bg)' }}>
+          <div className="battle-input-zone absolute bottom-0 left-0 w-full z-[80] overflow-hidden" style={{ backgroundColor: 'var(--app-bg)', height: "var(--battle-floor, 40%)" }}>
             <InputPad options={shuffledOptions} usedIndices={gameState.usedIndices} disabled={!gameState.isTurnActive || gameState.isPaused} onOptionClick={handleOptionClickAction} isEnemyAttacking={isInputErrorDimmed} showUI={showInputPadUI} isExiting={isInputPadExiting} suppressExitAnim={suppressExitAnim} />
             <BossSpeech message={bossSpeechMsg} bossName={currentLevel?.bossName || ""} duration={isFatalDefeat ? 99999 : 2000 * timeScale} isFatal={isFatalDefeat} theme={theme} />
           </div>
-          <div className="absolute left-0 w-full h-[10px] bg-black z-[90] transition-opacity duration-500" style={{ bottom: "calc(40% + 1px)", opacity: ['player_hp','input_pad','ready','playing'].includes(introStage) && !isFatalDefeat ? 1 : 0 }}>
+          <div data-testid="player-hp-track" className="absolute left-0 w-full h-[10px] bg-black z-[90] transition-opacity duration-500" style={{ bottom: "calc(var(--battle-floor, 40%) + 1px)", opacity: ['player_hp','input_pad','ready','playing'].includes(introStage) && !isFatalDefeat ? 1 : 0 }}>
             <div className="hp-text">{Math.floor(gameState.playerHp)} / {gameState.maxPlayerHp}</div>
             <div className={`absolute inset-0 bg-[#28a745] z-[33] hp-bar-gpu-layer ${introStage === 'player_hp' ? 'hp-fill-slow' : 'hp-fill-hit'}`} style={{ transform: `scaleX(${gameState.playerHp/gameState.maxPlayerHp})` }} />
           </div>
-          <div className={`absolute left-0 w-full h-[66px] z-[95] transition-all duration-700 transform ${skillPanelShown && !isFatalDefeat ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ bottom: "calc(40% + 16px)" }}>
+          <div className={`absolute left-0 w-full h-[66px] z-[95] transition-all duration-700 transform ${skillPanelShown && !isFatalDefeat ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`} style={{ bottom: "calc(var(--battle-floor, 40%) + 16px)" }}>
             <SkillPanel />
             {isAutoPlaying && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-2 bg-red-600 text-white text-[13px] font-black rounded-lg z-[110] animate-pulse border-2 border-white/40 shadow-[0_0_25px_red] tracking-[4px] uppercase">Auto Playing</div>}
           </div>
-          <div className="absolute left-0 w-full h-[42px] z-[100] flex flex-col items-center" style={{ bottom: "calc(40% + 82px)" }}>
+          <div className="absolute left-0 w-full h-[42px] z-[100] flex flex-col items-center" style={{ bottom: "calc(var(--battle-floor, 40%) + 82px)" }}>
              <SlotsInterface userInput={gameState.userInput} showUI={showSlotsUI && !isFatalDefeat} isFalling={isSlotsFalling} isConverging={isConverging} onSlotClear={idx => {
                 setGameState(p => {
                   const s = p.userInput[idx]; if (!s || !s.char || s.locked || p.isPaused) return p; // 預填格不能清除
@@ -1265,7 +1265,7 @@ const App: React.FC = () => {
                 });
              }} lastImpactIndex={lastImpactIndex} noExitAnim={suppressExitAnim} />
           </div>
-          <div className="absolute left-0 w-full z-[110] flex flex-col items-center" style={{ bottom: "calc(40% + 124px)" }}>
+          <div className="absolute left-0 w-full z-[110] flex flex-col items-center" style={{ bottom: "calc(var(--battle-floor, 40%) + 124px)" }}>
              <QuestionBox question={currentQuestion} showUI={showSlotsUI && !isFatalDefeat} noExitAnim={suppressExitAnim} />
           </div>
           <HUD gameState={gameState} introStage={introStage} onPause={() => setGameState(p => ({...p, isPaused: !p.isPaused}))} isTimerPulse={isTimerPulse} showInputPadUI={showInputPadUI && !isFatalDefeat} questionType={currentQuestion?.type} isDemoMode={isDemoMode} isAutoPlaying={isAutoPlaying} speedMultiplier={speedMultiplier} onAutoToggle={() => {

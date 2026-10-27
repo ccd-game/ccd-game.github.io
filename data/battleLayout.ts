@@ -231,6 +231,36 @@ export function battleInsetLetterboxDy(sceneTop: number, sceneHeight: number, pl
   return (playH - sceneHeight) / 2 - sceneTop;
 }
 
+/** 玩家綠血條高。CSS `h-[10px]`；底邊在地板下 1px（`bottom: calc(floor + 1px)`）。 */
+export const PLAYER_HP_TRACK_H = 10;
+/** 戰鬥下區佔設計畫布高的比例。Browser clip＝設計高時 `40%` ≡ 此值。 */
+export const BATTLE_BAND_RATIO = 0.4;
+
+/**
+ * 設計畫布上的 40% 地板（px，距 #root 底）。
+ * Standalone 的 .battle-clip 自 sat 起算，高＝designH−sat。若地板仍用這段較矮 clip 的 40%，
+ * 血條頂會離開 peek／detail 的設計綠線（390×844、sat59：495.4→519）。
+ * clip 底仍貼設計畫布底，故地板鎖 designH×0.4 時 sat 在血條頂公式裡相消，頂回到 0.6·designH−11。
+ * 不改場景 letterbox（scale／dy 仍走 battleInsetLetterboxDy）。
+ */
+export function battleDesignBandFloorPx(designH: number): number {
+  return designH * BATTLE_BAND_RATIO;
+}
+
+/** 玩家血條頂的設計 Y（畫布頂＝0）。floorPx 為距畫布底的地板。 */
+export function battlePlayerHpTrackTopY(designH: number, floorPx: number, hpH = PLAYER_HP_TRACK_H): number {
+  return designH - floorPx - 1 - hpH;
+}
+
+/**
+ * 修前路徑：地板＝clip 高的 40%（clip 頂＝sat、clip 底＝designH）。
+ * sat＝0 時與設計地板同一頂；sat>0 時血條頂下移 0.4·sat。
+ */
+export function battlePlayerHpTrackTopYClipPercent(designH: number, sat: number, hpH = PLAYER_HP_TRACK_H): number {
+  const clipH = designH - Math.max(0, sat);
+  return battlePlayerHpTrackTopY(designH, clipH * BATTLE_BAND_RATIO, hpH);
+}
+
 function cssLenPx(doc: Document, name: string): number {
   const view = doc.defaultView;
   const raw = view?.getComputedStyle(doc.documentElement).getPropertyValue(name).trim() ?? '';
