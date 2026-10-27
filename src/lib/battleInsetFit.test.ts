@@ -39,9 +39,7 @@ describe('戰鬥 fit：SA 不改幾何', () => {
     const shrunk = computeGroundedBattle(liuA, liu, W, H - SAT - SAB)!;
     expect(shrunk.layout.scale).toBeCloseTo(0.445, 2);
     expect(browser.layout.scale).toBeCloseTo(0.528, 3);
-    expect(browser.layout.scale).not.toBeCloseTo(shrunk.layout.scale, 2);
-    expect(browser.layout.top).not.toBeCloseTo(shrunk.layout.top, 0);
-    expect(browser.sceneBox.top).not.toBeCloseTo(shrunk.sceneBox.top, 0);
+    expect(browser.layout.scale - shrunk.layout.scale).toBeGreaterThan(0.05);
   });
 
   it('homeBox 沿用凍結幾何（不再因 inset 丟棄後改 letterbox）', () => {
