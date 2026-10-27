@@ -2,9 +2,12 @@
  * 首頁／圖鑑落地場景幾何（one-source-geom-home-r1）
  *
  * ## 唯一準源（sceneGeometry）
- * `HERO_SCENES`＋`computeHeroFit`／`heroFigStyle`／`heroBgFrameStyle`／`heroPeekHeight`
- * ＝**三頁唯一幾何準源**（主頁預覽｜圖鑑內頁｜入陣 homeBox／戰鬥應跟此）。
- * `heroPeekHeight` ≡ CSS `--peek-h`（N=4：14／56／÷3；one-source-codex-peek-h-r1）。
+ * `HERO_SCENES`＋`computeHeroFit`／`heroFigStyle`／`heroBgFrameStyle`
+ * ＝人物幾何準源（主頁預覽｜圖鑑內頁｜入陣 homeBox／戰鬥無 homeBox 時跟此）。
+ * `heroPeekHeight` 是 N=4 公式宿主（戰鬥**無** homeBox 的框高，≈400.8＠D≈646）。
+ * 它不是綠線 CSS `--peek-h`（活線 rect 493.5，browser 宿主＝rect−zone≈371.7）。
+ * 可見綠線帶＝同態抽屜頂／描述頂／玩家血條頂，見 `src/lib/greenlineBand.ts`。
+ * 禁把 peek CSS 抬到 400.8（PR#6 已拒）。
  *
  * - **驗收關主**：柳（`liu_zong_yuan`）＋孔（`kong_zi`）。
  * - **位置／scale／ax／X／figScale／rest／bgZoom／fit**：只寫在本檔 HERO；禁第二套 figScale／座標真相。
@@ -114,10 +117,10 @@ export const SCENE_GEOMETRY: Record<string, HeroScene> = HERO_SCENES;
 export const ONE_SOURCE_ACCEPTANCE_HEROES = ['liu_zong_yuan', 'kong_zi'] as const;
 export type OneSourceAcceptanceHero = (typeof ONE_SOURCE_ACCEPTANCE_HEROES)[number];
 
-/** 戰鬥 hold 準源 box（390×844 browser；one-source-geom-home-r1／compare-preview-vs-battle-size-r1） */
+/** 戰鬥無 homeBox 的公式快照（390×844）。宿主是 N=4 `heroPeekHeight`，不是綠線 CSS 槽；禁用來把 peek 抬到 400.8。 */
 export const BATTLE_HOLD_GEOM_390 = {
   liu_zong_yuan: { scale: 0.528, left: -204.3043122530318, top: 130.63806372829907, faceX: 191.6956765036499 },
-  // peek-h-r1：heroPeekHeight≡CSS；PW 實測 hold（homeBox／heroSync）
+  // N=4 公式宿主下的 hold（無 homeBox）。綠線帶見 greenlineBand，不跟這組 host。
   kong_zi: { scale: 0.79093017578125, left: -206.78125, top: 15.5625, faceX: 195.011279296875 },
 } as const;
 
@@ -138,10 +141,9 @@ export const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 export const DRAWER_BAR_H = 52;
 
 /**
- * 抽屜半開（四篇／N=4）時的英雄區高：圖鑑內頁／戰鬥 heroSync 以此為場景框高。
- * 須≡ CSS `.home-dungeon[data-min-rows="4"] --peek-h`
- *   = bar + 14 + (D − bar − 56) / 3
- * → 英雄區高 H = D − peek-h（與 `.home-hero-slot { bottom: var(--peek-h) }` 同）。
+ * N=4 公式宿主高：戰鬥無 homeBox 的 heroSync 用它當場景框高。
+ *   H = D − (bar + 14 + (D − bar − 56) / 3)
+ * 不是綠線 CSS `--peek-h`（該式為 `493.5px − zone`）。兩者不要收成同一個 400.8。
  * data-min-rows="6" 暫不跟（除非測試要）。
  */
 export const heroPeekHeight = (D: number, bar: number = DRAWER_BAR_H) =>
@@ -156,7 +158,7 @@ export const heroPeekHeight = (D: number, bar: number = DRAWER_BAR_H) =>
 export function computeHeroFit(sc: HeroScene, W: number, H: number, D: number, bar: number = DRAWER_BAR_H) {
   const zoom = sc.bgZoom?.[0] ?? 1;
   const Hc = Math.max(H, D - bar);                 // 抽屜收合時英雄區高
-  const Hp = Math.min(H, heroPeekHeight(D, bar));  // 抽屜半開（四篇）時英雄區高 ≡ CSS --peek-h
+  const Hp = Math.min(H, heroPeekHeight(D, bar));  // N=4 公式宿主；綠線 CSS 槽另計（rect−zone）
   const m = sc.topPad ?? 12;
   // 帽頂（場景像素）：有 rest 時以縮放後立繪計算，否則用 head
   const headY = sc.rest ? sc.rest[1] - (sc.foot - sc.head) * (sc.figScale ?? 1) : sc.head;

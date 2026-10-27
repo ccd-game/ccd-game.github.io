@@ -12,7 +12,7 @@ import {
 const NAV_H = 76;
 const DESIGN_H = 844;
 
-describe('codexDetailBand：設計 px 綠線鎖', () => {
+describe('codexDetailBand：設計 px 綠線鎖（同態／設計座標；禁止拿 371.7／400.8／495 當跨態視口神諭）', () => {
   it('browser 390×844、無 sat／sab：舞台 371.7、紙從 RECT、D≈646.2', () => {
     const codexTop = CHROME_ZONE_H;
     const navTop = DESIGN_H - NAV_H;

@@ -1,4 +1,7 @@
-/** 概念綠線（戰鬥血條頂）Y=495 css＠390×844；可見抽屜紙緣對齊此值 */
+/**
+ * 設計座標綠線（browser 390×844、sat＝0、scale＝1 時視口 Y＝495）。
+ * 不是跨 display mode 的裸絕對 Y。standalone 只在同態裡跟抽屜／描述／血條頂比，見 greenlineBand。
+ */
 export const CHROME_GREEN_TOP_Y = 495;
 /**
  * rect 鎖：frost／alpha 頂緣至可見不透明紙約 +1.5px，
@@ -10,7 +13,7 @@ export const CHROME_DRAWER_RECT_TOP_Y = 493.5;
 export const CHROME_ZONE_H = 121.8;
 
 /**
- * peek 高（px）：使可見抽屜紙緣落在視口 Y=495（rect 頂＝493.5）。
+ * peek 高（px）：設計座標紙緣落在 Y=495（rect 頂＝493.5；browser、scale＝1）。跨態不要拿這個裸 Y 當神諭。
  * peekH = h − (RECT − zone)。
  */
 export const drawerPeekH = (h: number, _bar?: number, _minRows?: number) => {
