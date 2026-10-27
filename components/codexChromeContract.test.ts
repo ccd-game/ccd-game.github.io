@@ -24,13 +24,19 @@ describe('codex detail chrome contract', () => {
     expect(css).toMatch(/\.codex-inner-desc\.peek-sheet\s*\{[^}]*padding-bottom:\s*var\(--peek-sheet-pad-y/);
   });
 
-  it('paints detail top chrome as medium glass, not the paper slab', () => {
-    const block = css.slice(css.indexOf('.codex-inner-top-frost {'), css.indexOf('.dark-mode .codex-inner-top-frost'));
+  it('paints detail top chrome as medium glass over the page, with no second background', () => {
+    const start = css.indexOf('.codex-inner-top-frost {');
+    const block = css.slice(start, css.indexOf('}', start) + 1);
     expect(block).toContain('backdrop-filter: blur(var(--glass-medium-blur');
     expect(block).toContain('var(--glass-ink-edge');
-    expect(block).not.toContain('rgba(244, 240, 232, 0.80)');
-    expect(block).toContain('background-color: transparent');
+    expect(block).toContain('background: none');
+    expect(block).not.toContain('background-image');
+    expect(block).not.toContain('rgba(244, 240, 232');
     expect(block).toContain('var(--hud-vnext-zone-h');
+    expect(detail).not.toContain('codex-inner-scene-extend');
+    expect(detail).not.toContain('codex-inner-desc-shanshui');
+    expect(css).not.toContain('.codex-inner-scene-extend');
+    expect(css).not.toContain('.codex-inner-desc-shanshui');
   });
 
   it('does not special-case Confucius on the detail shell', () => {

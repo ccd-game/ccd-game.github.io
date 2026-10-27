@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CHARACTER_DETAILS } from '../data/characters';
 import { portraitStyle, portraitKey, LAYERED_PORTRAITS } from '../data/portraits';
-import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, sceneVars, HOME_SHANSHUI, HOME_SHANSHUI_2X } from './home/heroScene';
+import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, sceneVars } from './home/heroScene';
 import { hasBossVoice, playBossVoice } from '../src/lib/bossVoice';
 import { wrapSoukouFbParts } from '../src/lib/wrapSoukouFb';
 import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codexDetailLayout';
@@ -13,9 +13,9 @@ import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codex
  * 禁再寫死 PEEK_INFO_TOP_Y=495／STAGE_FLOW_H=310／heroPeekHeight N=4（與 tip 綠線 CSS 脫節）。
  * 準源仍 HERO_SCENES＋computeHeroFit；D／H／綠線與主頁同口徑。
  */
-/* 全關主同一殼（無孔子專例）。描述紙面＝.peek-sheet（與首頁抽屜同一條：宣紙、圓角 token、影、淡墨頂線）。
-   內文 padding-top／padding-bottom 同 --peek-sheet-pad-y，不再貼頂、底下留白。
-   頂欄只走 .codex-inner-top-frost 液態玻璃，描述不是玻璃。帶高仍 codexDetailBand。 */
+/* 全關主同一殼（無孔子專例）。描述＝.peek-sheet，直接透主頁殼山水（不另鋪一張宣紙）。
+   內文 padding-top／padding-bottom 同 --peek-sheet-pad-y。
+   頂欄只 blur 頁底，不墊第二張背景。帶高仍 codexDetailBand。 */
 
 export interface CharacterDetailProps {
   char: {
@@ -112,29 +112,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
 
   return (
     <div ref={rootRef} className="codex-inner flex-1 flex flex-col animate-[fadeIn_0.5s_ease-out_forwards] relative" data-testid="codex-inner">
-      {/* frost-r5：戰鬥場景上伸——專供頂欄 frost 采樣日落／火燒雲（cover 級取景，禁 300% 色帶）；禁動 HERO */}
-      <div
-        className="codex-inner-scene-extend"
-        aria-hidden="true"
-        data-testid="codex-scene-extend"
-        style={(scene?.bg || char.bgImg) ? {
-          backgroundImage: `url("${scene?.bg || char.bgImg}")`,
-        } : undefined}
-      />
-      {/* frost-r5：描述區專用宣紙山水（同 .home-shanshui／drawer 下層）；位在 desc frost 下、戰景之上，禁戰景色帶充描述 */}
-      <div
-        className="codex-inner-desc-shanshui"
-        aria-hidden="true"
-        data-testid="codex-desc-shanshui"
-      >
-        <img
-          src={HOME_SHANSHUI}
-          srcSet={`${HOME_SHANSHUI} 1x, ${HOME_SHANSHUI_2X} 2x`}
-          alt=""
-          draggable={false}
-        />
-      </div>
-      {/* 頂欄中等液態玻璃（blur＋淡墨緣）；Browser／standalone 都跟 --hud-vnext-zone-h（含 sat）。不改 HUD 源。 */}
+      {/* 頂欄液態玻璃：不鋪戰景／宣紙複本，backdrop 直接采樣 .home-menu-shell 頁底。Browser／standalone 都跟 --hud-vnext-zone-h。 */}
       <div
         className="codex-inner-top-frost"
         aria-hidden="true"
