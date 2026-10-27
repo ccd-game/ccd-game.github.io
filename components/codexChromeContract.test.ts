@@ -39,12 +39,19 @@ describe('codex detail chrome contract', () => {
     expect(css).not.toContain('.codex-inner-desc-shanshui');
   });
 
-  it('does not trap the desc backdrop inside a shell blur', () => {
+  it('does not trap the top glass inside a shell blur', () => {
     expect(detail).not.toContain('fadeIn');
     const start = css.indexOf('.codex-inner {');
     const block = css.slice(start, css.indexOf('}', start) + 1);
     expect(block).toContain('backdrop-filter: none');
     expect(block).toContain('animation: none');
+    expect(block).not.toContain('blur(');
+  });
+
+  it('keeps the desc sheet unblurred so it matches the peek composite', () => {
+    const start = css.indexOf('.codex-inner-desc.peek-sheet {');
+    const block = css.slice(start, css.indexOf('}', start) + 1);
+    expect(block).toContain('backdrop-filter: none');
     expect(block).not.toContain('blur(');
   });
 

@@ -1080,8 +1080,10 @@
         }
         /* 英雄區下緣＝抽屜上緣（peek／open 皆貼 peek 線；不再有 closed＝只露 bar） */
         .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }
-        /* peek-sheet：首頁抽屜與圖鑑描述同一紙面。禁拿去塗頂欄（頂欄走液態玻璃）。
-           home-xuan-r11-tryfit-r3：α 0.80＋blur 20（字穩）。頂線用 inset shadow，不佔 1px 版面（原在 .home-drawer-bar border-top）。
+        /* peek-sheet：首頁抽屜與圖鑑描述同一紙色／圓角／投影。禁拿去塗頂欄（頂欄走液態玻璃）。
+           home-xuan-r11-tryfit-r3：α 0.80＋blur 20。抽屜父層是 backdrop root，blur 打不到頁底，
+           山水靠 α 透出。圖鑑描述沒有這層 root，另在 .codex-inner-desc.peek-sheet 把 blur 歸零，
+           否則同一條會把描述抹得比抽屜濁。頂線用 inset shadow，不佔 1px。
            radius 鎖 --peek-sheet-radius（0＝滿寬直切）。 */
         .peek-sheet {
             background: rgba(244, 240, 232, 0.80);
@@ -1320,9 +1322,9 @@ html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !importa
 /* 入陣小視窗開著：主頁預覽動畫（呼吸、飛劍、佩刀浮動、火星…）原地暫停，取消後由同一位置繼續；陀螺儀另以 data-enter-freeze 凍結 */
 html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { animation-play-state: paused !important; }
 
-/* 圖鑑內頁不另鋪戰景／宣紙複本。描述 .peek-sheet 必須直接采樣 .home-menu-shell 頁底。
+/* 圖鑑內頁不另鋪戰景／宣紙複本。頁底就是 .home-menu-shell 的山水。
    禁把 fadeIn 套在這層：該 keyframes 的 forwards 會留下 backdrop-filter: blur(24px)，
-   殼變成 backdrop root，子層紙面只模糊到空底，看起來是實心宣紙、透不出山水。 */
+   這層變成 backdrop root，頂欄液態玻璃就模糊不到頁底。 */
 .codex-inner {
     background: transparent !important;
     isolation: auto;
@@ -1370,11 +1372,16 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     font-family: 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif !important;
     font-weight: 1000 !important;
 }
-/* 描述紙面＝.peek-sheet（與抽屜同一條）。上下內距同值，消掉「貼頂、底下空一截」。
-   橫向仍由元件 px-5。不改帶高／綠線公式。 */
+/* 描述紙面＝.peek-sheet 的紙色／圓角／投影。上下內距同值。橫向仍由元件 px-5。不改帶高／綠線。
+   抽屜雖掛 blur(20px)，父層 .home-dungeon（overflow:hidden ＋ transform）才是 backdrop root，
+   那道模糊打在空層上，玩家看見的山水是 α 0.80 底下那張未模糊的頁底（實測紙緣與 σ=0 複合 RMSE 0）。
+   描述的祖先沒有這層 root，沿用 blur(20px) 會把殼層山水抹平，紙面比抽屜更濁。
+   這裡把 backdrop-filter 歸零，複合才與抽屜同一張紙。 */
 .codex-inner-desc.peek-sheet {
     padding-top: var(--peek-sheet-pad-y, 16px);
     padding-bottom: var(--peek-sheet-pad-y, 16px);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 /* frost-r5：技能卡禁再叠實白／blur 盖死山水（父層已有 frost） */
 .codex-inner-desc-frost [data-testid="codex-skill-block"] > div {

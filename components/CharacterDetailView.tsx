@@ -13,8 +13,9 @@ import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codex
  * 禁再寫死 PEEK_INFO_TOP_Y=495／STAGE_FLOW_H=310／heroPeekHeight N=4（與 tip 綠線 CSS 脫節）。
  * 準源仍 HERO_SCENES＋computeHeroFit；D／H／綠線與主頁同口徑。
  */
-/* 全關主同一殼（無孔子專例）。描述＝.peek-sheet，直接透主頁殼山水（不另鋪一張宣紙）。
-   內文 padding-top／padding-bottom 同 --peek-sheet-pad-y。
+/* 全關主同一殼（無孔子專例）。描述用紙色走 .peek-sheet，但不 blur：
+   首頁抽屜的 blur 被 .home-dungeon 的 backdrop root 吃掉，山水是銳利頁底透出 α 0.80。
+   描述若再 blur(20px) 會把同一張山水抹平。內文上下距同 --peek-sheet-pad-y。
    頂欄只 blur 頁底，不墊第二張背景。帶高仍 codexDetailBand。 */
 
 export interface CharacterDetailProps {
