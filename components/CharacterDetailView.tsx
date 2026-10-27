@@ -2,9 +2,9 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CHARACTER_DETAILS } from '../data/characters';
 import { portraitStyle, portraitKey, LAYERED_PORTRAITS } from '../data/portraits';
 import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, sceneVars, HOME_SHANSHUI, HOME_SHANSHUI_2X } from './home/heroScene';
-import { CHROME_DRAWER_RECT_TOP_Y, CHROME_GREEN_TOP_Y } from './tabs/drawerMath';
 import { hasBossVoice, playBossVoice } from '../src/lib/bossVoice';
 import { wrapSoukouFbParts } from '../src/lib/wrapSoukouFb';
+import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codexDetailLayout';
 
 /**
  * onesource-peek-r1：圖鑑內頁 peek ≡ 主頁 CSS
@@ -13,7 +13,8 @@ import { wrapSoukouFbParts } from '../src/lib/wrapSoukouFb';
  * 禁再寫死 PEEK_INFO_TOP_Y=495／STAGE_FLOW_H=310／heroPeekHeight N=4（與 tip 綠線 CSS 脫節）。
  * 準源仍 HERO_SCENES＋computeHeroFit；D／H／綠線與主頁同口徑。
  */
-/* desc-frost-r5：叠 r4；頂 frost 透戰鬥日落；描述 frost 透宣紙山水（同抽屜）；α0.80＋blur20；装甲明朝；硬鎖 pad／隊主／几何 */
+/* desc-frost-r5：叠 r4；頂 frost 透戰鬥日落；描述 frost 透宣紙山水（同抽屜）；α0.80＋blur20；装甲明朝。
+   描述帶頂貼綠線、底貼底欄；內文自上排（不再用雙 flex-1 虚位把姓名／技能垂直置中）。 */
 
 export interface CharacterDetailProps {
   char: {
@@ -74,18 +75,22 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
     const sync = () => {
       const nav = document.querySelector<HTMLElement>('.home-bar-bottom');
       const rootRect = root.getBoundingClientRect();
-      const navTop = nav ? nav.getBoundingClientRect().top : rootRect.bottom;
-      // ≡ 主頁 --peek-h 綠線鎖：H = 493.5 − rootTop（host 底鎖 rect＝493.5；可見紙緣≈495）
-      const stageH = Math.max(0, CHROME_DRAWER_RECT_TOP_Y - rootRect.top);
-      // 綠線相對 root：rootTop + stageH ＝ rect；可見紙緣 +1.5 → info 頂
-      const greenTop = rootRect.top + stageH + (CHROME_GREEN_TOP_Y - CHROME_DRAWER_RECT_TOP_Y);
-      const marginTop = greenTop - (rootRect.top + stageH);
-      const height = Math.max(0, navTop - greenTop);
+      const canvas = (root.closest('#root') as HTMLElement | null) ?? document.getElementById('root');
+      const canvasRect = canvas?.getBoundingClientRect();
+      const scale = designScaleFromRoot(canvas?.offsetHeight ?? 0, canvasRect?.height ?? 0);
+      const origin = canvasRect?.top ?? 0;
+      // rect 是 letterbox 縮放後的視口 px；493.5／CSS 高是設計 px。先換算再鎖綠線。
+      const codexTop = viewportYToDesign(rootRect.top, origin, scale);
+      const navTop = nav
+        ? viewportYToDesign(nav.getBoundingClientRect().top, origin, scale)
+        : codexTop + root.offsetHeight;
+      const band = codexDetailBand(codexTop, navTop);
+      const { stageH, marginTop, height } = band;
       setLayoutBox(b => (b && Math.abs(b.marginTop - marginTop) < 0.5 && Math.abs(b.height - height) < 0.5 && Math.abs(b.stageH - stageH) < 0.5) ? b : { marginTop, height, stageH });
 
       if (scene) {
         const W = root.clientWidth;
-        const Dfloat = navTop - rootRect.top;
+        const Dfloat = band.D;
         if (W && Dfloat && stageH) {
           const H = stageH; // ≡ ChapterHero clientHeight（CSS slot）；禁 heroPeekHeight N=4
           const Dfit = Math.round(Dfloat);
@@ -297,16 +302,14 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
 
       <div
         data-testid="codex-info-chrome"
-        className="codex-inner-desc codex-inner-desc-frost relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0"
+        className="codex-inner-desc codex-inner-desc-frost relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0 min-h-0"
         style={{
-          /* 高＝navTop−綠線（≡主頁 peek）；頂貼綠線、底貼底欄；frost 見 .codex-inner-desc-frost */
+          /* 高＝navTop−綠線（設計 px；≡主頁 peek）；頂貼綠線、底貼底欄；frost 見 .codex-inner-desc-frost */
           height: layoutBox ? layoutBox.height : undefined,
           marginTop: layoutBox ? layoutBox.marginTop : -12,
           visibility: layoutBox ? 'visible' : 'hidden',
         }}
       >
-        {/* 名上留白＝技下至欄底：等分 flex spacer（對稱；禁隨意 padding） */}
-        <div data-testid="codex-desc-pad-top" className="flex-1 min-h-0 basis-0 shrink" aria-hidden="true" />
         <div className="flex flex-col gap-0.5 shrink-0">
         <div className="text-center">
           <h2 ref={nameRef} className="text-3xl font-black tracking-[6px] mb-0.5" style={{ color: 'var(--text-main)', textShadow: 'none' }}><SoukouFb text={char.name} /></h2>
@@ -358,7 +361,6 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
           )}
         </div>
         </div>
-        <div data-testid="codex-desc-pad-bottom" className="flex-1 min-h-0 basis-0 shrink" aria-hidden="true" />
       </div>
 
       <style>{`
