@@ -196,67 +196,10 @@ export interface BattleScene {
 }
 
 /** 首頁版面：頂欄區高（英雄區上緣＝--hud-vnext-zone-h）、底部導覽高；內容區高＝視窗高 − 兩者。
- * one-source-geom-battle-r2：88→121.8 對齊 index.css --hud-vnext-zone-h（browser＠390；禁再寫死 88）。 */
+ * one-source-geom-battle-r2：88→121.8 對齊 index.css --hud-vnext-zone-h（browser＠390；禁再寫死 88）。
+ * SA 不把 sat 加進這兩個常數。整頁 contain 見 src/lib/gameContain.ts。 */
 export const HOME_TOP_BAR_H = 121.8;
 export const HOME_NAV_H = 76;
-
-/**
- * 戰鬥 safe-area。Browser 路徑必須 standalone=false（即使 --sat 有值也不改幾何）。
- * standalone 且 (sat|sab)>0：可玩區高＝rootH − sat − sab。hero scale 仍走無 homeBox 的 Browser 全高公式，
- * 再把場景垂直置中在 .battle-clip 內（CSS 已 top:sat，layout 座標不再加 sat）。
- * 場景沒蓋住的可玩區留給黑底，不鏡射補滿。
- */
-export interface BattleInsets {
-  standalone: boolean;
-  sat: number;
-  sab: number;
-}
-
-/** Browser、或 standalone 但 sat＝sab＝0 → 原 rootH（Day0 幾何）。否則扣除 inset。 */
-export function battleInsetPlayfieldH(rootH: number, insets?: BattleInsets | null): number {
-  if (!insets?.standalone) return rootH;
-  const sat = Number.isFinite(insets.sat) ? Math.max(0, insets.sat) : 0;
-  const sab = Number.isFinite(insets.sab) ? Math.max(0, insets.sab) : 0;
-  if (sat === 0 && sab === 0) return rootH;
-  return Math.max(0, rootH - sat - sab);
-}
-
-/**
- * 場景置中到可玩區的垂直位移（.battle-clip 座標）。
- * playH 已是 rootH−sat−sab；不得再把 sat 加進回傳值（CSS top:sat 已算過一次）。
- * 場景矮於可玩區 → 上下等量留白；高於可玩區 → 上下等量裁切。兩種都不改 scale。
- */
-export function battleInsetLetterboxDy(sceneTop: number, sceneHeight: number, playH: number): number {
-  if (!(playH > 0) || !(sceneHeight > 0) || !Number.isFinite(sceneTop)) return 0;
-  return (playH - sceneHeight) / 2 - sceneTop;
-}
-
-function cssLenPx(doc: Document, name: string): number {
-  const view = doc.defaultView;
-  const raw = view?.getComputedStyle(doc.documentElement).getPropertyValue(name).trim() ?? '';
-  if (/^-?[\d.]+px$/.test(raw)) return Math.max(0, parseFloat(raw));
-  const probe = doc.createElement('div');
-  probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;padding:0;border:0;';
-  probe.style.paddingTop = `var(${name}, 0px)`;
-  (doc.body ?? doc.documentElement).appendChild(probe);
-  const px = parseFloat(view?.getComputedStyle(probe).paddingTop ?? '');
-  probe.remove();
-  return Number.isFinite(px) ? Math.max(0, px) : 0;
-}
-
-/** 讀 html.is-standalone／display-mode 與 --sat／--sab。只給戰鬥 fit；不改主頁幾何。 */
-export function readBattleInsets(doc: Document | undefined = typeof document === 'undefined' ? undefined : document): BattleInsets {
-  const none: BattleInsets = { standalone: false, sat: 0, sab: 0 };
-  if (!doc?.documentElement) return none;
-  const byClass = doc.documentElement.classList.contains('is-standalone');
-  let byMode = false;
-  try {
-    byMode = !!doc.defaultView?.matchMedia?.('(display-mode: standalone), (display-mode: fullscreen)').matches;
-  } catch {
-    byMode = false;
-  }
-  return { standalone: byClass || byMode, sat: cssLenPx(doc, '--sat'), sab: cssLenPx(doc, '--sab') };
-}
 
 export const BATTLE_SCENES: Record<string, BattleScene> = {
   // 坐於岩上；戰鬥立繪 = 全幅 1280×720 裁切 (70, 13) 1135×623
@@ -292,9 +235,8 @@ export function computeGroundedBattle(
   rootW: number,
   rootH: number,
   homeBox?: Parameters<typeof groundedCore>[4],
-  insets?: BattleInsets | null,
 ): { layout: BattleLayout; sceneBox: BattleSceneBox } | null {
-  const r = groundedCore(anchor, scene, rootW, rootH, homeBox, undefined, insets);
+  const r = groundedCore(anchor, scene, rootW, rootH, homeBox);
   return r && { layout: r.layout, sceneBox: r.sceneBox };
 }
 
@@ -307,17 +249,10 @@ function groundedCore(
   homeBox?: { bg: { left: number; top: number; scale: number }; scene: { left: number; top: number; scale: number }; breatheOrigin?: [number, number] | null } | null,
   /** 僅供 bossNameSlotY 計算基準關主時使用（避免遞迴） */
   slotOverride?: number,
-  /** standalone inset：可玩區變矮，但 fit 仍用 rootH（Browser 公式）；之後只做 letterbox 置中 */
-  insets?: BattleInsets | null,
 ): { layout: BattleLayout; sceneBox: BattleSceneBox; hatScreenY: number } | null {
   if (!anchor || !scene || rootW <= 0 || rootH <= 0) return null;
-  // standalone+(sat|sab)>0：可玩區高＝rootH−sat−sab，但不要拿這個較矮的高去重跑 heroSync（那會把 scale 從 ≈0.528 縮到 ≈0.445）。
-  // scale／水平位置鎖定無 homeBox 的 Browser 全高公式。homeBox 是 root 座標，放進已下移的 clip 會再吃一次 sat，inset 時丟棄。
-  // 置中只改 clip 內的 y。CSS 已 top:sat，letterbox 位移不得再加 sat。
-  const playH = battleInsetPlayfieldH(rootH, insets);
-  const letterbox = playH !== rootH;
-  if (letterbox) homeBox = null;
-  if (playH <= 0) return null;
+  // SA 的 sat／sab 由 #root contain 的外黑邊吃掉（gameContain）。這裡永遠用傳入的 root 高，
+  // 不扣 inset、不對場景做垂直 dy。用較矮的高重跑會把柳從 ≈0.528 縮到 ≈0.445。
   const a = anchor, P = BATTLE_LAYOUT, sc = scene;
   const sceneH = rootH * P.sceneRatio;
   const [fx, fy, fw, fh] = sc.fig;
@@ -442,6 +377,7 @@ function groundedCore(
   let heroFigScale: number | null = null;
   const heroSc = sc.heroSync ? HERO_SCENES[sc.heroSync] : undefined;
   if (heroSc && !homeBox) {
+    // rootW／rootH 是設計畫布。SA 的縮放只在 #root；這裡不扣 sat、不再乘 shell scale。
     const D = rootH - HOME_TOP_BAR_H - HOME_NAV_H;
     const { s, left: fitL, top: t } = computeHeroFit(heroSc, rootW, heroPeekHeight(D), D);
     const sceneTop = HOME_TOP_BAR_H + t;
@@ -538,27 +474,7 @@ function groundedCore(
     bottomY: figTop + a.bottomY * figScaleF,
     anchor: a,
   };
-  let hatY = hatScreenY;
-  if (letterbox) {
-    // 場景框置中於可玩區；人物與場景同一 dy，腳仍貼岩。不改 scale／left。
-    const dy = battleInsetLetterboxDy(sceneBox.top, sceneBox.height, playH);
-    layout.top += dy;
-    layout.faceY += dy;
-    layout.bottomY += dy;
-    layout.headY += dy;
-    sceneBox.top += dy;
-    hatY += dy;
-    // 上下留白是黑邊：關掉鏡射補滿，避免把場景複製進留白。
-    sceneBox.mirrorTiles = false;
-    sceneBox.mirrorBottom = false;
-    sceneBox.gap = {
-      left: Math.max(0, sceneBox.left),
-      right: Math.max(0, rootW - (sceneBox.left + sceneBox.width)),
-      top: Math.max(0, sceneBox.top),
-      bottom: Math.max(0, playH - (sceneBox.top + sceneBox.height)),
-    };
-  }
-  return { layout, sceneBox, hatScreenY: hatY };
+  return { layout, sceneBox, hatScreenY: hatScreenY };
 }
 
 /** 名字槽位 y（標籤底邊，螢幕 px）：由基準關主（柳宗元）同 viewport 的帽頂推得；依 viewport 快取 */

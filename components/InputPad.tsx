@@ -37,8 +37,8 @@ const InputPad: React.FC<InputPadProps> = React.memo(({
         contain: 'layout style paint',
         width: '100%',
         height: '100%',
-        // 增加底部安全距離，防止手機瀏覽器導航條阻礙點擊
-        paddingBottom: 'max(env(safe-area-inset-bottom), 12px)'
+        // Browser：--sab＝env()，避開瀏覽器底條。Standalone 畫布已在 safe area 內，--sab＝0，只留 12px。
+        paddingBottom: 'max(var(--sab, 0px), 12px)'
       }}
     >
       {options.map((char, index) => {

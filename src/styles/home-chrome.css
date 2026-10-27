@@ -162,8 +162,7 @@
   object-fit: fill;
   object-position: bottom center;
 }
-/* standalone-black-sat r1b：standalone／fullscreen 亦用整圖 plate（同 browser）；三段永隱藏
-   禁三段拉伸吃 sat；sat 改由上方黑邊 letterbox 承擔（見下方 black-sat 段） */
+/* standalone 亦用整圖 plate（同 browser）；三段永隱藏。sat 由 #root 外黑邊承擔，不拉殼。 */
 html.is-standalone .home-chrome-shell-full,
 html.is-standalone .home-chrome-shell img.home-chrome-shell-full {
   display: block !important;
@@ -291,81 +290,11 @@ html.is-standalone .home-chrome-shell-segs {
 }
 
 
-/* ===== home-standalone-layout-r1：上方黑邊吃 sat；頂欄＝hud-vnext（禁拉殼／禁三段／禁改玉佩錨／禁逼高 88） ===== */
+/* 頂欄雲可溢出。SA 不再用 #root::before 或 top:sat 把 chrome 頂開；黑邊在畫布外。 */
 .home-bar-top.home-chrome-shell-host,
 .home-chrome-shell-host.home-bar-top,
 .home-bar-top.home-hud-vnext-host {
   overflow: visible !important;
-}
-
-/* 黑邊：#root::before 高＝--sat（或 env sat）；頂欄＋內容下移 sat；匾殼本身不拉高 */
-html.is-standalone #root::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--sat, env(safe-area-inset-top, 0px));
-  background: #000;
-  z-index: 10000;
-  pointer-events: none;
-}
-
-@media (max-width: 600px) {
-  /* hud-vnext 頂欄下移 sat；禁 height:88（舊匾殼）；高度維持 browser 自然高 */
-  html.is-standalone .home-bar-top.home-hud-vnext-host {
-    top: var(--sat, env(safe-area-inset-top, 0px)) !important;
-    box-sizing: border-box;
-  }
-  /* zone-h 已含 sat（見 index.css）；main 鎖區隨之 */
-  html.is-standalone .home-bar-top.home-hud-vnext-host ~ main {
-    padding-top: var(--hud-vnext-zone-h) !important;
-  }
-  /* 五鍵層始終貼殼：sab 加大 nav 時不抬鍵；仍 0.9× 寬（底 letterbox 不動） */
-  html.is-standalone .home-nav-keys-layer {
-    left: 5%;
-    width: 90%;
-    height: 76px;
-    top: auto;
-    bottom: 0;
-  }
-  html.is-standalone .home-chrome-shell--bottom {
-    height: 76px;
-    bottom: 0;
-  }
-}
-@media (max-width: 600px) and (display-mode: standalone),
-       (max-width: 600px) and (display-mode: fullscreen) {
-  /* 與 .is-standalone 同源：原生 display-mode 後備 */
-  #root::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--sat, env(safe-area-inset-top, 0px));
-    background: #000;
-    z-index: 10000;
-    pointer-events: none;
-  }
-  .home-bar-top.home-hud-vnext-host {
-    top: var(--sat, env(safe-area-inset-top, 0px)) !important;
-    box-sizing: border-box;
-  }
-  .home-bar-top.home-hud-vnext-host ~ main {
-    padding-top: var(--hud-vnext-zone-h) !important;
-  }
-  .home-nav-keys-layer {
-    left: 5%;
-    width: 90%;
-    height: 76px;
-    top: auto;
-    bottom: 0;
-  }
-  .home-chrome-shell--bottom {
-    height: 76px;
-    bottom: 0;
-  }
 }
 
 /* 殊遇（visit／gacha）：質量心偏左 ≈4.5px@128 → 顯示約 +1px 右移（r5：相對 r4 左移 3px）與字光學置中 */

@@ -92,6 +92,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         const W = root.clientWidth;
         const Dfloat = band.D;
         if (W && Dfloat && stageH) {
+          // H／D 是設計 px（已除掉 #root 的 shell scale）。禁止再乘 --game-scale，也禁止扣 sat。
           const H = stageH; // ≡ ChapterHero clientHeight（CSS slot）；禁 heroPeekHeight N=4
           const Dfit = Math.round(Dfloat);
           const { s, left, top } = computeHeroFit(scene, W, H, Dfit);
