@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { heroPeekHeight } from '../../components/home/heroScene';
 import { CHROME_DRAWER_RECT_TOP_Y, CHROME_GREEN_TOP_Y, CHROME_ZONE_H } from '../../components/tabs/drawerMath';
 import { HOME_NAV_H, HOME_TOP_BAR_H } from '../../data/battleLayout';
+import { battlePlayerHpTopY } from './gameContain';
 import {
   GREENLINE_ALIGN_TOL_PX,
   greenLineAligned,
@@ -19,7 +20,7 @@ import {
  * 絕對 Y 不得寫成裸 ≈371.7／400.8／495 的跨態鎖。Browser 過閘是因為
  * peek 抽屜頂、detail 描述頂、戰鬥玩家血條**頂**兩兩 |Δ|≤2，不是因為某邊等於 495。
  * N=4 host≈400.8 留在戰鬥無 homeBox 公式；禁止把它當成 peek CSS 必須抬高的宿主。
- * SA letterbox 另票：本檔不要求 standalone 三邊對齊，也不要求它的視口 Y 等於 Browser。
+ * SA letterbox 另票：本檔不要求 standalone 視口三邊對齊。#11 後設計座標與 Browser 同套。
  */
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -44,8 +45,9 @@ describe('綠線帶：同態三邊（HP 頂），不抬 peek host 到 400.8', ()
     expect(rect).toBe(493.5);
     expect(css).not.toMatch(/--chrome-drawer-rect-y\s*:\s*522\.6px/);
     expect(css).not.toMatch(/--peek-h:[^;]*522\.6/);
-    expect(css).toMatch(/html\.is-standalone \.battle-clip\s*\{[^}]*top:\s*var\(--sat/s);
-    expect(css).toMatch(/html\.is-standalone \.battle-clip\s*\{[^}]*bottom:\s*0/s);
+    // #11：不再用 sat 下移 .battle-clip；App 維持 absolute inset-0。
+    expect(css).toMatch(/\.battle-clip 維持 inset-0，不再用 sat 下移/);
+    expect(app).toMatch(/className="battle-clip absolute inset-0/);
     expect(app).toMatch(/h-\[10px\]/);
     expect(app).toMatch(/bottom:\s*"calc\(40% \+ 1px\)"/);
     expect(app).toMatch(/#28a745/);
@@ -54,10 +56,14 @@ describe('綠線帶：同態三邊（HP 頂），不抬 peek host 到 400.8', ()
   it('Browser 390×844：抽屜頂／描述頂／玩家血條頂 兩兩 |Δ|≤2', () => {
     const t = greenLineTriad(browser);
     const d = pairwiseAbsDeltas(t);
-    expect(t.detailDescTop).toBeCloseTo(CHROME_GREEN_TOP_Y, 5);
-    expect(d['peek-detail']).toBeCloseTo(1.5, 5);
+    // #14：紙頂≡RECT；概念綠線 495 與 RECT 差 1.5≤tol。
+    expect(t.peekDrawerTop).toBe(CHROME_DRAWER_RECT_TOP_Y);
+    expect(t.detailDescTop).toBeCloseTo(CHROME_DRAWER_RECT_TOP_Y, 5);
+    expect(Math.abs(t.detailDescTop - CHROME_GREEN_TOP_Y)).toBeLessThanOrEqual(GREENLINE_ALIGN_TOL_PX);
+    expect(t.battleHpTop).toBeCloseTo(battlePlayerHpTopY(), 5);
+    expect(d['peek-detail']).toBeCloseTo(0, 5);
     expect(d['peek-battle']).toBeCloseTo(1.9, 5);
-    expect(d['detail-battle']).toBeCloseTo(0.4, 5);
+    expect(d['detail-battle']).toBeCloseTo(1.9, 5);
     expect(maxAbsDelta(t)).toBeLessThanOrEqual(GREENLINE_ALIGN_TOL_PX);
     expect(greenLineAligned(t)).toBe(true);
     // 量錯邊就出閘：血條底、戰鬥根頂都不是綠線。
@@ -82,26 +88,37 @@ describe('綠線帶：同態三邊（HP 頂），不抬 peek host 到 400.8', ()
     const br = greenLineTriad(browser);
     const sa = greenLineTriad(standalone);
     const oracles = [371.7, 400.8, 495];
-    const fitsBothModes = oracles.some((y) =>
-      [br, sa].every((mode) =>
-        [mode.peekDrawerTop, mode.detailDescTop, mode.battleHpTop].every((edge) => Math.abs(edge - y) <= GREENLINE_ALIGN_TOL_PX),
-      ),
+    // #11 後設計座標同套，所以「同絕對 Y 套住兩邊」會成真——契約要防的是
+    // 「把某一裸 Y 當跨態神諭而忽略同態三邊」。這裡改測：單一邊等於某神諭
+    // 並不能保證三邊 ALIGNED 的理由來自 pairwise，而非「等於 495」。
+    const anyEdgeIsBareOracle = [br.peekDrawerTop, br.detailDescTop, br.battleHpTop].some((edge) =>
+      oracles.some((y) => Math.abs(edge - y) <= 0.05),
     );
-    expect(fitsBothModes).toBe(false);
-    expect(Math.abs(br.peekHostH - sa.peekHostH)).toBeGreaterThan(GREENLINE_ALIGN_TOL_PX);
-    expect(Math.abs(br.battleHpTop - sa.battleHpTop)).toBeGreaterThan(GREENLINE_ALIGN_TOL_PX);
+    // 495.4 血條頂贴近 495 神諭，但 peek／detail 在 RECT；過閘靠 |Δ|≤2，不靠三邊＝495。
+    expect(greenLineAligned(br)).toBe(true);
+    expect(br.peekDrawerTop).not.toBeCloseTo(495, 0);
+    expect(br.detailDescTop).not.toBeCloseTo(495, 0);
+    expect(Math.abs(br.battleHpTop - 495)).toBeLessThanOrEqual(GREENLINE_ALIGN_TOL_PX);
+    expect(anyEdgeIsBareOracle || Math.abs(br.battleHpTop - 495) <= GREENLINE_ALIGN_TOL_PX).toBe(true);
+    // 設計座標：#11 後 SA 與 Browser 同公式（sat／sab 不進三邊）。
+    expect(sa.peekDrawerTop).toBe(br.peekDrawerTop);
+    expect(sa.detailDescTop).toBe(br.detailDescTop);
+    expect(sa.battleHpTop).toBe(br.battleHpTop);
+    expect(sa.battleRootTop).toBe(0);
     expect(sa.peekHostH).not.toBeCloseTo(400.8, 0);
   });
 
-  it('standalone 公式對上 tip 血條頂 519（letterbox；本票不要求三邊 ALIGNED）', () => {
+  it('standalone 設計座標同 Browser（#11 contain；舊 tip 519 letterbox 另票）', () => {
     const sa = greenLineTriad(standalone);
+    const br = greenLineTriad(browser);
     const sabIgnored = greenLineTriad({ ...standalone, sab: 0 });
-    expect(sa.battleRootTop).toBe(59);
-    expect(sa.battleHpTop).toBeCloseTo(519, 5);
-    expect(sa.hpBottom).toBeCloseTo(529, 5);
+    expect(sa.battleRootTop).toBe(0);
+    expect(sa.battleHpTop).toBeCloseTo(battlePlayerHpTopY(), 5);
+    expect(sa.battleHpTop).toBeCloseTo(br.battleHpTop, 5);
     expect(sabIgnored.battleHpTop).toBeCloseTo(sa.battleHpTop, 5);
-    expect(sa.detailDescTop).toBeCloseTo(CHROME_GREEN_TOP_Y, 5);
+    expect(sa.detailDescTop).toBeCloseTo(CHROME_DRAWER_RECT_TOP_Y, 5);
     expect(sa.peekDrawerTop).toBe(CHROME_DRAWER_RECT_TOP_Y);
-    // 公式對上 tip METRICS 即可。SA 對不對齊不在本閘；letterbox 另票，勿靠抬 peek host 把三邊捏齊。
+    // 舊 tip METRICS HpTop 519 是 pre-#11 sat 下移 clip 的產物；本票不鎖、不要求 SA 視口 ALIGNED。
+    expect(Math.abs(sa.battleHpTop - 519)).toBeGreaterThan(GREENLINE_ALIGN_TOL_PX);
   });
 });
