@@ -16,7 +16,7 @@ import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codex
 /* 全關主同一殼。不另鋪戰景／宣紙複本：頂欄與描述紙都透 .home-menu-shell 的 full844。
    頂紙 α 0.42、描述紙 α 0.876，皆不 blur（對齊 peek 列卡透出的山水分量）。
    禁入場動畫：它的 forwards 會把 backdrop-filter: blur(24px) 留在這層，紙就透不到殼。
-   描述帶頂貼綠線、底貼底欄；帶高仍 codexDetailBand。 */
+   描述帶頂＝RECT（#14 密封，對綠線|Δ|≤2）、底貼底欄；帶高仍 codexDetailBand。 */
 
 export interface CharacterDetailProps {
   char: {
@@ -55,7 +55,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   const nameRef = useRef<HTMLHeadingElement>(null);
   const sceneHostRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<{ H: number; s: number; left: number; top: number } | null>(null);
-  /** info：頂＝綠線（≡主頁 peek）；stageH＝H＝493.5−rootTop；height＝navTop−綠線 */
+  /** info：紙頂＝RECT 493.5（#14 密封；對綠線|Δ|≤2）；stageH＝H＝493.5−rootTop；height＝navTop−紙頂 */
   const [layoutBox, setLayoutBox] = useState<{ marginTop: number; height: number; stageH: number } | null>(null);
 
   // 分頁隱藏時暫停立繪動畫（飛劍循環、呼吸）
@@ -70,7 +70,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   }, []);
 
   // 場景框＝主頁 peek 同口徑 H（禁裁 host）；去羽化（無 mask／gradient）；
-  // stageH 跟 peek 聯動（＝H）；info 頂＝綠線；height＝navTop−綠線；禁 absolute 脫流
+  // stageH 跟 peek 聯動（＝H）；info 紙頂＝RECT（#14 marginTop=0）；height＝navTop−紙頂；禁 absolute 脫流
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || typeof ResizeObserver === 'undefined') { setFit(null); setLayoutBox(null); return; }
@@ -138,7 +138,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
       </button>
 
       <div
-        className="codex-inner-stage relative w-full flex items-end justify-center overflow-visible shrink-0 z-10 no-select-drag"
+        className="codex-inner-stage relative w-full flex items-end justify-center overflow-hidden shrink-0 z-10 no-select-drag"
         style={{ height: layoutBox ? layoutBox.stageH : (fit ? fit.H : 0) }}
       >
          {!scene && !layered && (
@@ -285,7 +285,7 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
         data-testid="codex-info-chrome"
         className="codex-inner-desc codex-inner-desc-frost peek-sheet relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0 min-h-0"
         style={{
-          /* 高＝navTop−綠線（設計 px；≡主頁 peek）；頂貼綠線、底貼底欄；紙面 α 見 .codex-inner-desc.peek-sheet */
+          /* 高＝navTop−紙頂（設計 px；紙頂≡RECT 493.5，#14 密封細縫）；底貼底欄；紙面 α 見 .codex-inner-desc.peek-sheet */
           height: layoutBox ? layoutBox.height : undefined,
           marginTop: layoutBox ? layoutBox.marginTop : -12,
           visibility: layoutBox ? 'visible' : 'hidden',

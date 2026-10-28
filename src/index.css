@@ -1328,12 +1328,16 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
 .dark-mode .codex-inner-top-frost {
     background: rgba(13, 11, 9, 0.48);
 }
-/* 舞台層保持 z，蓋在頁底之上；描述紙 z20，α 透殼層山水 */
+/* 舞台層保持 z，蓋在頁底之上；描述紙 z20，α 透殼層山水。
+   #14：overflow:hidden 禁場景／立繪捅進紙頂；紙從 RECT 起密封（見 codexDetailBand）。 */
 .codex-inner-stage,
 .codex-inner > .relative.z-10,
 .codex-inner > [data-testid="codex-info-chrome"] {
     position: relative;
     z-index: 10;
+}
+.codex-inner-stage {
+    overflow: hidden;
 }
 .codex-inner > [data-testid="codex-info-chrome"] {
     z-index: 20;
@@ -1350,8 +1354,9 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
 }
 /* 描述紙色仍是抽屜的 (244,240,232)。
    裸紙 α0.80 是抽屜標題列和列間縫；列卡再疊一層後，山水只剩約 0.124。
-   描述沒有列卡，α 0.876 讓透出的山水分量跟列一樣。不 blur。圓角 0，紙緣貼綠線。
-   不改 .home-drawer（peek 仍是準源）。 */
+   描述沒有列卡，α 0.876 讓透出的山水分量跟列一樣。不 blur。圓角 0。
+   #14：紙頂＝RECT（marginTop 0），頂緣 inset --home-line＝可見綠邊（對概念 495 |Δ|≤2）；
+   禁再留 1.5px 空隙。不改 .home-drawer（peek 仍是準源）。α 仍 0.876（#13）。 */
 .codex-inner-desc.peek-sheet {
     padding-top: var(--peek-sheet-pad-y, 16px);
     padding-bottom: var(--peek-sheet-pad-y, 16px);
@@ -1360,6 +1365,8 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     background-image: none;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+    /* 頂綠線不佔流高（對齊 .codex-inner-top-frost／.home-drawer-bar） */
+    box-shadow: inset 0 1px 0 var(--home-line);
 }
 .dark-mode .codex-inner-desc.peek-sheet {
     background: rgba(13, 11, 9, 0.935);

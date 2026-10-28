@@ -92,7 +92,9 @@ describe('同模式綠線三角', () => {
   it('設計座標：peek、內頁、戰鬥血條頂 |Δ|≤2（不含 sat）', () => {
     const y = triadDesignY();
     expect(y.peek).toBe(495);
-    expect(y.detail).toBeCloseTo(495, 5);
+    // #14：detail 紙頂＝RECT 493.5（密封細縫）；對概念綠線 |Δ|＝1.5≤2
+    expect(y.detail).toBeCloseTo(CHROME_DRAWER_RECT_TOP_Y, 5);
+    expect(Math.abs(y.detail - y.peek)).toBeLessThanOrEqual(2);
     expect(y.battle).toBeCloseTo(495.4, 5);
     expect(span([y.peek, y.detail, y.battle])).toBeLessThanOrEqual(2);
   });

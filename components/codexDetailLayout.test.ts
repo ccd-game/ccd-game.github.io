@@ -1,35 +1,46 @@
 import { describe, expect, it } from 'vitest';
 import { HERO_SCENES, computeHeroFit } from './home/heroScene';
-import { CHROME_ZONE_H } from './tabs/drawerMath';
-import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codexDetailLayout';
+import { CHROME_DRAWER_RECT_TOP_Y, CHROME_GREEN_TOP_Y, CHROME_ZONE_H } from './tabs/drawerMath';
+import {
+  CHROME_GREEN_ALIGN_MAX_DELTA,
+  CHROME_PEEK_OPTICAL_INSET,
+  codexDetailBand,
+  designScaleFromRoot,
+  viewportYToDesign,
+} from './codexDetailLayout';
 
 const NAV_H = 76;
 const DESIGN_H = 844;
 
 describe('codexDetailBand：設計 px 綠線鎖', () => {
-  it('browser 390×844、無 sat／sab：舞台 371.7、描述 273、D≈646.2', () => {
+  it('browser 390×844、無 sat／sab：舞台 371.7、紙從 RECT、D≈646.2', () => {
     const codexTop = CHROME_ZONE_H;
     const navTop = DESIGN_H - NAV_H;
     const band = codexDetailBand(codexTop, navTop);
-    expect(band.marginTop).toBeCloseTo(1.5, 5);
-    expect(band.stageH).toBeCloseTo(493.5 - CHROME_ZONE_H, 5);
-    expect(band.height).toBeCloseTo(navTop - 495, 5);
+    // #14：marginTop＝0（紙蓋 RECT）；禁再留 GREEN−RECT＝1.5 空隙
+    expect(band.marginTop).toBe(0);
+    expect(CHROME_PEEK_OPTICAL_INSET).toBeCloseTo(1.5, 5);
+    expect(band.stageH).toBeCloseTo(CHROME_DRAWER_RECT_TOP_Y - CHROME_ZONE_H, 5);
+    expect(band.height).toBeCloseTo(navTop - CHROME_DRAWER_RECT_TOP_Y, 5);
     expect(band.D).toBeCloseTo(navTop - codexTop, 5);
     expect(codexTop + band.stageH + band.marginTop + band.height).toBeCloseTo(navTop, 5);
   });
 
-  it('standalone contain 不把 sat／sab 加進帶高；綠線與 browser 同在 495', () => {
+  it('standalone contain 不把 sat／sab 加進帶高；紙頂≡RECT，對綠線 |Δ|≤2', () => {
     const browser = codexDetailBand(CHROME_ZONE_H, DESIGN_H - NAV_H);
     const standalone = codexDetailBand(CHROME_ZONE_H, DESIGN_H - NAV_H);
     expect(standalone).toEqual(browser);
-    expect(CHROME_ZONE_H + standalone.stageH + standalone.marginTop).toBeCloseTo(495, 5);
+    const paperTop = CHROME_ZONE_H + standalone.stageH + standalone.marginTop;
+    expect(paperTop).toBeCloseTo(CHROME_DRAWER_RECT_TOP_Y, 5);
+    expect(Math.abs(paperTop - CHROME_GREEN_TOP_Y)).toBeLessThanOrEqual(CHROME_GREEN_ALIGN_MAX_DELTA);
     expect(standalone.height).toBeGreaterThan(200);
   });
 
-  it('nav 在綠線之上時描述高為 0（不寫負高）', () => {
+  it('nav 在紙頂之上時描述高為 0（不寫負高）', () => {
     const band = codexDetailBand(121.8, 400);
     expect(band.height).toBe(0);
     expect(band.stageH).toBeCloseTo(371.7, 5);
+    expect(band.marginTop).toBe(0);
   });
 });
 
@@ -51,6 +62,7 @@ describe('視口座標換回設計 px（letterbox scale）', () => {
       expect(band.stageH).toBeCloseTo(canonical.stageH, 5);
       expect(band.height).toBeCloseTo(canonical.height, 5);
       expect(band.D).toBeCloseTo(canonical.D, 5);
+      expect(band.marginTop).toBe(0);
       const fit = computeHeroFit(liu, 390, band.stageH, Math.round(band.D));
       expect(fit).toEqual(fitCanonical);
     }
