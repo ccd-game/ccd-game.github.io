@@ -180,7 +180,8 @@ html.is-standalone .home-chrome-shell-segs {
   }
 }
 
-/* 底欄圖殼：定高 76＠390；bottom:0 貼底；禁隨 sab 拉高殼圖 */
+/* 底欄圖殼：定高 76＠390；bottom:0 貼底；禁隨 sab 拉高殼圖。
+   圖頂 12/108 是黑線＋淺灰高光。裁掉該段，盒頂就是平綠場，宣紙直接接綠。 */
 .home-chrome-shell--bottom {
   left: 0;
   right: 0;
@@ -188,8 +189,15 @@ html.is-standalone .home-chrome-shell-segs {
   top: auto;
   width: 100%;
   height: 76px;
+  overflow: hidden;
 }
 .home-chrome-shell--bottom img {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  /* 108 列裡丟掉頂 12 列；其餘拉滿 76，底緣仍貼盒底 */
+  height: calc(76px * 108 / 96);
+  top: calc(-12 * 76px / 96);
   object-fit: fill;
   object-position: bottom center;
 }

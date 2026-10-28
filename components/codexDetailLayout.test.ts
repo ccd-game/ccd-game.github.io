@@ -18,11 +18,12 @@ describe('codexDetailBand：設計 px 綠線鎖', () => {
     expect(codexTop + band.stageH + band.marginTop + band.height).toBeCloseTo(navTop, 5);
   });
 
-  it('standalone contain 不把 sat／sab 加進帶高；綠線與 browser 同在 495', () => {
+  it('standalone contain 不把 sat／sab 加進帶高；綠線與 browser 同在 495，描述底貼殼頂 768', () => {
     const browser = codexDetailBand(CHROME_ZONE_H, DESIGN_H - NAV_H);
     const standalone = codexDetailBand(CHROME_ZONE_H, DESIGN_H - NAV_H);
     expect(standalone).toEqual(browser);
     expect(CHROME_ZONE_H + standalone.stageH + standalone.marginTop).toBeCloseTo(495, 5);
+    expect(standalone.height).toBeCloseTo(768 - 495, 5);
     expect(standalone.height).toBeGreaterThan(200);
   });
 

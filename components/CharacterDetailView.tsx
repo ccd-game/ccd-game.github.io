@@ -70,12 +70,13 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   }, []);
 
   // 場景框＝主頁 peek 同口徑 H（禁裁 host）；去羽化（無 mask／gradient）；
-  // stageH 跟 peek 聯動（＝H）；info 頂＝綠線；height＝navTop−綠線；禁 absolute 脫流
+  // stageH 跟 peek 聯動（＝H）；info 頂＝綠線；height＝殼頂−綠線；禁 absolute 脫流
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || typeof ResizeObserver === 'undefined') { setFit(null); setLayoutBox(null); return; }
     const sync = () => {
-      const nav = document.querySelector<HTMLElement>('.home-bar-bottom');
+      // 綠殼頂（76 貼底）。nav 盒在 sab>0 時更高，盒頂會離開綠殼，不能拿來當紙底。
+      const chrome = document.querySelector<HTMLElement>('.home-chrome-shell--bottom');
       const rootRect = root.getBoundingClientRect();
       const canvas = (root.closest('#root') as HTMLElement | null) ?? document.getElementById('root');
       const canvasRect = canvas?.getBoundingClientRect();
@@ -83,8 +84,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
       const origin = canvasRect?.top ?? 0;
       // rect 是 letterbox 縮放後的視口 px；493.5／CSS 高是設計 px。先換算再鎖綠線。
       const codexTop = viewportYToDesign(rootRect.top, origin, scale);
-      const navTop = nav
-        ? viewportYToDesign(nav.getBoundingClientRect().top, origin, scale)
+      const navTop = chrome
+        ? viewportYToDesign(chrome.getBoundingClientRect().top, origin, scale)
         : codexTop + root.offsetHeight;
       const band = codexDetailBand(codexTop, navTop);
       const { stageH, marginTop, height } = band;
@@ -106,8 +107,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
     };
     const ro = new ResizeObserver(sync);
     ro.observe(root);
-    const navEl = document.querySelector<HTMLElement>('.home-bar-bottom');
-    if (navEl) ro.observe(navEl);
+    const chromeEl = document.querySelector<HTMLElement>('.home-chrome-shell--bottom');
+    if (chromeEl) ro.observe(chromeEl);
     sync();
     return () => ro.disconnect();
   }, [scene]);

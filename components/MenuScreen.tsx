@@ -115,6 +115,8 @@ const NAV_GOLD_FRAME_SRC = {
   webp: `${CHROME_BASE}/nav-gold-frame.webp`,
   png: `${CHROME_BASE}/nav-gold-frame.png`,
 };
+/* sheet-nav-flush：金框資產 y55–65 的全寬 tan 橫條已挖透明（亮金環與圓鈕保留）。
+   該條壓在綠殼頂上，眼見＝紙底與綠殼之間的山水帶。 */
 /** nav-gold-ring-r1：asset 1264 × (orbOD 88.9 / assetOD 167) ≈ 673；相對 r5 754＝0.893×；金線頂緣貼殼頂 */
 const NAV_GOLD_FRAME_W = 673;
 
@@ -497,7 +499,8 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         onMouseUp={handleMouseUp}
         style={{
           paddingTop: isSummoning ? 0 : 'var(--hud-vnext-zone-h)', /* zone-lock-r1：內容區 top＝HUD 鎖區高 */
-          paddingBottom: isSummoning ? 0 : 'calc(76px + var(--sab, 0px))',
+          /* 紙底貼綠殼頂（76）。--sab 只加在 nav 盒內；注入 sab 時也不把抽屜／描述紙抬離殼頂。 */
+          paddingBottom: isSummoning ? 0 : '76px',
           touchAction: 'pan-y', // 允許系統接管垂直滾動
           overflow: 'hidden'
         }}
@@ -517,7 +520,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         className={`home-bar home-bar-bottom home-chrome-shell-host absolute bottom-0 left-0 right-0 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}
         data-active-index={activeNavIndex}
         style={{
-            /* 殼＋五鍵錨 76 貼底。Browser --sab＝env()；standalone 外黑邊已吃 sab，畫布內為 0。 */
+            /* 殼＋五鍵錨 76 貼底。Browser --sab＝env()；standalone 外黑邊已吃 sab，畫布內為 0。注入 sab 只墊 nav 盒。 */
             paddingBottom: 'var(--sab, 0px)',
             height: 'calc(76px + var(--sab, 0px))'
         }}
