@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CHARACTER_DETAILS } from '../data/characters';
 import { portraitStyle, portraitKey, LAYERED_PORTRAITS } from '../data/portraits';
-import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, sceneVars, HOME_SHANSHUI, HOME_SHANSHUI_2X } from './home/heroScene';
+import { HERO_SCENES, SCENE_TILES, computeHeroFit, heroBgFrameStyle, heroFigStyle, sceneVars } from './home/heroScene';
 import { hasBossVoice, playBossVoice } from '../src/lib/bossVoice';
 import { wrapSoukouFbParts } from '../src/lib/wrapSoukouFb';
 import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codexDetailLayout';
@@ -13,8 +13,10 @@ import { codexDetailBand, designScaleFromRoot, viewportYToDesign } from './codex
  * 禁再寫死 PEEK_INFO_TOP_Y=495／STAGE_FLOW_H=310／heroPeekHeight N=4（與 tip 綠線 CSS 脫節）。
  * 準源仍 HERO_SCENES＋computeHeroFit；D／H／綠線與主頁同口徑。
  */
-/* desc-frost-r5：叠 r4；頂 frost 透戰鬥日落；描述 frost 透宣紙山水（同抽屜）；α0.80＋blur20；装甲明朝。
-   描述帶頂貼綠線、底貼底欄；內文自上排（不再用雙 flex-1 虚位把姓名／技能垂直置中）。 */
+/* 全關主同一殼。不另鋪戰景／宣紙複本：頂欄與描述紙都透 .home-menu-shell 的 full844。
+   頂紙 α 0.42、描述紙 α 0.876，皆不 blur（對齊 peek 列卡透出的山水分量）。
+   禁入場動畫：它的 forwards 會把 backdrop-filter: blur(24px) 留在這層，紙就透不到殼。
+   描述帶頂貼綠線、底貼底欄；帶高仍 codexDetailBand。 */
 
 export interface CharacterDetailProps {
   char: {
@@ -110,30 +112,8 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
   }, [scene]);
 
   return (
-    <div ref={rootRef} className="codex-inner flex-1 flex flex-col animate-[fadeIn_0.5s_ease-out_forwards] relative" data-testid="codex-inner">
-      {/* frost-r5：戰鬥場景上伸——專供頂欄 frost 采樣日落／火燒雲（cover 級取景，禁 300% 色帶）；禁動 HERO */}
-      <div
-        className="codex-inner-scene-extend"
-        aria-hidden="true"
-        data-testid="codex-scene-extend"
-        style={(scene?.bg || char.bgImg) ? {
-          backgroundImage: `url("${scene?.bg || char.bgImg}")`,
-        } : undefined}
-      />
-      {/* frost-r5：描述區專用宣紙山水（同 .home-shanshui／drawer 下層）；位在 desc frost 下、戰景之上，禁戰景色帶充描述 */}
-      <div
-        className="codex-inner-desc-shanshui"
-        aria-hidden="true"
-        data-testid="codex-desc-shanshui"
-      >
-        <img
-          src={HOME_SHANSHUI}
-          srcSet={`${HOME_SHANSHUI} 1x, ${HOME_SHANSHUI_2X} 2x`}
-          alt=""
-          draggable={false}
-        />
-      </div>
-      {/* frost-r5：頂欄 frost＝drawer-alpha-r3；下層＝戰鬥場景（非宣紙）；不改 MenuScreen／HUD 源 */}
+    <div ref={rootRef} className="codex-inner flex-1 flex flex-col relative" data-testid="codex-inner">
+      {/* 頂紙 α 0.42、不 blur。不鋪戰景／宣紙複本；底下就是 shell full844。Browser／standalone 都跟 --hud-vnext-zone-h。 */}
       <div
         className="codex-inner-top-frost"
         aria-hidden="true"
@@ -302,9 +282,9 @@ const CharacterDetailView: React.FC<CharacterDetailProps> = ({ char, onBack }) =
 
       <div
         data-testid="codex-info-chrome"
-        className="codex-inner-desc codex-inner-desc-frost relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0 min-h-0"
+        className="codex-inner-desc codex-inner-desc-frost peek-sheet relative z-20 px-5 flex flex-col overflow-y-auto custom-scrollbar shrink-0 min-h-0"
         style={{
-          /* 高＝navTop−綠線（設計 px；≡主頁 peek）；頂貼綠線、底貼底欄；frost 見 .codex-inner-desc-frost */
+          /* 高＝navTop−綠線（設計 px；≡主頁 peek）；頂貼綠線、底貼底欄；紙面 α 見 .codex-inner-desc.peek-sheet */
           height: layoutBox ? layoutBox.height : undefined,
           marginTop: layoutBox ? layoutBox.marginTop : -12,
           visibility: layoutBox ? 'visible' : 'hidden',

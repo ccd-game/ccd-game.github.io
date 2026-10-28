@@ -26,6 +26,9 @@
             --theme-transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             --sab: env(safe-area-inset-bottom);
             --sat: env(safe-area-inset-top);
+            /* 描述紙內文上下距。圓角 0＝滿寬直切，紙緣不離開綠線。不走液態玻璃。 */
+            --peek-sheet-pad-y: 16px;
+            --peek-sheet-radius: 0px;
             /* hud-drawer-zone-lock-r1：虛擬 top HUD 佔位高（css px＠390 letterbox）
                實測 max(銅錢底 102.5, EXP文字底 113.844) + 8 = 121.844 → 寫死 121.8 */
             --hud-vnext-zone-h: 121.8px;
@@ -1305,70 +1308,23 @@ html[data-cinematic="1"] .btl-saber-idle { animation-play-state: paused !importa
 /* 入陣小視窗開著：主頁預覽動畫（呼吸、飛劍、佩刀浮動、火星…）原地暫停，取消後由同一位置繼續；陀螺儀另以 data-enter-freeze 凍結 */
 html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { animation-play-state: paused !important; }
 
-/* ===== codex-inner-polish-r1＋desc-frost-r2…r5：兩區下層分開——頂＝戰鬥場景；描述＝宣紙山水（禁羽化；禁抬 chrome）===== */
+/* 圖鑑內頁不另鋪戰景／宣紙複本。頁底就是 .home-menu-shell 的 full844。
+   假說#1：描述帶與頂欄若自鋪一張圖，取景就跟殼上的 peek 分家，所以這兩層已刪。
+   禁入場動畫套在這層：fade 的 forwards 會留下 backdrop-filter: blur(24px)，
+   這層變成 backdrop root，頂紙／描述紙的 α 就透不到殼。 */
 .codex-inner {
-    background: transparent !important; /* 禁硬素色；頂區戰景由 scene-extend 蓋，描述區由 desc-shanshui 蓋 */
-    /* frost-r5：拆 isolation——免 backdrop-filter 被挡，令頂／描述 frost 真采樣下層像素 */
+    background: transparent !important;
     isolation: auto;
-    /* frost-r2：禁裁負 top 場景上伸；捲動改由 info 欄自行 overflow-y-auto */
+    opacity: 1;
+    filter: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    animation: none;
     overflow: visible !important;
 }
-/* frost-r5：戰鬥場景＝頂欄 frost 下層（日落／火燒雲）。cover＋上移令火燒雲落入頂欄；
-   禁 r4 auto 300% 放大色帶；描述區另由 .codex-inner-desc-shanshui 盖，勿靠戰景充描述紋 */
-.codex-inner-scene-extend {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: calc(-1 * var(--hud-vnext-zone-h, 121.8px));
-    height: calc(100% + var(--hud-vnext-zone-h, 121.8px));
-    z-index: 0;
-    pointer-events: none;
-    background-color: #0a0a0a; /* 對齊 battle-scene-layer 深色墊 */
-    background-size: cover; /* 近原比例，紋理可過 blur20 */
-    background-position: center -169px; /* ≈源圖 22%（火燒雲）對齊視口頂 */
-    background-repeat: no-repeat;
-}
-.dark-mode .codex-inner-scene-extend {
-    filter: brightness(0.85);
-}
-/* frost-r5：描述區宣紙山水——與主頁 shell／peek 同一張 full844、同一段裁切；
-   onesource-peek-r1：盒頂≡主頁 peek rect（493.5−zone），勿再寫死 495＠viewport；
-   img 自 shell 頂對齊，裁切窗＝抽屜 peek 同帶筆觸。
-   desc-shanshui-cover：鎖設計畫布 390×844，object-fit:cover＋center top
-   （≡ shell background-position:center top）。禁把圖拉進紙盒或 160% 寬：
-   舊 width:160%＋object-fit:fill 把 390×844 橫向拉成約 1.6 倍，松山被壓扁。
-   禁 height:100dvh——dvh 是視口不是設計畫布，letterbox 時會再拉高。 */
-.codex-inner-desc-shanshui {
-    position: absolute;
-    left: 0;
-    right: 0;
-    /* ≡ 主頁 --peek-h 公式：hero 底／drawer rect 頂相對 root */
-    top: calc(493.5px - var(--hud-vnext-zone-h, 121.8px));
-    bottom: 0; /* 貼 root 底＝底欄上緣 */
-    z-index: 1; /* 在 scene-extend 上、stage／desc frost 下 */
-    overflow: hidden;
-    pointer-events: none;
-    background: transparent;
-}
-.codex-inner-desc-shanshui img {
-    display: block;
-    position: absolute;
-    left: 0;
-    width: 100%; /* ≡ shell 寬；勿 160% */
-    max-width: none; /* 拆 Tailwind preflight img{max-width:100%} */
-    /* 盒在設計 y 493.5（rect）；img 頂對齊 shell 頂（≡ shell bg／.home-shanshui） */
-    top: -493.5px;
-    height: calc(var(--game-design-h) * 1px); /* 844：與 full844／shell 同高，不跟視口 */
-    object-fit: cover; /* 保 390:844；盒與圖同比例時≡不裁、不拉 */
-    object-position: center top; /* ≡ shell background-position: center top */
-    pointer-events: none;
-    user-select: none;
-    -webkit-user-drag: none;
-}
-.dark-mode .codex-inner-desc-shanshui {
-    opacity: 0; /* dark 無宣紙；frost dark 仍 0.88 */
-}
-/* frost-r5：頂欄 frost＝drawer-alpha-r3 同數字；下層＝戰鬥場景（非宣紙）；不改 .home-bar-top */
+/* 頂紙與抽屜同色 (244,240,232)，α 0.42。不 blur、不鋪第二張背景。
+   底緣用 --home-line，不佔 1px。高跟 --hud-vnext-zone-h（standalone 含 --sat）。
+   不改 .home-bar-top。 */
 .codex-inner-top-frost {
     position: absolute;
     left: 0;
@@ -1377,18 +1333,17 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     height: var(--hud-vnext-zone-h, 121.8px);
     z-index: 5;
     pointer-events: none;
-    background: rgba(244, 240, 232, 0.80);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
+    background: rgba(244, 240, 232, 0.42);
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: none;
+    box-shadow: inset 0 -1px 0 var(--home-line);
 }
 .dark-mode .codex-inner-top-frost {
-    background: rgba(13, 11, 9, 0.88);
+    background: rgba(13, 11, 9, 0.48);
 }
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .codex-inner-top-frost { background: rgba(244, 240, 232, 0.96); }
-    .dark-mode .codex-inner-top-frost { background: rgba(13, 11, 9, 0.96); }
-}
-/* 舞台層保持 z；描述 shanshui z1 勿盖舞台立繪 */
+/* 舞台層保持 z，蓋在頁底之上；描述紙 z20，α 透殼層山水 */
 .codex-inner-stage,
 .codex-inner > .relative.z-10,
 .codex-inner > [data-testid="codex-info-chrome"] {
@@ -1408,18 +1363,21 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     font-family: 'GenWan Mincho SB', 'Source Han Serif TC', 'Noto Serif CJK TC', serif !important;
     font-weight: 1000 !important;
 }
-/* frost-r5：描述 frost＝drawer-alpha-r3 同數字（禁降 α）；下層＝宣紙山水筆觸 */
-.codex-inner-desc-frost {
-    background: rgba(244, 240, 232, 0.80);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
+/* 描述紙色仍是抽屜的 (244,240,232)。
+   裸紙 α0.80 是抽屜標題列和列間縫；列卡再疊一層後，山水只剩約 0.124。
+   描述沒有列卡，α 0.876 讓透出的山水分量跟列一樣。不 blur。圓角 0，紙緣貼綠線。
+   不改 .home-drawer（peek 仍是準源）。 */
+.codex-inner-desc.peek-sheet {
+    padding-top: var(--peek-sheet-pad-y, 16px);
+    padding-bottom: var(--peek-sheet-pad-y, 16px);
+    border-radius: var(--peek-sheet-radius, 0px);
+    background: rgba(244, 240, 232, 0.876);
+    background-image: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
-.dark-mode .codex-inner-desc-frost {
-    background: rgba(13, 11, 9, 0.88);
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .codex-inner-desc-frost { background: rgba(244, 240, 232, 0.96); }
-    .dark-mode .codex-inner-desc-frost { background: rgba(13, 11, 9, 0.96); }
+.dark-mode .codex-inner-desc.peek-sheet {
+    background: rgba(13, 11, 9, 0.935);
 }
 /* frost-r5：技能卡禁再叠實白／blur 盖死山水（父層已有 frost） */
 .codex-inner-desc-frost [data-testid="codex-skill-block"] > div {
