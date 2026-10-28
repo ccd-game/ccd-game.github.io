@@ -1331,10 +1331,13 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
 .dark-mode .codex-inner-scene-extend {
     filter: brightness(0.85);
 }
-/* frost-r5：描述區宣紙山水——與主頁 .home-shanshui／shell full844 同資產同切片；
+/* frost-r5：描述區宣紙山水——與主頁 shell／peek 同一張 full844、同一段裁切；
    onesource-peek-r1：盒頂≡主頁 peek rect（493.5−zone），勿再寫死 495＠viewport；
-   img 自 shell 頂對齊，裁切窗＝抽屜 peek 同帶筆觸
-   frost-r6：水平 clip——加寬＋左對齊，令 full844 左緣松岩落入中軸 */
+   img 自 shell 頂對齊，裁切窗＝抽屜 peek 同帶筆觸。
+   desc-shanshui-cover：鎖設計畫布 390×844，object-fit:cover＋center top
+   （≡ shell background-position:center top）。禁把圖拉進紙盒或 160% 寬：
+   舊 width:160%＋object-fit:fill 把 390×844 橫向拉成約 1.6 倍，松山被壓扁。
+   禁 height:100dvh——dvh 是視口不是設計畫布，letterbox 時會再拉高。 */
 .codex-inner-desc-shanshui {
     position: absolute;
     left: 0;
@@ -1351,16 +1354,13 @@ html[data-home-pause="1"] .home-hero, html[data-home-pause="1"] .home-hero * { a
     display: block;
     position: absolute;
     left: 0;
-    /* r6：等价水平 clip——寬 160%＋左緣對齊，盒內見源圖左≈0–62.5%；中軸≈源 31%（松岩帶）
-       必拆 Tailwind preflight img{max-width:100%}，否則 160% 被卡成 390 */
-    width: 160%;
-    max-width: none;
-    /* 盒在 vp 493.5（rect）；img 頂對齊 vp0（≡ shell／.home-shanshui img） */
+    width: 100%; /* ≡ shell 寬；勿 160% */
+    max-width: none; /* 拆 Tailwind preflight img{max-width:100%} */
+    /* 盒在設計 y 493.5（rect）；img 頂對齊 shell 頂（≡ shell bg／.home-shanshui） */
     top: -493.5px;
-    height: 100dvh;
-    min-height: 844px;
-    object-fit: fill; /* ≡ shell background-size:100% 100%（高度仍鎖 full844） */
-    object-position: left top; /* r6：水平左緣優先（对位参数） */
+    height: calc(var(--game-design-h) * 1px); /* 844：與 full844／shell 同高，不跟視口 */
+    object-fit: cover; /* 保 390:844；盒與圖同比例時≡不裁、不拉 */
+    object-position: center top; /* ≡ shell background-position: center top */
     pointer-events: none;
     user-select: none;
     -webkit-user-drag: none;
