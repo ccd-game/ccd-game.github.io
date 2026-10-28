@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CHROME_DRAWER_RECT_TOP_Y, CHROME_ZONE_H } from '../../components/tabs/drawerMath';
 import { BATTLE_SCENES, HOME_NAV_H, HOME_TOP_BAR_H, BATTLE_ANCHORS, computeGroundedBattle } from '../../data/battleLayout';
 import {
   BATTLE_HOLD_GEOM_390,
@@ -13,8 +14,9 @@ import {
 } from '../../components/home/heroScene';
 
 /**
- * one-source-geom-battle-r2b（叠 peek-h）：廢柳 homeSync／restOnBg；有 heroSync 的關只讀 HERO_SCENES。
- * 戰鬥 hold＝主頁 peek（同 viewport 下 computeHeroFit＋bgZoom＋rest／figScale）；peek≡CSS。
+ * one-source-geom-battle-r2b：廢柳 homeSync／restOnBg；有 heroSync 的關只讀 HERO_SCENES。
+ * 這裡的「hold＝公式宿主」指戰鬥**無** homeBox 時用 `heroPeekHeight`（N=4≈400.8）。
+ * 那不是綠線 CSS 槽。可見綠線帶見 `greenlineBand`（同態三邊，禁抬 peek 到 400.8）。
  */
 describe('one-source：heroSync→HERO（廢 homeSync）', () => {
   const heroSyncBosses = Object.entries(BATTLE_SCENES).filter(([, sc]) => sc.heroSync);
@@ -38,7 +40,7 @@ describe('one-source：heroSync→HERO（廢 homeSync）', () => {
     expect(BATTLE_TO_HERO_KEY[battleKey]).toBe(sc.heroSync);
   });
 
-  it('柳 390×844：戰鬥 hold＝peek 幾何（L/T/scale/faceX Δ＝0；peek≡CSS）', () => {
+  it('柳 390×844：無 homeBox 的 hold＝heroPeekHeight 公式（不是綠線 CSS 槽）', () => {
     const W = 390, H = 844;
     const D = H - HOME_TOP_BAR_H - HOME_NAV_H;
     const Hp = heroPeekHeight(D);
@@ -76,7 +78,7 @@ describe('one-source：heroSync→HERO（廢 homeSync）', () => {
     expect(Math.abs(battle.layout.faceX - 191.6956765036499)).toBeLessThan(0.2);
   });
 
-  it('孔 390×844：戰鬥 hold＝peek（heroSync；CSS peek→scale≈0.791）', () => {
+  it('孔 390×844：無 homeBox 的 hold＝heroPeekHeight（N=4 宿主→scale≈0.791，不是綠線 CSS）', () => {
     const W = 390, H = 844;
     const D = H - HOME_TOP_BAR_H - HOME_NAV_H;
     const fit = computeHeroFit(HERO_SCENES.kong_zi, W, heroPeekHeight(D), D);
@@ -89,7 +91,7 @@ describe('one-source：heroSync→HERO（廢 homeSync）', () => {
     expect(battle.sceneBox.left).toBeCloseTo(fit.left, 6);
     expect(battle.sceneBox.top).toBeCloseTo(HOME_TOP_BAR_H + fit.top, 6);
     expect(battle.layout.scale).toBeCloseTo(fit.s, 6);
-    // peek-h：CSS peek → ≈0.791（舊式 peek≈0.7837）
+    // N=4 公式宿主 → ≈0.791。綠線 CSS 槽是 rect−zone，不要求抬到這個 scale。
     expect(battle.layout.scale).toBeCloseTo(0.791, 2);
     expect(Math.abs(battle.layout.left - (-206.78125))).toBeLessThan(0.5);
     expect(Math.abs(battle.layout.top - 15.51)).toBeLessThan(0.3);
@@ -125,30 +127,31 @@ describe('align-v1315-home-r1：柳／孔 HERO 數字不變（禁改準源）', 
 });
 
 /**
- * home-preview-follow-battle-size-r2＋peek-h：
- * 準源＝戰鬥 hold @390×844（柳 crop box scale≈0.528；孔全幅≈0.791＠CSS peek）。
- * 主頁 peek／圖鑑同讀 HERO；禁 restOnBg 第二套。
+ * 戰鬥無 homeBox 的公式宿主（N=4）自洽：柳 scale≈0.528、孔≈0.791。
+ * 這組宿主不是綠線 CSS `.home-hero` 實高，禁止把它寫成 peek 必須 400.8。
+ * 主頁有 homeBox 時戰鬥跟實測槽，不跟這組數字。
  */
-describe('size-r2：三頁跟戰鬥 hold 準源（live chrome；peek≡CSS）', () => {
+describe('size-r2：無 homeBox 公式宿主自洽（不是綠線 CSS 槽）', () => {
   const W = 390;
-  /** PW 實測：hud zone／dungeon 高／英雄區高（browser 非 SA、抽屜 open） */
+  /** 舊 PW 的 zone／dungeon 高；宿主改由公式算出，不再把 400.8125 當成 .home-hero.clientHeight。 */
   const HUD = 121.796875;
   const D = 646.203125; // .home-dungeon.clientHeight
-  const HeroH = 400.8125; // .home-hero.clientHeight
+  const n4Host = heroPeekHeight(D);
 
-  it('heroPeekHeight ≡ CSS --peek-h（N=4：bar+14+(D−bar−56)/3）→ H≈400.802＠D≈646.2', () => {
-    const Hp = heroPeekHeight(D);
-    expect(Hp).toBeCloseTo(400.80208333333337, 5);
-    expect(Math.abs(Hp - HeroH)).toBeLessThanOrEqual(0.02);
-    expect(Hp).toBeCloseTo(D - (52 + 14 + (D - 52 - 56) / 3), 10);
+  it('N=4 heroPeekHeight≈400.8＠D≈646.2；與綠線宿主（rect−zone）差一截', () => {
+    expect(n4Host).toBeCloseTo(400.80208333333337, 5);
+    expect(n4Host).toBeCloseTo(D - (52 + 14 + (D - 52 - 56) / 3), 10);
+    const greenHost = CHROME_DRAWER_RECT_TOP_Y - CHROME_ZONE_H;
+    expect(Math.abs(n4Host - greenHost)).toBeGreaterThan(2);
+    expect(Math.abs(greenHost - 400.8)).toBeGreaterThan(2);
   });
 
   const LIU_TARGET = { left: -204.3043122530318, top: 130.63806372829907, scale: 0.527999985008909, faceX: 191.6956765036499 };
   const KONG_TARGET = { left: -206.78125, top: 15.5625, scale: 0.79093017578125, faceX: 195.011279296875 };
 
-  it('柳：peek 人物 scale／face／cap 跟戰鬥 hold 準源（HERO rest／figScale；禁 restOnBg）', () => {
+  it('柳：N=4 宿主上的人物 scale／face 跟無 homeBox hold（HERO rest／figScale；禁 restOnBg）', () => {
     const hero = HERO_SCENES.liu_zong_yuan;
-    const fit = computeHeroFit(hero, W, HeroH, D);
+    const fit = computeHeroFit(hero, W, n4Host, D);
     const charScale = fit.s * (hero.figScale ?? 1);
     const [rx, ry] = hero.rest!;
     const rfx = hero.footX!, rfy = hero.foot;
@@ -167,9 +170,9 @@ describe('size-r2：三頁跟戰鬥 hold 準源（live chrome；peek≡CSS）', 
     expect(BATTLE_SCENES.liu_zong_yuan_battle.restOnBg).toBeUndefined();
   });
 
-  it('孔：peek 場景 box 跟戰鬥 hold 準源（heroSync 同源 HERO；CSS peek）', () => {
+  it('孔：N=4 宿主上的場景 box 跟無 homeBox hold（heroSync 同源 HERO）', () => {
     const hero = HERO_SCENES.kong_zi;
-    const fit = computeHeroFit(hero, W, HeroH, D);
+    const fit = computeHeroFit(hero, W, n4Host, D);
     expect(hero.figScale ?? 1).toBe(1);
     const left = fit.left;
     const top = HUD + fit.top;
@@ -184,10 +187,10 @@ describe('size-r2：三頁跟戰鬥 hold 準源（live chrome；peek≡CSS）', 
     expect(BATTLE_SCENES.kong_zi_character.heroSync).toBe('kong_zi');
   });
 
-  it('柳／孔：圖鑑內頁與主頁 peek 同讀 HERO（fit.s 同源）', () => {
+  it('柳／孔：同一 N=4 宿主下 home／codex 同讀 HERO（fit.s 同源）', () => {
     for (const key of ['liu_zong_yuan', 'kong_zi'] as const) {
-      const home = computeHeroFit(HERO_SCENES[key], W, HeroH, D);
-      const codex = computeHeroFit(HERO_SCENES[key], W, heroPeekHeight(D), D);
+      const home = computeHeroFit(HERO_SCENES[key], W, n4Host, D);
+      const codex = computeHeroFit(HERO_SCENES[key], W, n4Host, D);
       expect(codex.s).toBeCloseTo(home.s, 3);
     }
   });
@@ -224,8 +227,8 @@ describe('one-source：homeBox 入陣亦讀 HERO figScale（禁 scene.s 當人�
 });
 
 /**
- * one-source-geom-home-r1＋battle-r2b：HERO／SCENE_GEOMETRY＝唯一幾何準源。
- * 柳戰鬥已廢 homeSync；預覽／圖鑑／戰鬥同讀；peek≡CSS。
+ * one-source-geom-home-r1＋battle-r2b：HERO／SCENE_GEOMETRY＝人物幾何準源。
+ * 柳戰鬥已廢 homeSync。綠線帶（抽屜／描述／血條頂）另見 greenlineBand，不把 peek≡N=4 CSS。
  */
 describe('one-source：SCENE_GEOMETRY 唯一準源', () => {
   it('SCENE_GEOMETRY ≡ HERO_SCENES（同一物件參照）', () => {
@@ -261,18 +264,18 @@ describe('one-source：SCENE_GEOMETRY 唯一準源', () => {
     expect(BATTLE_TO_HERO_KEY.kong_zi_character).toBe('kong_zi');
   });
 
-  it('BATTLE_HOLD_GEOM_390 鎖準源 scale（柳 0.528／孔 ≈0.791＠CSS peek）', () => {
+  it('BATTLE_HOLD_GEOM_390 鎖無 homeBox 公式 scale（柳 0.528／孔 ≈0.791；不是綠線 CSS 槽）', () => {
     expect(BATTLE_HOLD_GEOM_390.liu_zong_yuan.scale).toBeCloseTo(0.528, 3);
     expect(BATTLE_HOLD_GEOM_390.kong_zi.scale).toBeCloseTo(0.791, 2);
   });
 
-  it('預覽／圖鑑同 D：heroCharScale 相同（禁分叉；peek≡CSS）', () => {
-    const W = 390, D = 646.203125, HeroH = 400.8125;
-    expect(heroPeekHeight(D)).toBeCloseTo(400.80208333333337, 5);
+  it('同一 N=4 宿主：home／codex 的 heroCharScale 相同（不是綠線 CSS 實高）', () => {
+    const W = 390, D = 646.203125;
+    const n4Host = heroPeekHeight(D);
     for (const key of ONE_SOURCE_ACCEPTANCE_HEROES) {
       const sc = SCENE_GEOMETRY[key];
-      const home = computeHeroFit(sc, W, HeroH, D);
-      const codex = computeHeroFit(sc, W, heroPeekHeight(D), D);
+      const home = computeHeroFit(sc, W, n4Host, D);
+      const codex = computeHeroFit(sc, W, n4Host, D);
       expect(heroCharScale(sc, codex.s)).toBeCloseTo(heroCharScale(sc, home.s), 5);
       expect(codex.s).toBeCloseTo(home.s, 5);
       expect(codex.left).toBeCloseTo(home.left, 2);

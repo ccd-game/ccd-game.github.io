@@ -3,7 +3,7 @@ import { drawerPeekH, progressFromY, CHROME_GREEN_TOP_Y, CHROME_DRAWER_RECT_TOP_
 
 const PEEK_MIN_ROWS = 4;
 
-describe('drawerPeekH (green-align visual paper Y=495)', () => {
+describe('drawerPeekH（設計座標紙緣；495 不是跨態視口神諭）', () => {
   it('390×844 D≈646.2 → peekH≈275.5（rect頂＝493.5→可見紙緣≈495）', () => {
     const H = 844 - CHROME_ZONE_H - 76; // dungeon h
     const peek = drawerPeekH(H, 52, PEEK_MIN_ROWS);

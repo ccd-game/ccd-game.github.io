@@ -41,11 +41,11 @@ describe('孔子 v3 三層場景（第 6 關）', () => {
     expect(r.layout.scale).toBeCloseTo(0.7339, 6);
   });
 
-  it('390×844：孔場景頂≈peek（hud-vnext 121.8）；figScale 缺省＝1（v1.3.15）', () => {
+  it('390×844：無 homeBox 孔場景頂（hud-vnext 121.8＋N=4）；figScale 缺省＝1（v1.3.15）', () => {
     const W = 390, H = 844, D = H - HOME_TOP_BAR_H - HOME_NAV_H, Hp = heroPeekHeight(D);
     const kz = computeHeroFit(HERO_SCENES.kong_zi, W, Hp, D);
     const lz = computeHeroFit(HERO_SCENES.liu_zong_yuan, W, Hp, D);
-    // one-source-geom-battle-r2b＋peek-h：HOME_TOP_BAR_H＝121.8＋CSS peek → 場景頂≈+15.51（舊式 peek 曾≈16.63）
+    // 無 homeBox：HOME_TOP_BAR_H＝121.8＋N=4 heroPeekHeight → 場景頂≈+15.51。不是綠線 CSS 槽。
     expect(HOME_TOP_BAR_H + kz.top).toBeCloseTo(15.51, 1);
     expect(kz.top + 720 * kz.s).toBeGreaterThanOrEqual(Hp - 0.5); // 首頁／圖鑑底不露
     expect(kz.top + 149.5 * kz.s).toBeGreaterThanOrEqual(11.9);    // 車蓋頂飾不出框
