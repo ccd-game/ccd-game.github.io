@@ -1063,10 +1063,11 @@
         .home-hero-slot { position: absolute; left: 0; right: 0; top: 0; bottom: var(--peek-h); transition: bottom .48s cubic-bezier(.22,1,.36,1); }
         .home-drawer {
             position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column;
-            /* home-xuan-r11-tryfit-r3：抽屜 frost 更不透（字穩）；alpha 0.30→0.80；blur 維持 20 */
+            /* peek-drawer-shell-alpha：禁 backdrop-filter——抽屜自身 translate3d＋#root scale/isolation
+               會令 frost 采樣失效（Br／SA 紙面變實心）。對齊 #13：純 α 透 .home-menu-shell full844。 */
             background: rgba(244, 240, 232, 0.80);
-            -webkit-backdrop-filter: blur(20px); /* 先寫 -webkit-：Safari／iOS */
-            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
             box-shadow: 0 -10px 24px rgba(0,0,0,.28);
             transform: translate3d(0, calc(100% - var(--bar-h)), 0);
             transition: transform .48s cubic-bezier(.22,1,.36,1);
@@ -1074,11 +1075,9 @@
             touch-action: pan-y;
         }
         .dark-mode .home-drawer {
-            background: rgba(13, 11, 9, 0.88); /* ≈0.42×(0.80/0.38) */
-        }
-        @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-            .home-drawer { background: rgba(244, 240, 232, 0.96); }
-            .dark-mode .home-drawer { background: rgba(13, 11, 9, 0.96); }
+            background: rgba(13, 11, 9, 0.88);
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
         }
         .home-drawer.is-peek { transform: translate3d(0, calc(100% - var(--peek-h)), 0); }
         .home-drawer.is-open { transform: translate3d(0, 0, 0); }

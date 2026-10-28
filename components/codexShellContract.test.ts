@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * 圖鑑內頁與 peek 同構：不另鋪戰景／宣紙複本，紙透 .home-menu-shell。
- * 頂紙 α 0.42、描述紙 α 0.876，皆不 blur。綠線 493.5 與抽屜紙不動。
+ * 頂紙 α 0.42、描述紙 α 0.876，皆不 blur。綠線 493.5 與抽屜紙不動；抽屜同禁 blur（純 α 透殼）。
  */
 const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
 const detail = readFileSync(new URL('./CharacterDetailView.tsx', import.meta.url), 'utf8');
@@ -19,7 +19,8 @@ describe('codex detail shell contract', () => {
     expect(css).toContain('--peek-h: calc(100% - (493.5px - var(--hud-vnext-zone-h)))');
     const drawer = block(css, '.home-drawer {');
     expect(drawer).toContain('rgba(244, 240, 232, 0.80)');
-    expect(drawer).toContain('blur(20px)');
+    expect(drawer).toContain('backdrop-filter: none');
+    expect(drawer).not.toContain('blur(');
   });
 
   it('drops the detail battle and shanshui underlays', () => {
