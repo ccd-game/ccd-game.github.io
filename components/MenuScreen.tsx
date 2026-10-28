@@ -497,7 +497,7 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         onMouseUp={handleMouseUp}
         style={{
           paddingTop: isSummoning ? 0 : 'var(--hud-vnext-zone-h)', /* zone-lock-r1：內容區 top＝HUD 鎖區高 */
-          paddingBottom: isSummoning ? 0 : 'calc(76px + env(safe-area-inset-bottom))',
+          paddingBottom: isSummoning ? 0 : 'calc(76px + var(--sab, 0px))',
           touchAction: 'pan-y', // 允許系統接管垂直滾動
           overflow: 'hidden'
         }}
@@ -517,9 +517,9 @@ const MenuScreen: React.FC<MenuScreenProps> = ({ levels, onSelect, viewingCharac
         className={`home-bar home-bar-bottom home-chrome-shell-host absolute bottom-0 left-0 right-0 z-50 transition-all duration-500 ${isSummoning ? 'opacity-0 translate-y-full pointer-events-none' : 'opacity-100 translate-y-0 pointer-events-auto'}`}
         data-active-index={activeNavIndex}
         style={{
-            /* 殼＋五鍵錨 76 貼底；sab 只墊底不抬內容（修 standalone 五鍵飛起） */
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-            height: 'calc(76px + env(safe-area-inset-bottom, 0px))'
+            /* 殼＋五鍵錨 76 貼底。Browser --sab＝env()；standalone 外黑邊已吃 sab，畫布內為 0。 */
+            paddingBottom: 'var(--sab, 0px)',
+            height: 'calc(76px + var(--sab, 0px))'
         }}
       >
         <picture className="home-chrome-shell home-chrome-shell--bottom" aria-hidden="true">

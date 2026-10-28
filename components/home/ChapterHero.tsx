@@ -125,6 +125,7 @@ const ChapterHero: React.FC<ChapterHeroProps> = ({ levels, featured, activeId, o
     const sc = scene;
     const dungeon = hero.closest<HTMLElement>('.home-dungeon');
     const sync = () => {
+      // clientWidth／clientHeight 是 #root 設計 px，不含外層 --game-scale。SA 不再改這個框。
       const W = hero.clientWidth, H = hero.clientHeight;
       if (!W || !H) return;
       const bar = dungeon ? parseFloat(getComputedStyle(dungeon).getPropertyValue('--bar-h')) || 52 : 52;

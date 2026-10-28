@@ -30,16 +30,19 @@
             --peek-sheet-pad-y: 16px;
             --peek-sheet-radius: 0px;
             /* hud-drawer-zone-lock-r1：虛擬 top HUD 佔位高（css px＠390 letterbox）
-               實測 max(銅錢底 102.5, EXP文字底 113.844) + 8 = 121.844 → 寫死 121.8 */
+               實測 max(銅錢底 102.5, EXP文字底 113.844) + 8 = 121.844 → 寫死 121.8
+               SA contain：zone 不加 sat。瀏海由畫布外黑邊吃掉。 */
             --hud-vnext-zone-h: 121.8px;
         }
+        /* 畫布內歸零。外層不 padding env(safe-area-*)；上下黑邊是視口置中留白，等厚。 */
         html.is-standalone {
-            /* home-standalone-layout-r1：基線 121.8；standalone 另加 --sat（後備 env） */
-            --hud-vnext-zone-h: calc(121.8px + var(--sat, env(safe-area-inset-top, 0px)));
+            --sat: 0px;
+            --sab: 0px;
         }
         @media (display-mode: standalone), (display-mode: fullscreen) {
             :root {
-                --hud-vnext-zone-h: calc(121.8px + var(--sat, env(safe-area-inset-top, 0px)));
+                --sat: 0px;
+                --sab: 0px;
             }
         }
 
@@ -73,11 +76,15 @@
             }
         }
 
-        /* letterbox-390: design canvas fixed 390×844; outer black bars; uniform scale */
+        /* letterbox-390: design canvas fixed 390×844; outer black bars; one uniform scale on #root */
         :root {
             --game-design-w: 390;
             --game-design-h: 844;
             --game-scale: 1;
+        }
+
+        html {
+            background-color: #000;
         }
 
         body {
@@ -220,31 +227,9 @@
             background-color: #0a0a0a;
         }
 
-        /*
-         * standalone 戰鬥補償：全域 html.is-standalone #root::before（sat 黑邊）會蓋住
-         * absolute inset-0 戰鬥頂部。戰鬥殼改自 sat 起算，百分比疊層（40% 底區／答槽／HP）
-         * 在可用高度內重算，避免答槽貼血條、底鍵區被撐溢。主頁 ::before 根因建議另限主頁。
-         */
-        html.is-standalone .battle-clip {
-            top: var(--sat, env(safe-area-inset-top, 0px));
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: auto;
-            overflow: hidden;
-        }
-        @media (display-mode: standalone), (display-mode: fullscreen) {
-            .battle-clip {
-                top: var(--sat, env(safe-area-inset-top, 0px));
-                bottom: 0;
-                left: 0;
-                right: 0;
-                height: auto;
-                overflow: hidden;
-            }
-        }
+        /* SA 戰鬥與主頁共用 #root 縮放。.battle-clip 維持 inset-0，不再用 sat 下移。 */
 
-        /* sab 只墊 InputPad 內部；底區 overflow 裁切，不撐 absolute 答槽／HP 疊層 */
+        /* 底區 overflow 裁切，不撐 absolute 答槽／HP 疊層 */
         .battle-input-zone {
             overflow: hidden;
         }
@@ -509,8 +494,8 @@
             border-bottom: none;
         }
         .home-bar-top { border-bottom: none; /* r3：去硬切縫線（原 1px var(--home-line)） */
-            /* r9: Dynamic Island 緊湊避開；僅小幅 padding-top，勿大塊 sat 空白 */
-            padding-top: max(2px, env(safe-area-inset-top, 0px));
+            /* r9: 僅小幅 padding-top。Browser 的 --sat＝env()；standalone 畫布內 --sat＝0（外黑邊已吃）。 */
+            padding-top: max(2px, var(--sat, env(safe-area-inset-top, 0px)));
             box-sizing: border-box;
         }
         .home-bar-top.home-chrome-shell-host { border-bottom: none; overflow: visible; }
@@ -521,8 +506,8 @@
         .home-bar-top .home-hud-stack .home-name { line-height: 1; }
         .home-guest-tag { display: none !important; } /* home HUD 無遊客標 */
         .home-bar-bottom { border-top: 1px solid var(--home-line);
-            /* r9: 底欄貼底＋safe-area（內容墊；殼本身 bottom:0） */
-            padding-bottom: env(safe-area-inset-bottom, 0px);
+            /* r9: Browser 用 --sab＝env()。standalone 畫布內 --sab＝0，底欄不再加高。 */
+            padding-bottom: var(--sab, env(safe-area-inset-bottom, 0px));
             box-sizing: border-box;
             overflow: visible; /* 金框可上突 */
         }

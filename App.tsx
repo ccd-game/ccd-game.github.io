@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { GameStatus, GameState, Question, QuestionType, LevelConfig, getBossAttackStyle, isWeaponAttackStyle, weaponAttackTiming, X_SLASH_TIMING } from './types';
-import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle, readBattleInsets, type BattleInsets } from './data/battleLayout';
+import { BATTLE_ANCHORS, BATTLE_SCENES, battleAnchorKey, computeBattleLayout, computeGroundedBattle } from './data/battleLayout';
 import { MAX_HP, TURN_TIME, ANIMATION_CONFIG, UI_STATIC_TEXT, BOSS_MAX_HP, CORRECT_ANSWER_DAMAGE, WRONG_ANSWER_DAMAGE, BOSS_HP_SPEECH_THRESHOLDS, QUESTIONS_EXHAUSTED_POLICY } from './constants';
 import { computeDamageDetail, playerHpAfterBossHit } from './src/lib/battleRules';
 import { newBattleOrder, isQuestionsExhausted } from './src/lib/battleQuestions';
@@ -444,35 +444,6 @@ const App: React.FC = () => {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
-
-  // standalone inset：戰鬥場景改 letterbox 置中（scale 仍是 Browser 全高公式）。Browser 無 standalone 時 insets 不進可玩區。
-  const [battleInsets, setBattleInsets] = useState<BattleInsets>(() => readBattleInsets());
-  useEffect(() => {
-    let raf = 0;
-    const pull = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const next = readBattleInsets();
-        setBattleInsets(prev => (
-          prev.standalone === next.standalone && prev.sat === next.sat && prev.sab === next.sab ? prev : next
-        ));
-      });
-    };
-    pull();
-    const mq = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)');
-    mq.addEventListener('change', pull);
-    window.addEventListener('resize', pull);
-    window.visualViewport?.addEventListener('resize', pull);
-    const mo = new MutationObserver(pull);
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
-    return () => {
-      cancelAnimationFrame(raf);
-      mq.removeEventListener('change', pull);
-      window.removeEventListener('resize', pull);
-      window.visualViewport?.removeEventListener('resize', pull);
-      mo.disconnect();
-    };
   }, []);
 
   useEffect(() => watchAuthState(setAuthState), []);
@@ -1050,8 +1021,8 @@ const App: React.FC = () => {
   // 入陣無縫轉場：戰鬥背景／人物／呼吸沿用主頁預覽（同關、同尺寸時）
   const activeHomeBox = homeBox && currentLevel && homeBox.levelId === currentLevel.id && Math.abs(homeBox.W - appSize.w) < 1 && Math.abs(homeBox.H - appSize.h) < 1 ? homeBox : null;
   const grounded = useMemo(
-    () => battleScene ? computeGroundedBattle(battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox, battleInsets) : null,
-    [battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox, battleInsets]
+    () => battleScene ? computeGroundedBattle(battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox) : null,
+    [battleAnchor, battleScene, appSize.w, appSize.h, activeHomeBox]
   );
   const battleLayout = useMemo(
     () => grounded?.layout ?? computeBattleLayout(battleAnchor, appSize.w, appSize.h),
@@ -1247,7 +1218,7 @@ const App: React.FC = () => {
             <InputPad options={shuffledOptions} usedIndices={gameState.usedIndices} disabled={!gameState.isTurnActive || gameState.isPaused} onOptionClick={handleOptionClickAction} isEnemyAttacking={isInputErrorDimmed} showUI={showInputPadUI} isExiting={isInputPadExiting} suppressExitAnim={suppressExitAnim} />
             <BossSpeech message={bossSpeechMsg} bossName={currentLevel?.bossName || ""} duration={isFatalDefeat ? 99999 : 2000 * timeScale} isFatal={isFatalDefeat} theme={theme} />
           </div>
-          <div className="absolute left-0 w-full h-[10px] bg-black z-[90] transition-opacity duration-500" style={{ bottom: "calc(40% + 1px)", opacity: ['player_hp','input_pad','ready','playing'].includes(introStage) && !isFatalDefeat ? 1 : 0 }}>
+          <div className="absolute left-0 w-full h-[10px] bg-black z-[90] transition-opacity duration-500" style={{ bottom: "calc(40% + 1px)" /* 頂緣 ≡ battlePlayerHpTopY（綠線三角） */, opacity: ['player_hp','input_pad','ready','playing'].includes(introStage) && !isFatalDefeat ? 1 : 0 }}>
             <div className="hp-text">{Math.floor(gameState.playerHp)} / {gameState.maxPlayerHp}</div>
             <div className={`absolute inset-0 bg-[#28a745] z-[33] hp-bar-gpu-layer ${introStage === 'player_hp' ? 'hp-fill-slow' : 'hp-fill-hit'}`} style={{ transform: `scaleX(${gameState.playerHp/gameState.maxPlayerHp})` }} />
           </div>
